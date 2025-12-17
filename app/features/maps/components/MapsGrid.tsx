@@ -6,31 +6,31 @@ const maps: MapData[] = [
     id: 'dam-battlegrounds',
     name: 'Dam Battlegrounds',
     href: '/maps/dam-battlegrounds',
-    imageUrl: '/images/maps/dam-battlegrounds.jpg'
+    imageUrl: '/imagesmaps/dambattlegrounds.webp'
   },
   {
     id: 'the-spaceport',
     name: 'The Spaceport',
     href: '/maps/the-spaceport',
-    imageUrl: '/images/maps/the-spaceport.jpg'
+    imageUrl: '/imagesmaps/spaceport.webp'
   },
   {
     id: 'buried-city',
     name: 'Buried City',
     href: '/maps/buried-city',
-    imageUrl: '/images/maps/buried-city.jpg'
+    imageUrl: '/imagesmaps/buriecity.webp'
   },
   {
     id: 'blue-gate',
     name: 'Blue Gate',
     href: '/maps/blue-gate',
-    imageUrl: '/images/maps/blue-gate.jpg'
+    imageUrl: '/imagesmaps/blue-gate.webp'
   },
   {
     id: 'stella-montis',
     name: 'Stella Montis',
     href: '/maps/stella-montis',
-    imageUrl: '/images/maps/stella-montis.jpg'
+    imageUrl: '/imagesmaps/blue-gate.webp'
   }
 ];
 

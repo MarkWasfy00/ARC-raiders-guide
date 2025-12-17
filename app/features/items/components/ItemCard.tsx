@@ -34,7 +34,7 @@ export function ItemCard({ item }: ItemCardProps) {
     <Link
       ref={cardRef}
       href={`/items/${item.id}`}
-      className="group relative flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      className="group relative flex items-center gap-2 p-1.5 rounded-lg border border-border hover:bg-accent hover:border-primary/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onFocus={() => setIsHovered(true)}
@@ -42,7 +42,7 @@ export function ItemCard({ item }: ItemCardProps) {
       aria-label={`View ${item.name} details`}
     >
       {/* Item Thumbnail */}
-      <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden">
+      <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-muted rounded-md overflow-hidden">
         <Image
           src={item.imageUrl}
           alt=""
@@ -61,7 +61,7 @@ export function ItemCard({ item }: ItemCardProps) {
       {isHovered && (
         <div
           ref={hoverCardRef}
-          className="absolute z-50 w-64 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 pointer-events-none"
+          className="absolute z-50 w-64 bg-card border border-border rounded-lg shadow-xl p-4 pointer-events-none"
           style={{
             top: '50%',
             left: '100%',
@@ -70,7 +70,7 @@ export function ItemCard({ item }: ItemCardProps) {
           }}
         >
           {/* Item Photo - Larger */}
-          <div className="relative w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden mb-3">
+          <div className="relative w-full h-32 bg-muted rounded-md overflow-hidden mb-3">
             <Image
               src={item.imageUrl}
               alt=""
@@ -81,44 +81,44 @@ export function ItemCard({ item }: ItemCardProps) {
           </div>
 
           {/* Classification Badge */}
-          <div className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-semibold rounded mb-2">
+          <div className="inline-block px-2 py-1 bg-secondary text-secondary-foreground text-xs font-semibold rounded mb-2">
             {item.classification}
           </div>
 
           {/* Item Name Header */}
-          <h3 className="text-base font-bold mb-2">{item.name}</h3>
+          <h3 className="text-base font-bold mb-2 text-foreground">{item.name}</h3>
 
           {/* Description */}
-          <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-1">
+          <p className="text-xs text-muted-foreground mb-3 line-clamp-1">
             {item.description}
           </p>
 
           {/* Two-column Detail Row */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Stack size</p>
-              <p className="text-sm font-semibold">{item.stackSize}</p>
+              <p className="text-xs text-muted-foreground">Stack size</p>
+              <p className="text-sm font-semibold text-foreground">{item.stackSize}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Size</p>
-              <p className="text-sm font-semibold">{item.size}</p>
+              <p className="text-xs text-muted-foreground">Size</p>
+              <p className="text-sm font-semibold text-foreground">{item.size}</p>
             </div>
           </div>
 
           {/* Category Label */}
-          <div className="inline-block px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs font-semibold rounded mb-3">
+          <div className="inline-block px-2 py-1 bg-accent text-accent-foreground text-xs font-semibold rounded mb-3">
             {item.category}
           </div>
 
           {/* Bottom Row */}
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Weight</p>
-              <p className="text-sm font-semibold">{item.weight}</p>
+              <p className="text-xs text-muted-foreground">Weight</p>
+              <p className="text-sm font-semibold text-foreground">{item.weight}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Recycle value</p>
-              <p className="text-sm font-semibold">{item.recycleValue}</p>
+              <p className="text-xs text-muted-foreground">Recycle value</p>
+              <p className="text-sm font-semibold text-foreground">{item.recycleValue}</p>
             </div>
           </div>
         </div>

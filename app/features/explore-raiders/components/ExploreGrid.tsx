@@ -6,63 +6,63 @@ const categories: ExploreCategory[] = [
     id: 'guides',
     title: 'GUIDES',
     href: '/guides',
-    imageUrl: '/images/categories/guides.jpg',
+    imageUrl: '/images/categories/guides.webp',
     description: 'Complete walkthroughs and strategies'
   },
   {
     id: 'items',
     title: 'ITEMS',
     href: '/items',
-    imageUrl: '/images/categories/items.jpg',
+    imageUrl: '/images/categories/items.webp',
     description: 'Browse all items and equipment'
   },
   {
     id: 'arcs',
     title: 'ARCS',
     href: '/arcs',
-    imageUrl: '/images/categories/arcs.jpg',
+    imageUrl: '/images/categories/arcs.webp',
     description: 'Discover all Arc types and abilities'
   },
   {
     id: 'quests',
     title: 'QUESTS',
     href: '/quests',
-    imageUrl: '/images/categories/quests.jpg',
+    imageUrl: '/images/categories/quests.webp',
     description: 'Mission objectives and rewards'
   },
   {
     id: 'traders',
     title: 'TRADERS',
     href: '/traders',
-    imageUrl: '/images/categories/traders.jpg',
+    imageUrl: '/images/categories/traders.webp',
     description: 'Find and trade with NPCs'
   },
   {
     id: 'skill-tree',
     title: 'SKILL TREE',
     href: '/skill-tree',
-    imageUrl: '/images/categories/skill-tree.jpg',
+    imageUrl: '/images/categories/skill-tree.webp',
     description: 'Plan your character progression'
   },
   {
     id: 'loadouts',
     title: 'LOADOUTS',
     href: '/loadouts',
-    imageUrl: '/images/categories/loadouts.jpg',
+    imageUrl: '/images/categories/loadouts.webp',
     description: 'Optimal equipment setups'
   },
   {
     id: 'loot-value',
     title: 'LOOT VALUE',
     href: '/loot-value',
-    imageUrl: '/images/categories/loot-value.jpg',
+    imageUrl: '/images/categories/loot-value.webp',
     description: 'Item values and economics'
   },
   {
     id: 'needed-items',
     title: 'NEEDED ITEMS',
     href: '/needed-items',
-    imageUrl: '/images/categories/needed-items.jpg',
+    imageUrl: '/images/categories/needed-items.webp',
     description: 'Track essential items for quests'
   }
 ];

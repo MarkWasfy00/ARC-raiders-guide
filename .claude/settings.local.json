@@ -5,7 +5,11 @@
       "Bash(mkdir:*)",
       "mcp__shadcn__getComponents",
       "Bash(npm run dev:*)",
-      "mcp__shadcn__getComponent"
+      "mcp__shadcn__getComponent",
+      "Bash(taskkill /F /PID 23424)",
+      "Bash(taskkill:*)",
+      "Bash(dir:*)",
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": [],
     "ask": []

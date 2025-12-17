@@ -12,7 +12,7 @@ export function ExploreCard({ category }: ExploreCardProps) {
   return (
     <Link
       href={category.href}
-      className="group relative overflow-hidden rounded-lg bg-gray-900 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:scale-[1.02] focus-visible:shadow-2xl"
+      className="group relative overflow-hidden rounded-lg bg-card border-2 border-border transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:scale-[1.02] focus-visible:shadow-xl"
       style={{ aspectRatio: '150/30' }}
       aria-label={`Open ${category.title} page`}
     >
@@ -28,25 +28,25 @@ export function ExploreCard({ category }: ExploreCardProps) {
       </div>
 
       {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/50 to-transparent" />
 
       {/* Content */}
       <div className="absolute inset-0 flex flex-col justify-center p-2 md:p-3">
         {/* Title */}
-        <h3 className="text-xs sm:text-sm md:text-base font-bold text-white transition-transform duration-300 group-hover:translate-x-1">
+        <h3 className="text-xs sm:text-sm md:text-base font-bold text-foreground transition-transform duration-300 group-hover:translate-x-1">
           {category.title}
         </h3>
 
         {/* Optional Description - Hidden by default, shown on hover */}
         {category.description && (
-          <p className="text-[10px] sm:text-xs text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-0.5">
+          <p className="text-[10px] sm:text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-0.5">
             {category.description}
           </p>
         )}
       </div>
 
       {/* Hover Border Effect */}
-      <div className="absolute inset-0 border-2 border-transparent group-hover:border-white/20 rounded-lg transition-colors duration-300" />
+      <div className="absolute inset-0 border-2 border-transparent group-hover:border-primary/30 rounded-lg transition-colors duration-300" />
     </Link>
   );
 }
