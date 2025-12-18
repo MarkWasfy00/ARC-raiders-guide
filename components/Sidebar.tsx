@@ -116,7 +116,8 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
               <button
                 onClick={() => toggleMenu(item.label)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "w-full flex items-center rounded-lg transition-colors",
+                  expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center px-2 py-2",
                   "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent",
                   isChildActive(item.children!) && "text-primary"
                 )}
@@ -124,7 +125,7 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
                 <Icon className="w-5 h-5 shrink-0" />
                 {expanded && (
                   <>
-                    <span className="flex-1 text-left text-sm">{item.label}</span>
+                    <span className="flex-1 text-left text-base">{item.label}</span>
                     <ChevronDown className={cn(
                       "w-4 h-4 transition-transform",
                       isOpen && "rotate-180"
@@ -134,7 +135,10 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
               </button>
 
               {expanded && isOpen && (
-                <div className="ml-8 mt-1 space-y-1 animate-fade-in">
+                <div
+                  className="ml-8 mt-1 space-y-1 overflow-hidden transition-[max-height] duration-300 ease-out"
+                  style={{ maxHeight: isOpen ? item.children!.length * 44 : 0 }}
+                >
                   {item.children!.map((child) => (
                     <Link
                       key={child.href}
@@ -163,14 +167,13 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                active
-                  ? "text-primary bg-sidebar-accent"
-                  : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
+                "flex items-center rounded-lg transition-colors",
+                expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center px-2 py-2",
+                active ? "text-primary bg-sidebar-accent" : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
               )}
             >
               <Icon className="w-5 h-5 shrink-0" />
-              {expanded && <span className="text-sm">{item.label}</span>}
+              {expanded && <span className="text-base">{item.label}</span>}
             </a>
           );
         }
@@ -180,14 +183,13 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
             key={item.label}
             href={item.href!}
             className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-              active
-                ? "text-primary bg-sidebar-accent"
-                : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
+              "flex items-center rounded-lg transition-colors",
+              expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center px-2 py-2",
+              active ? "text-primary bg-sidebar-accent" : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
             )}
           >
             <Icon className="w-5 h-5 shrink-0" />
-            {expanded && <span className="text-sm">{item.label}</span>}
+            {expanded && <span className="text-base">{item.label}</span>}
           </Link>
         );
       })}
@@ -203,7 +205,7 @@ export function Sidebar() {
       className={cn(
         "fixed left-0 top-14 bottom-0 bg-sidebar border-r border-sidebar-border z-40",
         "transition-all duration-300 ease-out overflow-hidden",
-        expanded ? "w-56" : "w-14"
+        expanded ? "w-64" : "w-16"
       )}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
@@ -214,16 +216,18 @@ export function Sidebar() {
           <Link
             href="/"
             className={cn(
-              "flex items-center gap-3 px-2 py-2 rounded-lg",
+              "flex w-full items-center rounded-lg",
+              expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center py-2",
               "text-primary hover:bg-sidebar-accent transition-colors"
             )}
           >
-            <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-primary">AR</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded bg-primary/20 text-primary shrink-0">
+              <span className="text-sm font-bold">AR</span>
             </div>
-            {expanded && <span className="text-sm font-medium">Arc Raiders</span>}
+            {expanded && <span className="text-base font-medium">Arc Raiders</span>}
           </Link>
         </div>
+        <div className="mx-3 mb-4 border-b border-sidebar-border" />
 
         {/* Main section */}
         <div className="px-2 space-y-6 flex-1">

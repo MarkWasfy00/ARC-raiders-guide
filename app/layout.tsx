@@ -27,9 +27,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{
-          background: 'radial-gradient(ellipse at top, oklch(0.24 0.03 50) 0%, var(--background) 50%, oklch(0.18 0.02 230) 100%)',
+          background: 'radial-gradient(ellipse at top, hsl(0 0% 12%) 0%, var(--background) 55%, hsl(0 0% 4%) 100%)',
           color: 'var(--foreground)',
           minHeight: '100vh'
         }}
