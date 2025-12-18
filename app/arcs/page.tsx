@@ -3,27 +3,24 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { arcs } from "@/lib/database";
+import { DatabaseHeader } from "@/components/DatabaseHeader";
 
 export default function ArcsPage() {
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
-      <div className="flex items-center gap-2 text-sm">
-        <Link href="/" className="text-muted-foreground transition-colors hover:text-foreground">
-          Arc Raiders
-        </Link>
-        <span className="text-muted-foreground">/</span>
-        <span className="text-foreground">ARCs</span>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">ARC Database</h1>
-          <p className="text-muted-foreground">Know your enemies and prepare counters.</p>
-        </div>
-        <button className="rounded-lg border border-border p-2 transition-colors hover:bg-secondary" type="button">
-          <Star className="h-5 w-5 text-muted-foreground" />
-        </button>
-      </div>
+    <div className="w-full px-[100px] py-8 space-y-6">
+      <DatabaseHeader
+        title="ARC Raiders Database"
+        breadcrumbs={[
+          { label: "Arc Raiders", href: "/" },
+          { label: "Database" },
+          { label: "ARCs" },
+        ]}
+        action={
+          <button className="rounded-lg border border-border p-2 transition-colors hover:bg-secondary" type="button" aria-label="Save page">
+            <Star className="h-5 w-5 text-muted-foreground" />
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {arcs.map((arc) => (

@@ -107,7 +107,8 @@ function sortItems(data: Item[], sortKey: SortKey, sortDir: SortDir) {
 }
 
 function buildListingSeed(items: Item[]): MarketplaceListing[] {
-  const source = items.length ? items : [];
+  const source = (items.length ? items : localItems).slice(0, 20);
+  if (!source.length) return [];
   const now = Date.now();
   const avatars = [
     "https://cdn.metaforge.app/arc-raiders/avatars/1.webp",
@@ -117,7 +118,7 @@ function buildListingSeed(items: Item[]): MarketplaceListing[] {
     "https://cdn.metaforge.app/arc-raiders/avatars/5.webp",
   ];
 
-  return (source.slice(0, 8).map((item, idx) => ({
+  return (source.map((item, idx) => ({
     id: `seed-${item.id}-${idx}`,
     type: idx % 2 === 0 ? "WTS" : "WTB",
     item,
@@ -312,13 +313,6 @@ function ValueRangePopover({
       <PopoverContent align="end" className="w-64 space-y-3 border-border bg-card text-foreground shadow-xl">
         <div className="flex items-center justify-between text-sm font-semibold">
           <span>Value range</span>
-          <button
-            type="button"
-            onClick={clear}
-            className="text-xs text-muted-foreground transition hover:text-foreground"
-          >
-            Clear
-          </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs text-muted-foreground">
@@ -343,13 +337,6 @@ function ValueRangePopover({
           </label>
         </div>
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={clear}
-            className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
-          >
-            Reset
-          </button>
           <button
             type="button"
             onClick={apply}
@@ -455,10 +442,20 @@ export default function DatabaseItemsPage() {
   const [searchInput, setSearchInput] = useState(searchParams.get("search") || "");
   const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
   const [rarityFilter, setRarityFilter] = useState<string[]>(
-    searchParams.get("rarity") ? searchParams.get("rarity")!.split(",") : []
+    searchParams.get("rarity")
+      ? searchParams
+          .get("rarity")!
+          .split(",")
+          .map((val) => val.toLowerCase())
+      : []
   );
   const [typeFilter, setTypeFilter] = useState<string[]>(
-    searchParams.get("itemTypes") ? searchParams.get("itemTypes")!.split(",") : []
+    searchParams.get("itemTypes")
+      ? searchParams
+          .get("itemTypes")!
+          .split(",")
+          .map((val) => val.toLowerCase())
+      : []
   );
   const [valueRange, setValueRange] = useState<{ min?: number; max?: number }>(() => {
     const min = searchParams.get("valueMin");
@@ -475,8 +472,7 @@ export default function DatabaseItemsPage() {
     searchParams.get("dir") === "desc" ? "desc" : "asc"
   );
 
-  const [itemsData, setItemsData] = useState<Item[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
+  const [allItems, setAllItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [typeOptions, setTypeOptions] = useState<string[]>([]);
@@ -537,22 +533,14 @@ export default function DatabaseItemsPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetchItems({
-      page,
-      pageSize: DEFAULT_PAGE_SIZE,
-      search: searchTerm || undefined,
-      rarity: rarityFilter.length ? rarityFilter.join(",") : undefined,
-      type: typeFilter.length ? typeFilter.join(",") : undefined,
-      minValue: valueRange.min,
-      maxValue: valueRange.max,
-    })
+    fetchItems({ page: 1, pageSize: 500 })
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data : [];
-        setItemsData(sortItems(data, sortKey, sortDir));
-        setTotalItems(res.total ?? data.length);
+        const dataset = data.length ? data : localItems;
+        setAllItems(dataset);
         if (!typeOptions.length) {
           const uniqueTypes = Array.from(
-            new Set(data.map((item) => item.item_type).filter(Boolean) as string[])
+            new Set(dataset.map((item) => item.item_type).filter(Boolean) as string[])
           ).sort();
           setTypeOptions(uniqueTypes);
         }
@@ -561,42 +549,77 @@ export default function DatabaseItemsPage() {
         const message =
           err instanceof Error ? err.message : "Failed to load items. Please retry.";
         setError(message);
-        // fallback to local items so UI remains usable offline
-        const fallback = sortItems(localItems, sortKey, sortDir);
-        setItemsData(fallback.slice(0, DEFAULT_PAGE_SIZE));
-        setTotalItems(fallback.length);
+        const fallback = localItems;
+        setAllItems(fallback);
         if (!typeOptions.length) {
           const uniqueTypes = Array.from(
-            new Set(localItems.map((item) => item.item_type).filter(Boolean) as string[])
+            new Set(fallback.map((item) => item.item_type).filter(Boolean) as string[])
           ).sort();
           setTypeOptions(uniqueTypes);
         }
       })
       .finally(() => setLoading(false));
-  }, [page, searchTerm, rarityFilter, typeFilter, valueRange.min, valueRange.max, sortKey, sortDir]);
+  }, []);
 
   useEffect(() => {
-    if (typeOptions.length === 0) {
-      fetchItems({ page: 1, pageSize: 200 })
-        .then((res) => {
-          const uniqueTypes = Array.from(
-            new Set(res.data.map((item) => item.item_type).filter(Boolean) as string[])
-          ).sort();
-          setTypeOptions(uniqueTypes);
-          if (!listings.length) setListings(buildListingSeed(res.data));
-        })
-        .catch(() => {
-          if (!listings.length) setListings(buildListingSeed([]));
-        });
-    } else if (!listings.length && itemsData.length) {
-      setListings(buildListingSeed(itemsData));
+    if (allItems.length && !typeOptions.length) {
+      const uniqueTypes = Array.from(
+        new Set(allItems.map((item) => item.item_type).filter(Boolean) as string[])
+      ).sort();
+      setTypeOptions(uniqueTypes);
     }
-  }, [typeOptions.length, listings.length, itemsData]);
+  }, [allItems, typeOptions.length]);
+
+  useEffect(() => {
+    if (!listings.length && allItems.length) {
+      setListings(buildListingSeed(allItems));
+    }
+  }, [listings.length, allItems]);
+
+  const filteredItems = useMemo(() => {
+    return allItems
+      .filter((item) => {
+        if (!searchTerm) return true;
+        const value = searchTerm.toLowerCase();
+        return (
+          item.name.toLowerCase().includes(value) ||
+          (item.description || "").toLowerCase().includes(value) ||
+          (item.item_type || "").toLowerCase().includes(value)
+        );
+      })
+      .filter((item) => (rarityFilter.length ? rarityFilter.includes((item.rarity || "").toLowerCase()) : true))
+      .filter((item) =>
+        typeFilter.length ? typeFilter.includes((item.item_type || "").toLowerCase()) : true
+      )
+      .filter((item) => {
+        if (valueRange.min !== undefined && (item.value ?? 0) < valueRange.min) return false;
+        if (valueRange.max !== undefined && (item.value ?? 0) > valueRange.max) return false;
+        return true;
+      });
+  }, [allItems, searchTerm, rarityFilter, typeFilter, valueRange.min, valueRange.max]);
+
+  const sortedItems = useMemo(
+    () => sortItems(filteredItems, sortKey, sortDir),
+    [filteredItems, sortKey, sortDir]
+  );
+
+  const totalItems = sortedItems.length;
+
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * DEFAULT_PAGE_SIZE;
+    return sortedItems.slice(start, start + DEFAULT_PAGE_SIZE);
+  }, [sortedItems, page]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalItems / DEFAULT_PAGE_SIZE)),
     [totalItems]
   );
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const updateUrl = (nextPage: number) => {
     const qs = new URLSearchParams(searchParams.toString());
@@ -654,10 +677,22 @@ export default function DatabaseItemsPage() {
     if (nextSearch !== searchInput) setSearchInput(nextSearch);
     if (nextSearch !== searchTerm) setSearchTerm(nextSearch);
 
-    const nextRarity = qp.get("rarity") ? qp.get("rarity")!.split(",").filter(Boolean) : [];
+    const nextRarity = qp.get("rarity")
+      ? qp
+          .get("rarity")!
+          .split(",")
+          .filter(Boolean)
+          .map((val) => val.toLowerCase())
+      : [];
     if (!arraysEqual(nextRarity, rarityFilter)) setRarityFilter(nextRarity);
 
-    const nextTypes = qp.get("itemTypes") ? qp.get("itemTypes")!.split(",").filter(Boolean) : [];
+    const nextTypes = qp.get("itemTypes")
+      ? qp
+          .get("itemTypes")!
+          .split(",")
+          .filter(Boolean)
+          .map((val) => val.toLowerCase())
+      : [];
     if (!arraysEqual(nextTypes, typeFilter)) setTypeFilter(nextTypes);
 
     const min = qp.get("valueMin");
@@ -727,15 +762,17 @@ export default function DatabaseItemsPage() {
 
   const toggleRarity = (value: string) => {
     setPage(1);
+    const nextVal = value.toLowerCase();
     setRarityFilter((prev) =>
-      prev.includes(value) ? prev.filter((r) => r !== value) : [...prev, value]
+      prev.includes(nextVal) ? prev.filter((r) => r !== nextVal) : [...prev, nextVal]
     );
   };
 
   const toggleType = (value: string) => {
     setPage(1);
+    const nextValue = value.toLowerCase();
     setTypeFilter((prev) =>
-      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]
+      prev.includes(nextValue) ? prev.filter((t) => t !== nextValue) : [...prev, nextValue]
     );
   };
 
@@ -753,25 +790,26 @@ export default function DatabaseItemsPage() {
     setValueRange(nextRange);
   };
 
+  const clearValueRange = () => {
+    setPage(1);
+    setValueRange({});
+  };
+
   const resetFilters = () => {
     setSearchInput("");
     setSearchTerm("");
     setRarityFilter([]);
     setTypeFilter([]);
     setValueRange({});
-    setSortKey("name");
-    setSortDir("asc");
+    setError(null);
+    setLoading(false);
     setPage(1);
+    const base = isMarketplaceRoute ? "/marketplace" : "/database/items/page/1";
+    router.replace(base, { scroll: false });
   };
 
   const clearParamsCTA = () => {
     resetFilters();
-    setOrderType("all");
-    setCurrencyType("all");
-    setRatingSort("default");
-    setListingTypeFilter("all");
-    setVisibleSell(4);
-    setVisibleBuy(4);
   };
 
   const ensureEmbarkId = () => {
@@ -851,9 +889,9 @@ export default function DatabaseItemsPage() {
   };
 
   const filteredItemsForWizard = useMemo(() => {
-    if (!wizardState.selectedItem) return itemsData.slice(0, 15);
-    return itemsData;
-  }, [itemsData, wizardState.selectedItem]);
+    if (!wizardState.selectedItem) return sortedItems.slice(0, 15);
+    return sortedItems;
+  }, [sortedItems, wizardState.selectedItem]);
 
   const selectedSortLabel = (key: SortKey) => {
     const labelMap: Record<SortKey, string> = {
@@ -867,7 +905,7 @@ export default function DatabaseItemsPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8 space-y-8">
+    <div className="w-full px-[100px] py-8 space-y-8">
       {welcomeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-2xl space-y-4 rounded-2xl border border-border bg-card p-6 shadow-2xl">
@@ -1156,7 +1194,7 @@ export default function DatabaseItemsPage() {
                             <select
                               value={line.item?.id || ""}
                               onChange={(e) => {
-                                const chosen = itemsData.find((it) => it.id === e.target.value);
+                                const chosen = sortedItems.find((it) => it.id === e.target.value);
                                 setWizardState((prev) => ({
                                   ...prev,
                                   barterLines: prev.barterLines.map((b) =>
@@ -1167,7 +1205,7 @@ export default function DatabaseItemsPage() {
                               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
                             >
                               <option value="">Select item</option>
-                              {itemsData.slice(0, 20).map((it) => (
+                              {sortedItems.slice(0, 20).map((it) => (
                                 <option key={it.id} value={it.id}>
                                   {it.name}
                                 </option>
@@ -1364,12 +1402,14 @@ export default function DatabaseItemsPage() {
             >
               My Listings
             </Link>
-            <Link
-              href="/trades"
-              className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
-            >
-              My Trades
-            </Link>
+            {!isMarketplaceRoute && (
+              <Link
+                href="/trades"
+                className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
+              >
+                My Trades
+              </Link>
+            )}
             <Link
               href="/messages"
               className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
@@ -1500,7 +1540,8 @@ export default function DatabaseItemsPage() {
         </div>
       </div>
 
-      <div className="space-y-3 rounded-xl border border-border bg-card/70 p-4 shadow-sm">
+      {!isMarketplaceRoute && (
+        <div className="space-y-3 rounded-xl border border-border bg-card/70 p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Items database</p>
@@ -1508,8 +1549,9 @@ export default function DatabaseItemsPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-lg border border-border">
-          <div className="grid grid-cols-6 bg-secondary/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="min-w-[960px]">
+            <div className="grid grid-cols-[1.4fr_2fr_1fr_1fr_1fr_1.2fr] bg-secondary/30 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {([
               { key: "name", label: "Name" },
               { key: "description", label: "Description", sortable: false },
@@ -1556,13 +1598,6 @@ export default function DatabaseItemsPage() {
                     <PopoverContent align="start" className="w-56 space-y-2 border-border bg-card p-3 text-sm shadow-xl">
                       <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         <span>Rarity</span>
-                        <button
-                          type="button"
-                          onClick={() => setRarityFilter([])}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          Clear
-                        </button>
                       </div>
                       {["common", "uncommon", "rare", "epic", "legendary"].map((rarity) => (
                         <label
@@ -1585,7 +1620,7 @@ export default function DatabaseItemsPage() {
                   <ValueRangePopover
                     value={valueRange}
                     onApply={applyValueRange}
-                    onClear={() => setValueRange({})}
+                    onClear={clearValueRange}
                     isActive={valueRange.min !== undefined || valueRange.max !== undefined}
                   />
                 )}
@@ -1606,13 +1641,6 @@ export default function DatabaseItemsPage() {
                     <PopoverContent align="end" className="w-64 space-y-2 border-border bg-card p-3 text-sm shadow-xl">
                       <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         <span>Type</span>
-                        <button
-                          type="button"
-                          onClick={() => setTypeFilter([])}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          Clear
-                        </button>
                       </div>
                       {typeOptions.map((type) => (
                         <label
@@ -1621,7 +1649,7 @@ export default function DatabaseItemsPage() {
                         >
                           <input
                             type="checkbox"
-                            checked={typeFilter.includes(type)}
+                            checked={typeFilter.includes(type.toLowerCase())}
                             onChange={() => toggleType(type)}
                             className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                           />
@@ -1635,12 +1663,12 @@ export default function DatabaseItemsPage() {
             ))}
           </div>
 
-          <div className="divide-y divide-border/70">
+            <div className="divide-y divide-border/70">
             {loading &&
               Array.from({ length: 8 }).map((_, idx) => (
                 <div
                   key={`skeleton-${idx}`}
-                  className="grid grid-cols-6 items-center gap-3 px-3 py-3 animate-pulse"
+                  className="grid grid-cols-[1.4fr_2fr_1fr_1fr_1fr_1.2fr] items-center gap-3 px-3 py-3 animate-pulse"
                 >
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded bg-secondary/50" />
@@ -1656,8 +1684,8 @@ export default function DatabaseItemsPage() {
 
             {!loading &&
               !error &&
-              itemsData.map((item) => (
-                <div key={item.id} className="grid grid-cols-6 items-center gap-3 px-3 py-3 hover:bg-secondary/20">
+              pagedItems.map((item) => (
+                <div key={item.id} className="grid grid-cols-[1.4fr_2fr_1fr_1fr_1fr_1.2fr] items-center gap-3 px-3 py-3 hover:bg-secondary/20">
                   <div className="flex items-center gap-3">
                     <Link
                       href={`/items/${item.id}`}
@@ -1691,24 +1719,16 @@ export default function DatabaseItemsPage() {
                   <div className="text-sm text-muted-foreground">{item.item_type || "-"}</div>
                 </div>
               ))}
+            </div>
           </div>
         </div>
 
-        {!loading && !error && itemsData.length === 0 && (
+        {!loading && !error && sortedItems.length === 0 && (
           <div className="rounded-lg border border-dashed border-border/70 bg-secondary/10 p-6 text-center">
             <p className="text-foreground">No items found</p>
             <p className="text-sm text-muted-foreground">
               Try another search or clear filters to see all items.
             </p>
-            <div className="mt-3 flex justify-center">
-              <button
-                type="button"
-                onClick={clearParamsCTA}
-                className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
-              >
-                Clear filters
-              </button>
-            </div>
           </div>
         )}
 
@@ -1721,19 +1741,17 @@ export default function DatabaseItemsPage() {
               onClick={() => {
                 setError(null);
                 setLoading(true);
-                fetchItems({
-                  page,
-                  pageSize: DEFAULT_PAGE_SIZE,
-                  search: searchTerm || undefined,
-                  rarity: rarityFilter.length ? rarityFilter.join(",") : undefined,
-                  type: typeFilter.length ? typeFilter.join(",") : undefined,
-                  minValue: valueRange.min,
-                  maxValue: valueRange.max,
-                })
+                fetchItems({ page: 1, pageSize: 500 })
                   .then((res) => {
                     const data = Array.isArray(res.data) ? res.data : [];
-                    setItemsData(sortItems(data, sortKey, sortDir));
-                    setTotalItems(res.total ?? data.length);
+                    const dataset = data.length ? data : localItems;
+                    setAllItems(dataset);
+                    if (!typeOptions.length) {
+                      const uniqueTypes = Array.from(
+                        new Set(dataset.map((item) => item.item_type).filter(Boolean) as string[])
+                      ).sort();
+                      setTypeOptions(uniqueTypes);
+                    }
                   })
                   .catch(() => setError("Failed to load items. Please try again."))
                   .finally(() => setLoading(false));
@@ -1760,6 +1778,7 @@ export default function DatabaseItemsPage() {
           />
         </div>
       </div>
+      )}
     </div>
   );
 }

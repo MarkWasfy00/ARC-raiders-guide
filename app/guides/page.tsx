@@ -17,7 +17,7 @@ export default function GuidesPage() {
   const paginatedGuides = guides.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
+    <div className="w-full px-[100px] py-8 space-y-6">
       <div className="flex items-center gap-2 text-sm">
         <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
           Arc Raiders
@@ -29,7 +29,6 @@ export default function GuidesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold text-foreground">Guides</h1>
-          <p className="text-muted-foreground">Browse community-style guides, routes, and tips for every stage of play.</p>
         </div>
         <button
           className="rounded-lg border border-border p-2 transition-colors hover:bg-secondary"

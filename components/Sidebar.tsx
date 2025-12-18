@@ -72,13 +72,11 @@ const otherItems: SidebarItem[] = [
   { icon: ScrollText, label: 'Skilltree', href: '/skilltree' },
   { icon: Trophy, label: 'Tier Lists', href: '/tier-lists' },
   { icon: Calendar, label: 'Event Timer', href: '/events' },
-  { icon: Code, label: 'API & Tooltip', href: '/api' },
+  { icon: MessageCircle, label: 'Reddit', href: 'https://www.reddit.com/r/ArcRaiders/', external: true },
+  { icon: Users, label: 'LFG Discord', href: 'https://discord.com/invite/mVMtSsfswq', external: true },
 ];
 
-const externalItems: SidebarItem[] = [
-  { icon: MessageCircle, label: 'Reddit', href: 'https://www.reddit.com/r/ArcRaiders/', external: true },
-  { icon: Users, label: 'LFG Discord Hub', href: 'https://discord.com/invite/mVMtSsfswq', external: true },
-];
+const externalItems: SidebarItem[] = [];
 
 const bottomItems: SidebarItem[] = [
   { icon: Settings, label: 'Settings', href: '/settings' },
@@ -109,6 +107,9 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
         const hasChildren = item.children && item.children.length > 0;
         const isOpen = openMenus.includes(item.label) || (hasChildren && isChildActive(item.children!));
         const active = item.href ? isActive(item.href) : false;
+        const labelClasses = expanded
+          ? "flex-1 min-w-0 text-left text-base truncate"
+          : "hidden";
 
         if (hasChildren) {
           return (
@@ -116,21 +117,20 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
               <button
                 onClick={() => toggleMenu(item.label)}
                 className={cn(
-                  "w-full flex items-center rounded-lg transition-colors",
-                  expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center px-2 py-2",
+                  "w-full flex items-center rounded-lg transition-colors h-11 px-3 gap-3 justify-start",
                   "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent",
                   isChildActive(item.children!) && "text-primary"
                 )}
               >
                 <Icon className="w-5 h-5 shrink-0" />
+                <span className={labelClasses}>
+                  {item.label}
+                </span>
                 {expanded && (
-                  <>
-                    <span className="flex-1 text-left text-base">{item.label}</span>
-                    <ChevronDown className={cn(
-                      "w-4 h-4 transition-transform",
-                      isOpen && "rotate-180"
-                    )} />
-                  </>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 transition-transform",
+                    isOpen && "rotate-180"
+                  )} />
                 )}
               </button>
 
@@ -167,13 +167,12 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "flex items-center rounded-lg transition-colors",
-                expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center px-2 py-2",
+                "flex items-center rounded-lg transition-colors h-11 px-3 gap-3 justify-start",
                 active ? "text-primary bg-sidebar-accent" : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
               )}
             >
               <Icon className="w-5 h-5 shrink-0" />
-              {expanded && <span className="text-base">{item.label}</span>}
+              <span className={labelClasses}>{item.label}</span>
             </a>
           );
         }
@@ -183,13 +182,12 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
             key={item.label}
             href={item.href!}
             className={cn(
-              "flex items-center rounded-lg transition-colors",
-              expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center px-2 py-2",
+              "flex items-center rounded-lg transition-colors h-11 px-3 gap-3 justify-start",
               active ? "text-primary bg-sidebar-accent" : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
             )}
           >
             <Icon className="w-5 h-5 shrink-0" />
-            {expanded && <span className="text-base">{item.label}</span>}
+            <span className={labelClasses}>{item.label}</span>
           </Link>
         );
       })}
@@ -203,59 +201,58 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-14 bottom-0 bg-sidebar border-r border-sidebar-border z-40",
-        "transition-all duration-300 ease-out overflow-hidden",
+        "fixed left-0 top-14 bottom-0 bg-sidebar border-r border-sidebar-border z-40 overflow-hidden",
+        "transition-all duration-300 ease-out",
         expanded ? "w-64" : "w-16"
       )}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
-      <div className="flex flex-col h-full py-4 overflow-y-auto scrollbar-thin">
+      <div className="relative flex flex-col h-full min-h-0 py-4">
         {/* Game icon at top */}
-        <div className="px-3 mb-4">
+        <div className="px-2 mb-4 relative z-20 bg-sidebar">
           <Link
             href="/"
             className={cn(
-              "flex w-full items-center rounded-lg",
-              expanded ? "gap-3 px-3 py-2 justify-start" : "justify-center py-2",
+              "flex w-full items-center rounded-lg h-11 px-2 gap-2 transition-colors justify-start",
               "text-primary hover:bg-sidebar-accent transition-colors"
             )}
           >
             <div className="flex h-9 w-9 items-center justify-center rounded bg-primary/20 text-primary shrink-0">
               <span className="text-sm font-bold">AR</span>
             </div>
-            {expanded && <span className="text-base font-medium">Arc Raiders</span>}
+            <span
+              className={cn(
+                "text-base font-medium truncate whitespace-nowrap transition-opacity duration-200 flex-1 min-w-0",
+                expanded ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}
+            >
+              Arc Raiders
+            </span>
           </Link>
         </div>
-        <div className="mx-3 mb-4 border-b border-sidebar-border" />
+        <div className="mx-3 mb-4 border-b border-sidebar-border relative z-10" />
 
-        {/* Main section */}
-        <div className="px-2 space-y-6 flex-1">
+        {/* Main + secondary sections */}
+        <div
+          className={cn(
+            "px-2 space-y-3 flex-1 min-h-0 pb-6 relative z-10",
+            expanded ? "overflow-y-auto scrollbar-thin" : "overflow-hidden"
+          )}
+        >
           <SidebarSection items={mainItems} expanded={expanded} />
 
-          <div className="border-t border-sidebar-border pt-4">
-            <SidebarSection items={databaseItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={databaseItems} expanded={expanded} />
 
-          <div className="border-t border-sidebar-border pt-4">
-            <SidebarSection items={mapItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={mapItems} expanded={expanded} />
 
-          <div className="border-t border-sidebar-border pt-4">
-            <SidebarSection items={trackerItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={trackerItems} expanded={expanded} />
 
-          <div className="border-t border-sidebar-border pt-4">
-            <SidebarSection items={otherItems} expanded={expanded} />
-          </div>
-
-          <div className="border-t border-sidebar-border pt-4">
-            <SidebarSection items={externalItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={otherItems} expanded={expanded} />
         </div>
 
         {/* Bottom section */}
-        <div className="px-2 mt-auto pt-4 border-t border-sidebar-border">
+        <div className="px-2 pb-4 pt-4 border-t border-sidebar-border bg-sidebar relative z-20">
           <SidebarSection items={bottomItems} expanded={expanded} />
         </div>
       </div>

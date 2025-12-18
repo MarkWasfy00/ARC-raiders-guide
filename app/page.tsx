@@ -8,7 +8,7 @@ import { NewsGuides } from './features/news-guides';
 export default function Home() {
   return (
     <main className="min-h-screen">
-      <div className="container mx-auto px-4 py-8 space-y-12">
+      <div className="w-full px-[100px] py-8 space-y-12">
         {/* Hero Banner */}
         <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden bg-gradient-to-r from-primary/20 to-secondary/20">
           <Image
@@ -23,9 +23,6 @@ export default function Home() {
             <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground">
               ARC Raiders
             </h1>
-            <p className="mt-2 text-muted-foreground max-w-lg">
-              Your ultimate companion for Arc Raiders. Database, guides, maps, and tools all in one place.
-            </p>
           </div>
         </div>
 

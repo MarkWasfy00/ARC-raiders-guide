@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ArrowDownUp, Filter, Search, Star } from "lucide-react";
 import { items } from "@/lib/database";
 import { Pagination } from "@/components/common/Pagination";
+import { DatabaseHeader } from "@/components/DatabaseHeader";
 
 const rarityOrder: Record<string, number> = { legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 };
 
@@ -21,7 +23,7 @@ export default function ItemsPage() {
   const [valueDraft, setValueDraft] = useState<{ min: string; max: string }>({ min: "", max: "" });
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
-  const [page, setPage] = useState(1);
+  const searchParams = useSearchParams();
 
   const types = useMemo(() => {
     const set = new Set(items.map((i) => i.item_type).filter(Boolean) as string[]);
@@ -79,6 +81,8 @@ export default function ItemsPage() {
   }, [search, rarityFilter, typeFilter, sortField, sortDir, valueRange.max, valueRange.min]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageParam = Number(searchParams.get("page") || "1");
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
   const safePage = Math.min(Math.max(page, 1), totalPages);
   const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
@@ -92,17 +96,14 @@ export default function ItemsPage() {
   };
 
   const toggleRarity = (value: string) => {
-    setPage(1);
     setRarityFilter((prev) => (prev === value ? "" : value));
   };
 
   const toggleType = (value: string) => {
-    setPage(1);
     setTypeFilter((prev) => (prev === value ? "" : value));
   };
 
   const applyValueRange = (min?: number, max?: number) => {
-    setPage(1);
     setValueRange({ min, max });
   };
 
@@ -114,24 +115,20 @@ export default function ItemsPage() {
   }, [valueRange.min, valueRange.max]);
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8 space-y-6">
-      <div className="flex items-center gap-2 text-sm">
-        <Link href="/" className="text-muted-foreground transition-colors hover:text-foreground">
-          Arc Raiders
-        </Link>
-        <span className="text-muted-foreground">/</span>
-        <span className="text-foreground">Items</span>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">Items Database</h1>
-          <p className="text-muted-foreground">Search and browse the current ARC Raiders item pool.</p>
-        </div>
-        <button className="rounded-lg border border-border p-2 transition-colors hover:bg-secondary" type="button" aria-label="Save page">
-          <Star className="h-5 w-5 text-muted-foreground" />
-        </button>
-      </div>
+    <div className="w-full px-[100px] py-8 space-y-6">
+      <DatabaseHeader
+        title="ARC Raiders Database"
+        breadcrumbs={[
+          { label: "Arc Raiders", href: "/" },
+          { label: "Database" },
+          { label: "Items" },
+        ]}
+        action={
+          <button className="rounded-lg border border-border p-2 transition-colors hover:bg-secondary" type="button" aria-label="Save page">
+            <Star className="h-5 w-5 text-muted-foreground" />
+          </button>
+        }
+      />
 
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -139,7 +136,6 @@ export default function ItemsPage() {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(1);
           }}
           placeholder="Search items..."
           className="w-full rounded-lg border border-border bg-card px-10 py-2 text-sm outline-none transition focus:ring-2 focus:ring-primary/50"

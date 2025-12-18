@@ -19,36 +19,25 @@ function getPages(currentPage: number, totalPages: number) {
   const pages: Array<number | string> = [];
   if (totalPages <= 7) {
     for (let i = 1; i <= totalPages; i += 1) pages.push(i);
-    return pages;
+  } else {
+    pages.push(1, 2, 3, 4, "...", totalPages);
   }
-  pages.push(1);
-  if (currentPage > 3) pages.push("...");
-  for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i += 1) {
-    pages.push(i);
-  }
-  if (currentPage < totalPages - 2) pages.push("...");
-  pages.push(totalPages);
   return pages;
 }
 
 export function Pagination({ currentPage, totalPages, basePath, className }: PaginationProps) {
-  if (totalPages <= 1) return null;
+  if (totalPages <= 0) return null;
   const safePage = Math.min(Math.max(currentPage, 1), totalPages);
   const pages = getPages(safePage, totalPages);
 
   return (
-    <nav className={cn("flex items-center justify-center gap-1", className)} aria-label="Pagination">
-      <Link
-        href={buildHref(basePath, safePage - 1)}
-        aria-disabled={safePage === 1}
-        className={cn(
-          "flex h-9 w-9 items-center justify-center rounded border border-border text-sm text-muted-foreground transition-colors",
-          "hover:text-foreground hover:bg-secondary",
-          safePage === 1 && "pointer-events-none opacity-50"
-        )}
-      >
-        Prev
-      </Link>
+    <nav
+      className={cn(
+        "fixed bottom-4 left-1/2 z-50 inline-flex -translate-x-1/2 transform items-center justify-center gap-1 rounded-full bg-background/90 px-3 py-2 shadow-lg backdrop-blur supports-[backdrop-filter]:backdrop-blur",
+        className
+      )}
+      aria-label="Pagination"
+    >
       {pages.map((page, idx) =>
         typeof page === "number" ? (
           <Link
@@ -56,9 +45,9 @@ export function Pagination({ currentPage, totalPages, basePath, className }: Pag
             href={buildHref(basePath, page)}
             aria-current={safePage === page ? "page" : undefined}
             className={cn(
-              "flex h-9 min-w-[2.25rem] items-center justify-center rounded border border-border text-sm transition-colors",
+              "flex h-9 w-9 items-center justify-center rounded-md text-sm transition-colors",
               safePage === page
-                ? "bg-primary text-primary-foreground"
+                ? "border border-muted-foreground text-foreground shadow-lg shadow-border/40"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}
           >
@@ -70,17 +59,6 @@ export function Pagination({ currentPage, totalPages, basePath, className }: Pag
           </span>
         )
       )}
-      <Link
-        href={buildHref(basePath, safePage + 1)}
-        aria-disabled={safePage === totalPages}
-        className={cn(
-          "flex h-9 w-9 items-center justify-center rounded border border-border text-sm text-muted-foreground transition-colors",
-          "hover:text-foreground hover:bg-secondary",
-          safePage === totalPages && "pointer-events-none opacity-50"
-        )}
-      >
-        Next
-      </Link>
     </nav>
   );
 }

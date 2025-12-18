@@ -8,7 +8,7 @@ export default function QuestDetailPage({ params }: { params: { id: string } }) 
   if (!quest) return notFound();
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8 space-y-8">
+    <div className="w-full px-[100px] py-8 space-y-8">
       <div className="flex items-center gap-2 text-sm">
         <Link href="/" className="text-muted-foreground transition-colors hover:text-foreground">
           Arc Raiders
