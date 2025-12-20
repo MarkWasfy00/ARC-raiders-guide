@@ -285,12 +285,6 @@ export function Navbar() {
                     <button className="w-full text-left px-3 py-2 text-sm rounded hover:bg-secondary transition-colors">
                       My Listings
                     </button>
-                    <button className="w-full text-left px-3 py-2 text-sm rounded hover:bg-secondary transition-colors">
-                      My Trades
-                    </button>
-                    <button className="w-full text-left px-3 py-2 text-sm rounded hover:bg-secondary transition-colors">
-                      Messages
-                    </button>
                     <hr className="border-border my-1" />
                     <button className="w-full text-left px-3 py-2 text-sm text-destructive rounded hover:bg-secondary transition-colors">
                       Logout

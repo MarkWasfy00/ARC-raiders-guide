@@ -38,8 +38,11 @@ interface MarketplaceListing {
   createdAt: string;
   rating: number;
   user: {
+    id?: string;
     username: string;
     avatar: string;
+    embarkId?: string;
+    discord?: string;
   };
 }
 
@@ -65,6 +68,7 @@ const rarityOrder: Record<string, number> = {
 const DEFAULT_PAGE_SIZE = 20;
 const WELCOME_STORAGE_KEY = "arc-market-welcome";
 const EMBARK_ID_KEY = "arc-market-embark-id";
+const DISCORD_KEY = "arc-market-discord";
 
 function arraysEqual(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
@@ -140,6 +144,8 @@ function buildListingSeed(items: Item[]): MarketplaceListing[] {
     user: {
       username: ["GreyFox", "Nyx", "Patch", "Tala", "Axiom", "Riven"][idx % 6] ?? "Raider",
       avatar: avatars[idx % avatars.length],
+      embarkId: `Raider${idx + 1}#${1000 + idx}`,
+      discord: `raider${idx + 1}#${2000 + idx}`,
     },
   })) as MarketplaceListing[]).map((listing, idx) =>
     listing.currency === "barter" && listing.barterFor
@@ -154,9 +160,22 @@ function buildListingSeed(items: Item[]): MarketplaceListing[] {
   );
 }
 
-function ListingCard({ listing }: { listing: MarketplaceListing }) {
+function ListingCard({
+  listing,
+  onTrade,
+  isHighlighted,
+}: {
+  listing: MarketplaceListing;
+  onTrade?: (listing: MarketplaceListing) => void;
+  isHighlighted?: boolean;
+}) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card/80 p-4 shadow-sm">
+    <div
+      className={cn(
+        "flex flex-col gap-3 rounded-xl border bg-card/80 p-4 shadow-sm",
+        isHighlighted ? "border-orange-500 shadow-lg" : "border-border"
+      )}
+    >
       <div className="flex items-center gap-3">
         <img
           src={listing.user.avatar}
@@ -177,7 +196,12 @@ function ListingCard({ listing }: { listing: MarketplaceListing }) {
             <span className="text-muted-foreground">&bull;</span>
             <span>{formatDate(listing.createdAt)}</span>
           </div>
-          <p className="font-semibold leading-tight text-foreground">{listing.user.username}</p>
+          <p className="font-semibold leading-tight text-foreground flex flex-wrap items-center gap-2">
+            {listing.user.username}
+            <span className="text-[11px] text-muted-foreground bg-secondary/30 rounded px-2 py-0.5">
+              {listing.user.embarkId || "Embark ID unavailable"}
+            </span>
+          </p>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Star className="h-4 w-4 text-amber-400" />
             <span>{listing.rating.toFixed(1)}</span>
@@ -256,6 +280,17 @@ function ListingCard({ listing }: { listing: MarketplaceListing }) {
         {listing.note && listing.currency !== "open" && (
           <p className="text-xs text-muted-foreground">{listing.note}</p>
         )}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => onTrade?.(listing)}
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+        >
+          <span aria-hidden="true">🔁</span>
+          <span>Trade</span>
+        </button>
       </div>
     </div>
   );
@@ -432,7 +467,7 @@ function PaginationControl({
 export default function DatabaseItemsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const routeParams = useParams<{ page?: string }>();
+  const routeParams = useParams<{ page?: string; listingId?: string }>();
   const pathname = usePathname();
   const routePage = routeParams?.page;
   const isMarketplaceRoute = pathname?.startsWith("/marketplace");
@@ -497,6 +532,9 @@ export default function DatabaseItemsPage() {
   const [embarkId, setEmbarkId] = useState<string | null>(null);
   const [embarkInput, setEmbarkInput] = useState("");
   const [embarkError, setEmbarkError] = useState<string | null>(null);
+  const [discordName, setDiscordName] = useState<string | null>(null);
+  const [discordInput, setDiscordInput] = useState("");
+  const [discordError, setDiscordError] = useState<string | null>(null);
   const [showEmbarkModal, setShowEmbarkModal] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -508,6 +546,9 @@ export default function DatabaseItemsPage() {
     description: "",
     accepted: false,
   });
+  const [showCopyOverlay, setShowCopyOverlay] = useState(false);
+  const [pendingTradeListing, setPendingTradeListing] = useState<MarketplaceListing | null>(null);
+  const [embarkNextAction, setEmbarkNextAction] = useState<"listing" | "trade" | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -518,12 +559,19 @@ export default function DatabaseItemsPage() {
   }, [searchInput]);
 
   useEffect(() => {
+    if (embarkId) setEmbarkInput(embarkId);
+    if (discordName) setDiscordInput(discordName);
+  }, [embarkId, discordName]);
+
+  useEffect(() => {
     try {
       if (typeof window !== "undefined") {
         const storedWelcome = localStorage.getItem(WELCOME_STORAGE_KEY);
         if (!storedWelcome) setWelcomeOpen(true);
         const storedEmbark = localStorage.getItem(EMBARK_ID_KEY);
         if (storedEmbark) setEmbarkId(storedEmbark);
+        const storedDiscord = localStorage.getItem(DISCORD_KEY);
+        if (storedDiscord) setDiscordName(storedDiscord);
       }
     } catch {
       // ignore storage errors
@@ -724,6 +772,9 @@ export default function DatabaseItemsPage() {
     if (qpPage !== page) setPage(qpPage);
   }, [searchParams, routePage]);
 
+  const highlightListingId =
+    searchParams.get("listingId") || (routeParams?.listingId as string | undefined) || undefined;
+
   const filteredListings = useMemo(() => {
     const matchesOrder = (listing: MarketplaceListing) => {
       if (orderType === "all") return true;
@@ -757,8 +808,17 @@ export default function DatabaseItemsPage() {
     return next;
   }, [listings, orderType, currencyType, listingTypeFilter, ratingSort, searchTerm]);
 
-  const sellingListings = filteredListings.filter((l) => l.type === "WTS");
-  const buyingListings = filteredListings.filter((l) => l.type === "WTB");
+  const orderedListings = useMemo(() => {
+    if (!highlightListingId) return filteredListings;
+    const idx = filteredListings.findIndex((l) => l.id === highlightListingId);
+    if (idx === -1) return filteredListings;
+    const target = filteredListings[idx];
+    const rest = filteredListings.filter((_, i) => i !== idx);
+    return [target, ...rest];
+  }, [filteredListings, highlightListingId]);
+
+  const sellingListings = orderedListings.filter((l) => l.type === "WTS");
+  const buyingListings = orderedListings.filter((l) => l.type === "WTB");
 
   const toggleRarity = (value: string) => {
     setPage(1);
@@ -813,7 +873,9 @@ export default function DatabaseItemsPage() {
   };
 
   const ensureEmbarkId = () => {
-    if (embarkId) {
+    setEmbarkNextAction("listing");
+    setPendingTradeListing(null);
+    if (embarkId && discordName) {
       setShowWizard(true);
       setWizardStep(1);
     } else {
@@ -824,24 +886,37 @@ export default function DatabaseItemsPage() {
   const saveEmbarkId = () => {
     const pattern = /^[A-Za-z0-9._-]{2,20}#\d{4}$/;
     const value = embarkInput.trim();
+    const discordValue = discordInput.trim();
     if (!pattern.test(value)) {
       setEmbarkError(
         "Use name#1234 format (letters/numbers/._- allowed, 2-20 chars before #, then 4 digits)."
       );
       return;
     }
+    if (!discordValue) {
+      setDiscordError("Discord username is required.");
+      return;
+    }
     setEmbarkId(value);
+    setDiscordName(discordValue);
     setEmbarkError(null);
+    setDiscordError(null);
     try {
       if (typeof window !== "undefined") {
-        localStorage.setItem(EMBARK_ID_KEY, embarkInput.trim());
+        localStorage.setItem(EMBARK_ID_KEY, value);
+        localStorage.setItem(DISCORD_KEY, discordValue);
       }
     } catch {
       // ignore
     }
     setShowEmbarkModal(false);
-    setShowWizard(true);
-    setWizardStep(1);
+    if (embarkNextAction === "trade" && pendingTradeListing) {
+      setShowCopyOverlay(true);
+    } else {
+      setShowWizard(true);
+      setWizardStep(1);
+    }
+    setEmbarkNextAction(null);
   };
 
   const publishListing = () => {
@@ -868,6 +943,8 @@ export default function DatabaseItemsPage() {
       user: {
         username: embarkId || "You",
         avatar: "https://cdn.metaforge.app/arc-raiders/avatars/1.webp",
+        embarkId: embarkId || undefined,
+        discord: discordName || undefined,
       },
     };
 
@@ -892,6 +969,50 @@ export default function DatabaseItemsPage() {
     if (!wizardState.selectedItem) return sortedItems.slice(0, 15);
     return sortedItems;
   }, [sortedItems, wizardState.selectedItem]);
+
+  const formatCurrencyLabel = (currency: TradeCategory) =>
+    currency === "seeds" ? "Seeds" : currency === "barter" ? "Barter" : "Open to offers";
+
+  const handleTradeClick = (listing: MarketplaceListing) => {
+    setPendingTradeListing(listing);
+    setEmbarkNextAction("trade");
+    if (!embarkId || !discordName) {
+      setShowEmbarkModal(true);
+    } else {
+      setShowCopyOverlay(true);
+    }
+  };
+
+  const closeTradeModal = () => {
+    setShowCopyOverlay(false);
+    setPendingTradeListing(null);
+    setEmbarkNextAction(null);
+  };
+
+  const buildCopyTemplate = () => {
+    if (!pendingTradeListing || !embarkId || !discordName) return "";
+    const ownerDiscord = pendingTradeListing.user.discord || pendingTradeListing.user.username;
+    return [
+      `@${ownerDiscord}`,
+      "Hi! I'm interested in this listing:",
+      `Listing #${pendingTradeListing.id}`,
+      `View listing: https://metaforge.app/arc-raiders/listing/${pendingTradeListing.id}`,
+      `My Embark ID: ${embarkId}`,
+    ].join("\n");
+  };
+
+  const copyTradeMessage = async () => {
+    const message = buildCopyTemplate();
+    if (!message) return;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message);
+      }
+    } catch {
+      // ignore copy errors
+    }
+    closeTradeModal();
+  };
 
   const selectedSortLabel = (key: SortKey) => {
     const labelMap: Record<SortKey, string> = {
@@ -972,23 +1093,26 @@ export default function DatabaseItemsPage() {
           <div className="w-full max-w-lg space-y-4 rounded-2xl border border-border bg-card p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Embark ID</p>
-                <h3 className="text-xl font-semibold">Set your Embark ID</h3>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Identity required</p>
+                <h3 className="text-xl font-semibold">Set your Embark ID &amp; Discord</h3>
                 <p className="text-sm text-muted-foreground">
-                  One-time setup. Format must be <span className="font-semibold text-foreground">name#1234</span>. Cannot be
-                  edited after saving.
+                  Embark ID format <span className="font-semibold text-foreground">name#1234</span>. Required before trading or creating listings.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowEmbarkModal(false)}
+                onClick={() => {
+                  setShowEmbarkModal(false);
+                  if (embarkNextAction === "trade") setPendingTradeListing(null);
+                  setEmbarkNextAction(null);
+                }}
                 className="rounded-full border border-border p-2 text-muted-foreground hover:bg-secondary"
-                aria-label="Close Embark modal"
+                aria-label="Close identity modal"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm text-muted-foreground">
                 Embark ID
                 <input
@@ -1002,11 +1126,29 @@ export default function DatabaseItemsPage() {
                 />
               </label>
               {embarkError && <p className="text-sm text-red-300">{embarkError}</p>}
+
+              <label className="text-sm text-muted-foreground">
+                Discord username
+                <input
+                  value={discordInput}
+                  onChange={(e) => {
+                    setDiscordInput(e.target.value);
+                    if (discordError) setDiscordError(null);
+                  }}
+                  placeholder="raider#1234"
+                  className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                />
+              </label>
+              {discordError && <p className="text-sm text-red-300">{discordError}</p>}
             </div>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setShowEmbarkModal(false)}
+                onClick={() => {
+                  setShowEmbarkModal(false);
+                  if (embarkNextAction === "trade") setPendingTradeListing(null);
+                  setEmbarkNextAction(null);
+                }}
                 className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
               >
                 Cancel
@@ -1018,6 +1160,107 @@ export default function DatabaseItemsPage() {
               >
                 Save &amp; continue
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCopyOverlay && pendingTradeListing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-3xl space-y-4 rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Trade Overlay</p>
+                <h3 className="text-xl font-semibold text-foreground">Open-to-Offers</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeTradeModal}
+                className="rounded-full border border-border p-2 text-muted-foreground hover:bg-secondary"
+                aria-label="Close trade overlay"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
+              <div className="space-y-3 rounded-xl border border-border bg-secondary/10 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-secondary/40">
+                    {pendingTradeListing.item.icon ? (
+                      <img
+                        src={pendingTradeListing.item.icon}
+                        alt={pendingTradeListing.item.name}
+                        className="h-full w-full rounded object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No image</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Listing Summary</p>
+                    <p className="text-lg font-semibold text-foreground">{pendingTradeListing.item.name}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded px-2 py-1 text-xs font-semibold uppercase" style={{ backgroundColor: "hsl(0 0% 18% / 0.6)" }}>
+                        {pendingTradeListing.item.rarity || "Common"}
+                      </span>
+                      <span className="rounded bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                        {pendingTradeListing.type}
+                      </span>
+                      {pendingTradeListing.currency === "open" && (
+                        <span className="rounded bg-secondary/40 px-2 py-1 text-xs font-semibold uppercase text-foreground">Open to offers</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-border/70 bg-background/60 p-3">
+                    <p className="text-xs uppercase tracking-wide">Total stock</p>
+                    <p className="text-lg font-semibold text-foreground">{pendingTradeListing.quantity}</p>
+                  </div>
+                  <div className="rounded-lg border border-border/70 bg-background/60 p-3">
+                    <p className="text-xs uppercase tracking-wide">Price per unit</p>
+                    <p className="text-lg font-semibold text-primary">
+                      {pendingTradeListing.pricePerUnit
+                        ? `${pendingTradeListing.pricePerUnit} ${formatCurrencyLabel(pendingTradeListing.currency)}`
+                        : formatCurrencyLabel(pendingTradeListing.currency)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-border bg-background/80 p-4">
+                <div className="space-y-2 rounded-lg border border-dashed border-border/70 bg-secondary/10 p-3 text-sm text-muted-foreground">
+                  <p className="text-sm font-semibold text-foreground">Copy to Discord</p>
+                  <p>
+                    Trades are conducted via Discord. Copy the message below and join the Discord server to start trading with the listing owner.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-background/70 p-3">
+                  <pre className="whitespace-pre-wrap break-words text-foreground text-xs leading-relaxed">
+                    {buildCopyTemplate()}
+                  </pre>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={copyTradeMessage}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90"
+                  >
+                    Copy Message
+                  </button>
+                  <a
+                    href="https://discord.gg/"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={closeTradeModal}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-secondary"
+                  >
+                    Join Discord
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1402,20 +1645,6 @@ export default function DatabaseItemsPage() {
             >
               My Listings
             </Link>
-            {!isMarketplaceRoute && (
-              <Link
-                href="/trades"
-                className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
-              >
-                My Trades
-              </Link>
-            )}
-            <Link
-              href="/messages"
-              className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
-            >
-              My Messages
-            </Link>
             <button
               type="button"
               onClick={ensureEmbarkId}
@@ -1498,10 +1727,15 @@ export default function DatabaseItemsPage() {
               {orderType === "buy" ? "Buying (WTB)" : "Selling (WTS)"}
             </h3>
           </div>
-          {((orderType === "sell" ? filteredListings : sellingListings).slice(0, visibleSell)).map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+          {((orderType === "sell" ? orderedListings : sellingListings).slice(0, visibleSell)).map((listing) => (
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              onTrade={handleTradeClick}
+              isHighlighted={listing.id === highlightListingId}
+            />
           ))}
-          {(orderType === "sell" ? filteredListings : sellingListings).length === 0 && (
+          {(orderType === "sell" ? orderedListings : sellingListings).length === 0 && (
             <div className="rounded-lg border border-border bg-card/70 p-4 text-center text-sm text-muted-foreground">
               No selling listings match these filters.
             </div>
@@ -1510,7 +1744,7 @@ export default function DatabaseItemsPage() {
             type="button"
             onClick={() => setVisibleSell((prev) => prev + 4)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={(orderType === "sell" ? filteredListings : sellingListings).length <= visibleSell}
+            disabled={(orderType === "sell" ? orderedListings : sellingListings).length <= visibleSell}
           >
             Load more
           </button>
@@ -1521,10 +1755,15 @@ export default function DatabaseItemsPage() {
               {orderType === "sell" ? "Selling (WTS)" : "Buying (WTB)"}
             </h3>
           </div>
-          {((orderType === "buy" ? filteredListings : buyingListings).slice(0, visibleBuy)).map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+          {((orderType === "buy" ? orderedListings : buyingListings).slice(0, visibleBuy)).map((listing) => (
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              onTrade={handleTradeClick}
+              isHighlighted={listing.id === highlightListingId}
+            />
           ))}
-          {(orderType === "buy" ? filteredListings : buyingListings).length === 0 && (
+          {(orderType === "buy" ? orderedListings : buyingListings).length === 0 && (
             <div className="rounded-lg border border-border bg-card/70 p-4 text-center text-sm text-muted-foreground">
               No buying listings match these filters.
             </div>
@@ -1533,7 +1772,7 @@ export default function DatabaseItemsPage() {
             type="button"
             onClick={() => setVisibleBuy((prev) => prev + 4)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={(orderType === "buy" ? filteredListings : buyingListings).length <= visibleBuy}
+            disabled={(orderType === "buy" ? orderedListings : buyingListings).length <= visibleBuy}
           >
             Load more
           </button>
