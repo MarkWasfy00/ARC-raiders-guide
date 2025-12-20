@@ -1,42 +1,42 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cairo } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
+import { auth } from "@/lib/auth";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const cairo = Cairo({
+  variable: "--font-cairo",
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Arc Raiders Guide - Your Complete Survival Companion",
-  description: "Comprehensive guide to Arc Raiders featuring raiders, maps, items, and the latest news and strategies.",
+  title: "دليل آرك رايدرز - رفيقك الكامل للبقاء",
+  description: "دليل شامل لآرك رايدرز يتضمن المغيرين والخرائط والعناصر وآخر الأخبار والاستراتيجيات.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
-    <html lang="en">
+    <html lang="ar" dir="rtl">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${cairo.variable} antialiased`}
         style={{
           background: 'radial-gradient(ellipse at top, oklch(0.24 0.03 50) 0%, var(--background) 50%, oklch(0.18 0.02 230) 100%)',
           color: 'var(--foreground)',
-          minHeight: '100vh'
+          minHeight: '100vh',
+          fontFamily: 'var(--font-cairo)'
         }}
       >
-        <Navbar />
+        <Navbar session={session} />
         <Sidebar />
-        <main className="ml-14 mt-14">
+        <main className="mr-14 mt-14">
           {children}
         </main>
       </body>

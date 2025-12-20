@@ -223,6 +223,7 @@
   --primary-glow: oklch(0.75 0.1867 47.6044);
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
   --gradient-orange: linear-gradient(135deg, oklch(0.7049 0.1867 47.6044) 0%, oklch(0.6 0.15 40) 100%);
+  
 }
 
 @layer components {
@@ -250,6 +251,13 @@
   ::-webkit-scrollbar-thumb {
     @apply bg-border rounded-full hover:bg-muted-foreground;
   }
+
+  ::-webkit-scrollbar {
+    display: none;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
 
   .scrollbar-thin {
     scrollbar-width: thin;

@@ -21,17 +21,17 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent" />
           <div className="relative h-full flex flex-col justify-center px-8">
             <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground">
-              ARC Raiders
+              آرك رايدرز
             </h1>
             <p className="mt-2 text-muted-foreground max-w-lg">
-              Your ultimate companion for Arc Raiders. Database, guides, maps, and tools all in one place.
+              رفيقك الأمثل لآرك رايدرز. قاعدة البيانات والأدلة والخرائط والأدوات كلها في مكان واحد.
             </p>
           </div>
         </div>
 
         {/* Get the Overlay App */}
         <section>
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">Get the Overlay App</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">احصل على تطبيق التراكب</h2>
           <a
             href="https://www.overwolf.com/app/metaforge"
             target="_blank"
@@ -49,25 +49,25 @@ export default function Home() {
 
         {/* Explore Arc Raiders */}
         <section>
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">Explore Arc Raiders</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">استكشف آرك رايدرز</h2>
           <ExploreRaiders />
         </section>
 
         {/* ARC Raiders Maps */}
         <section>
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">ARC Raiders Maps</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">خرائط آرك رايدرز</h2>
           <Maps />
         </section>
 
         {/* ARC Raiders Items */}
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold">ARC Raiders Items</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">عناصر آرك رايدرز</h2>
             <Link
               href="/items"
               className="text-sm hover:underline transition-colors"
             >
-              View all items →
+              عرض جميع العناصر ←
             </Link>
           </div>
           <Items />
@@ -76,12 +76,12 @@ export default function Home() {
         {/* News & Guides */}
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold">News & Guides</h2>
+            <h2 className="text-2xl md:text-3xl font-bold">الأخبار والأدلة</h2>
             <Link
               href="/guides"
               className="text-sm hover:underline transition-colors"
             >
-              View all guides →
+              عرض جميع الأدلة ←
             </Link>
           </div>
           <NewsGuides />
@@ -89,7 +89,7 @@ export default function Home() {
 
         {/* Featured YouTube Videos */}
         <section>
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">Featured Videos</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6">فيديوهات مميزة</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {['9YpJ6qB6Bxw', 'dQw4w9WgXcQ', 'jNQXAC9IVRw', 'M7lc1UVf-VE'].map((videoId, idx) => (
               <div
