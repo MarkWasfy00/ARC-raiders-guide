@@ -19,33 +19,6 @@ services:
     networks:
       - arcraiders-network
 
-  seed:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: arcraiders-seed
-    restart: no
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-arcraiders}?schema=public
-    entrypoint: []
-    command: >
-      sh -c "
-      echo '🌱 Starting database seed service...' &&
-      echo 'Waiting for database...' &&
-      sleep 3 &&
-      echo '🔄 Running database migrations...' &&
-      (npx prisma migrate deploy || echo '⚠️ Migrations failed or already applied') &&
-      echo '🌱 Running database seed...' &&
-      (npm run db:seed && echo '✅ Seeding completed successfully!' || echo '⚠️ Seeding skipped (may already be seeded or failed)') &&
-      exit 0
-      "
-    networks:
-      - arcraiders-network
-
   app:
     build:
       context: .
