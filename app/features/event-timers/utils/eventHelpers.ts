@@ -1,4 +1,4 @@
-import { ScheduledEvent, ActiveEvent } from '../types';
+import { ScheduledEvent, ActiveEvent } from '../types/index';
 
 /**
  * Gets all currently active and upcoming events

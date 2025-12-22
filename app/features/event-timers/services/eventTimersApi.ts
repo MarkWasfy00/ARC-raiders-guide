@@ -1,4 +1,4 @@
-import { EventsScheduleResponse } from '../types';
+import { EventsScheduleResponse } from '../types/index';
 
 export async function fetchEventTimers(): Promise<EventsScheduleResponse> {
   // Call our cached API route instead of MetaForge directly

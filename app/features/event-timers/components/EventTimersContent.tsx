@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ScheduledEvent } from '../types';
+import { ScheduledEvent } from '../types/index';
 import { EventCard } from './EventCard';
 import { Loader2, Calendar, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -42,8 +42,10 @@ export function EventTimersContent({ events, isLoading, error }: EventTimersCont
     return () => clearInterval(interval);
   }, [events]);
 
-  // Filter events by search query
-  const filteredEvents = events.filter(event => {
+  // Convert to active events and filter by search query
+  const activeEvents = getActiveEvents(events);
+  const filteredEvents = activeEvents.filter(activeEvent => {
+    const event = activeEvent.event;
     const matchesSearch =
       searchQuery === '' ||
       event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -123,7 +125,7 @@ export function EventTimersContent({ events, isLoading, error }: EventTimersCont
       {filteredEvents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredEvents.map((event, index) => (
-            <EventCard key={`${event.name}-${index}`} event={event} />
+            <EventCard key={`${event.event.name}-${index}`} event={event} />
           ))}
         </div>
       ) : (

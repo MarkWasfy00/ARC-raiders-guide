@@ -1,63 +1,56 @@
 import { EventTimers } from '@/app/features/event-timers';
-import { Event } from '@/app/features/event-timers/types';
+import { ScheduledEvent } from '@/app/features/event-timers';
 
 // Sample event data - replace with your actual data source
-const sampleEvents: Event[] = [
+const sampleEvents: ScheduledEvent[] = [
   {
-    id: '1',
     name: 'Husk Graveyard',
-    location: 'Buried City',
-    imageUrl: 'https://cdn.metaforge.app/arc-raiders/custom/husk-graveyard.webp',
-    startTime: new Date(Date.now() - 30 * 60 * 1000), // Started 30 mins ago
-    endTime: new Date(Date.now() + 30 * 60 * 1000), // Ends in 30 mins
+    map: 'Buried City',
+    icon: 'https://cdn.metaforge.app/arc-raiders/custom/husk-graveyard.webp',
+    startTime: Date.now() - 30 * 60 * 1000, // Started 30 mins ago
+    endTime: Date.now() + 30 * 60 * 1000, // Ends in 30 mins
   },
   {
-    id: '2',
     name: 'Hidden Bunker',
-    location: 'Spaceport',
-    imageUrl: 'https://cdn.metaforge.app/arc-raiders/custom/hiddenbunker.webp',
-    startTime: new Date(Date.now() - 15 * 60 * 1000), // Started 15 mins ago
-    endTime: new Date(Date.now() + 45 * 60 * 1000), // Ends in 45 mins
+    map: 'Spaceport',
+    icon: 'https://cdn.metaforge.app/arc-raiders/custom/hiddenbunker.webp',
+    startTime: Date.now() - 15 * 60 * 1000, // Started 15 mins ago
+    endTime: Date.now() + 45 * 60 * 1000, // Ends in 45 mins
   },
   {
-    id: '3',
     name: 'Cold Snap',
-    location: 'Blue Gate',
-    imageUrl: 'https://cdn.metaforge.app/arc-raiders/custom/coldsnap.webp',
-    startTime: new Date(Date.now() - 10 * 60 * 1000), // Started 10 mins ago
-    endTime: new Date(Date.now() + 90 * 60 * 1000), // Ends in 1h 30 mins
+    map: 'Blue Gate',
+    icon: 'https://cdn.metaforge.app/arc-raiders/custom/coldsnap.webp',
+    startTime: Date.now() - 10 * 60 * 1000, // Started 10 mins ago
+    endTime: Date.now() + 90 * 60 * 1000, // Ends in 1h 30 mins
   },
   {
-    id: '4',
     name: 'Prospecting Probes',
-    location: 'Dam',
-    imageUrl: 'https://cdn.metaforge.app/arc-raiders/custom/probe.webp',
-    startTime: new Date(Date.now() + 30 * 60 * 1000), // Starts in 30 mins
-    endTime: new Date(Date.now() + 120 * 60 * 1000), // Ends in 2 hours
+    map: 'Dam',
+    icon: 'https://cdn.metaforge.app/arc-raiders/custom/probe.webp',
+    startTime: Date.now() + 30 * 60 * 1000, // Starts in 30 mins
+    endTime: Date.now() + 120 * 60 * 1000, // Ends in 2 hours
   },
   {
-    id: '5',
     name: 'Matriarch',
-    location: 'Blue Gate',
-    imageUrl: 'https://cdn.metaforge.app/arc-raiders/custom/matriarch.webp',
-    startTime: new Date(Date.now() + 90 * 60 * 1000), // Starts in 1h 30 mins
-    endTime: new Date(Date.now() + 180 * 60 * 1000), // Ends in 3 hours
+    map: 'Blue Gate',
+    icon: 'https://cdn.metaforge.app/arc-raiders/custom/matriarch.webp',
+    startTime: Date.now() + 90 * 60 * 1000, // Starts in 1h 30 mins
+    endTime: Date.now() + 180 * 60 * 1000, // Ends in 3 hours
   },
   {
-    id: '6',
     name: 'Electromagnetic Storm',
-    location: 'Dam',
-    imageUrl: 'https://cdn.metaforge.app/arc-raiders/custom/electrical.webp',
-    startTime: new Date(Date.now() + 90 * 60 * 1000), // Starts in 1h 30 mins
-    endTime: new Date(Date.now() + 150 * 60 * 1000), // Ends in 2h 30 mins
+    map: 'Dam',
+    icon: 'https://cdn.metaforge.app/arc-raiders/custom/electrical.webp',
+    startTime: Date.now() + 90 * 60 * 1000, // Starts in 1h 30 mins
+    endTime: Date.now() + 150 * 60 * 1000, // Ends in 2h 30 mins
   },
   {
-    id: '7',
     name: 'Night Raid',
-    location: 'Stella Montis',
-    imageUrl: 'https://cdn.metaforge.app/arc-raiders/custom/night.webp',
-    startTime: new Date(Date.now() + 90 * 60 * 1000), // Starts in 1h 30 mins
-    endTime: new Date(Date.now() + 180 * 60 * 1000), // Ends in 3 hours
+    map: 'Stella Montis',
+    icon: 'https://cdn.metaforge.app/arc-raiders/custom/night.webp',
+    startTime: Date.now() + 90 * 60 * 1000, // Starts in 1h 30 mins
+    endTime: Date.now() + 180 * 60 * 1000, // Ends in 3 hours
   },
 ];
 

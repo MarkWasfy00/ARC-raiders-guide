@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { EventsScheduleResponse } from '@/app/features/event-timers/types';
+import { EventsScheduleResponse } from '@/app/features/event-timers';
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds

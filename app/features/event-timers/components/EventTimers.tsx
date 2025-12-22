@@ -1,40 +1,29 @@
 'use client';
 
-import { Event, EventWithStatus } from '../types';
-import { getEventStatus } from '../utils/timeUtils';
+import { ScheduledEvent } from '../types/index';
+import { getActiveEvents } from '../utils/eventHelpers';
 import { EventCard } from './EventCard';
 import { useEffect, useState } from 'react';
 
 interface EventTimersProps {
-  events: Event[];
+  events: ScheduledEvent[];
 }
 
 export function EventTimers({ events }: EventTimersProps) {
-  const [eventsWithStatus, setEventsWithStatus] = useState<EventWithStatus[]>(
-    []
-  );
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
-    const updateEventStatuses = () => {
-      const updated = events.map((event) => {
-        const status = getEventStatus(event.startTime, event.endTime);
-        return {
-          ...event,
-          ...status,
-        };
-      });
-      setEventsWithStatus(updated);
-    };
-
-    updateEventStatuses();
-    const interval = setInterval(updateEventStatuses, 1000);
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [events]);
+  }, []);
 
-  // Filter out ended events
-  const activeEvents = eventsWithStatus.filter((e) => e.status === 'active');
-  const upcomingEvents = eventsWithStatus.filter(
+  // Get active and upcoming events
+  const allActiveEvents = getActiveEvents(events);
+  const activeEvents = allActiveEvents.filter((e) => e.status === 'active');
+  const upcomingEvents = allActiveEvents.filter(
     (e) => e.status === 'upcoming'
   );
 
@@ -50,8 +39,8 @@ export function EventTimers({ events }: EventTimersProps) {
         <div className="rounded-lg border border-border bg-secondary/50 p-2">
           {activeEvents.length > 0 ? (
             <div className="space-y-1">
-              {activeEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+              {activeEvents.map((event, index) => (
+                <EventCard key={`${event.event.name}-${event.event.map}-${index}`} event={event} />
               ))}
             </div>
           ) : (
@@ -72,8 +61,8 @@ export function EventTimers({ events }: EventTimersProps) {
         <div className="rounded-lg border border-border bg-secondary/50 p-2">
           {upcomingEvents.length > 0 ? (
             <div className="space-y-1">
-              {upcomingEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+              {upcomingEvents.map((event, index) => (
+                <EventCard key={`${event.event.name}-${event.event.map}-${index}`} event={event} />
               ))}
             </div>
           ) : (

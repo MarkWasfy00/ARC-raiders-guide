@@ -1,17 +1,15 @@
 'use client';
 
-import { EventWithStatus } from '../types';
-import { formatTimeRemaining } from '../utils/timeUtils';
+import { ActiveEvent } from '../types/index';
+import { formatTimeRemaining } from '../utils/eventHelpers';
 import { useEffect, useState } from 'react';
 
 interface EventCardProps {
-  event: EventWithStatus;
+  event: ActiveEvent;
 }
 
 export function EventCard({ event }: EventCardProps) {
-  const [timeLeft, setTimeLeft] = useState(
-    event.timeRemaining || event.timeUntilStart || 0
-  );
+  const [timeLeft, setTimeLeft] = useState(event.timeUntilChange);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -30,15 +28,15 @@ export function EventCard({ event }: EventCardProps) {
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <img
           className="h-12 w-12 rounded object-cover"
-          src={event.imageUrl}
-          alt={event.name}
+          src={event.event.icon}
+          alt={event.event.name}
         />
         <div className="flex flex-col gap-1">
           <span className="text-foreground font-semibold text-sm">
-            {event.name}
+            {event.event.name}
           </span>
           <span className="text-muted-foreground text-[0.65rem] tracking-wide uppercase">
-            {event.location}
+            {event.event.map}
           </span>
         </div>
       </div>
