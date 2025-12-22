@@ -25,6 +25,7 @@ services:
       dockerfile: Dockerfile
     container_name: arcraiders-migrate
     restart: 'no'  # Run once and exit
+    working_dir: /app
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,6 +50,7 @@ services:
       dockerfile: Dockerfile
     container_name: arcraiders-app
     restart: unless-stopped
+    working_dir: /app
     depends_on:
       postgres:
         condition: service_healthy
