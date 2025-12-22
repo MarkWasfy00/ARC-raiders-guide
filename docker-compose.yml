@@ -19,6 +19,29 @@ services:
     networks:
       - arcraiders-network
 
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arcraiders-seed
+    restart: no
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-arcraiders}?schema=public
+    command: >
+      sh -c "
+      echo '🌱 Starting database seed service...' &&
+      npx prisma migrate deploy &&
+      echo '🌱 Running database seed...' &&
+      npm run db:seed &&
+      echo '✅ Seeding completed successfully!'
+      "
+    networks:
+      - arcraiders-network
+
   app:
     build:
       context: .
@@ -28,13 +51,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      seed:
+        condition: service_completed_successfully
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-arcraiders}?schema=public
       AUTH_URL: ${AUTH_URL:-http://145.223.116.42}
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_TRUST_HOST: true
-      SEED_DATABASE: ${SEED_DATABASE:-true}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
       PORT: 3001
