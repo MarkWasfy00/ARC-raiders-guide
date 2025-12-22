@@ -1,16 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Inter } from "next/font/google";
 import {
   ArrowDownUp,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CirclePlus,
+  Coins,
   Filter,
+  MessageSquare,
   Loader2,
+  RefreshCw,
+  ShoppingBag,
+  ShoppingCart,
   Search,
   Star,
   X,
@@ -47,8 +53,8 @@ interface MarketplaceListing {
 }
 
 interface WizardState {
-  listingType: "WTS" | "WTB";
-  tradeType: TradeCategory;
+  listingType: "WTS" | "WTB" | null;
+  tradeType: TradeCategory | null;
   selectedItem?: Item;
   quantity: number;
   pricePerUnit?: number;
@@ -69,6 +75,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const WELCOME_STORAGE_KEY = "arc-market-welcome";
 const EMBARK_ID_KEY = "arc-market-embark-id";
 const DISCORD_KEY = "arc-market-discord";
+const inter = Inter({ subsets: ["latin"] });
 
 function arraysEqual(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
@@ -288,7 +295,7 @@ function ListingCard({
           onClick={() => onTrade?.(listing)}
           className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
         >
-          <span aria-hidden="true">🔁</span>
+          <span aria-hidden="true">ðŸ”</span>
           <span>Trade</span>
         </button>
       </div>
@@ -382,6 +389,24 @@ function ValueRangePopover({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function WizardStepOverlay({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+      <div className="relative w-full max-w-4xl space-y-4 rounded-2xl border border-border bg-card p-6 pt-8 shadow-2xl">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full border border-border p-2 text-muted-foreground hover:bg-secondary"
+          aria-label="Close wizard"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -539,16 +564,21 @@ export default function DatabaseItemsPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardState, setWizardState] = useState<WizardState>({
-    listingType: "WTS",
-    tradeType: "seeds",
+    listingType: null,
+    tradeType: null,
     quantity: 1,
     barterLines: [{ id: "line-1", quantity: 1 }],
     description: "",
     accepted: false,
   });
+
   const [showCopyOverlay, setShowCopyOverlay] = useState(false);
   const [pendingTradeListing, setPendingTradeListing] = useState<MarketplaceListing | null>(null);
   const [embarkNextAction, setEmbarkNextAction] = useState<"listing" | "trade" | null>(null);
+  const [wtbSearch, setWtbSearch] = useState("");
+  const [wtbBarterSearch, setWtbBarterSearch] = useState("");
+  const [wtbBarterSelected, setWtbBarterSelected] = useState<Item | null>(null);
+  const [wtbBarterQuantity, setWtbBarterQuantity] = useState(1);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -876,6 +906,7 @@ export default function DatabaseItemsPage() {
     setEmbarkNextAction("listing");
     setPendingTradeListing(null);
     if (embarkId && discordName) {
+      resetToStep1();
       setShowWizard(true);
       setWizardStep(1);
     } else {
@@ -909,24 +940,27 @@ export default function DatabaseItemsPage() {
     } catch {
       // ignore
     }
-    setShowEmbarkModal(false);
-    if (embarkNextAction === "trade" && pendingTradeListing) {
-      setShowCopyOverlay(true);
-    } else {
-      setShowWizard(true);
-      setWizardStep(1);
-    }
-    setEmbarkNextAction(null);
+      setShowEmbarkModal(false);
+      if (embarkNextAction === "trade" && pendingTradeListing) {
+        setShowCopyOverlay(true);
+      } else {
+        resetToStep1();
+        setShowWizard(true);
+        setWizardStep(1);
+      }
+      setEmbarkNextAction(null);
   };
 
   const publishListing = () => {
+    if (!wizardState.listingType) return;
+    if (!wizardState.listingType) return;
     if (!wizardState.selectedItem) return;
     if (wizardState.tradeType === "seeds" && !wizardState.pricePerUnit) return;
     if (!wizardState.accepted) return;
 
     const newListing: MarketplaceListing = {
       id: `user-${Date.now()}`,
-      type: wizardState.listingType,
+      type: wizardState.listingType || "WTS",
       item: wizardState.selectedItem,
       quantity: wizardState.quantity,
       currency: wizardState.tradeType,
@@ -949,29 +983,92 @@ export default function DatabaseItemsPage() {
     };
 
     setListings((prev) => [newListing, ...prev]);
-    setShowWizard(false);
-    setWizardState({
-      listingType: "WTS",
-      tradeType: "seeds",
-      quantity: 1,
-      barterLines: [{ id: "line-1", quantity: 1 }],
-      description: "",
-      accepted: false,
-    });
-    setWizardStep(1);
+    closeWizard();
   };
 
   const selectItemForWizard = (item: Item) => {
     setWizardState((prev) => ({ ...prev, selectedItem: item }));
   };
 
-  const filteredItemsForWizard = useMemo(() => {
-    if (!wizardState.selectedItem) return sortedItems.slice(0, 15);
-    return sortedItems;
-  }, [sortedItems, wizardState.selectedItem]);
+  const filteredWtbItems = useMemo(() => {
+    const term = wtbSearch.trim().toLowerCase();
+    const base = sortedItems;
+    const filtered = term
+      ? base.filter(
+          (item) =>
+            item.name.toLowerCase().includes(term) ||
+            item.item_type?.toLowerCase().includes(term)
+        )
+      : [];
+    return filtered.slice(0, 12);
+  }, [sortedItems, wtbSearch]);
+
+  const filteredWtbBarterItems = useMemo(() => {
+    const term = wtbBarterSearch.trim().toLowerCase();
+    if (!term) return [];
+    return sortedItems
+      .filter(
+        (item) =>
+          item.name.toLowerCase().includes(term) ||
+          item.item_type?.toLowerCase().includes(term)
+      )
+      .slice(0, 12);
+  }, [sortedItems, wtbBarterSearch]);
 
   const formatCurrencyLabel = (currency: TradeCategory) =>
     currency === "seeds" ? "Seeds" : currency === "barter" ? "Barter" : "Open to offers";
+
+  const resetToStep1 = () => {
+    setWizardState((prev) => ({
+      ...prev,
+      listingType: null,
+      tradeType: null,
+      selectedItem: undefined,
+      quantity: 1,
+      pricePerUnit: undefined,
+      barterLines: [{ id: "line-1", quantity: 1 }],
+      description: "",
+      accepted: false,
+    }));
+    setWtbSearch("");
+    setWtbBarterSearch("");
+    setWtbBarterSelected(null);
+    setWtbBarterQuantity(1);
+    setWizardStep(1);
+  };
+
+  const resetToStep2 = () => {
+    setWizardState((prev) => ({
+      ...prev,
+      tradeType: null,
+      selectedItem: undefined,
+      quantity: 1,
+      pricePerUnit: undefined,
+      barterLines: [{ id: "line-1", quantity: 1 }],
+      description: "",
+      accepted: false,
+    }));
+    setWtbSearch("");
+    setWtbBarterSearch("");
+    setWtbBarterSelected(null);
+    setWtbBarterQuantity(1);
+    setWizardStep(2);
+  };
+
+  const closeWizard = () => {
+    resetToStep1();
+    setShowWizard(false);
+  };
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const original = document.body.style.overflow;
+    const shouldLock = showWizard || showCopyOverlay || showEmbarkModal;
+    document.body.style.overflow = shouldLock ? "hidden" : original;
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [showWizard, showCopyOverlay, showEmbarkModal]);
 
   const handleTradeClick = (listing: MarketplaceListing) => {
     setPendingTradeListing(listing);
@@ -1266,347 +1363,595 @@ export default function DatabaseItemsPage() {
         </div>
       )}
 
-      {showWizard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-4xl space-y-4 rounded-2xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Create listing</p>
-                <h3 className="text-xl font-semibold text-foreground">Step {wizardStep} of 3</h3>
-              </div>
+      {showWizard && wizardStep === 1 && (
+        <WizardStepOverlay onClose={closeWizard}>
+          <div className={cn("space-y-2", inter.className)}>
+            <p className="mt-0 text-center text-2xl font-black uppercase tracking-wide text-foreground">Select listing type</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {(["WTS", "WTB"] as const).map((variant) => (
               <button
+                key={variant}
                 type="button"
-                onClick={() => setShowWizard(false)}
-                className="rounded-full border border-border p-2 text-muted-foreground hover:bg-secondary"
-                aria-label="Close wizard"
+                onClick={() => {
+                  setWizardState((prev) => ({ ...prev, listingType: variant }));
+                  setWizardStep(2);
+                }}
+                className={cn(
+                  "flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-3 rounded-xl bg-background/70 p-4 text-center transition hover:shadow-lg opacity-80 hover:opacity-100 duration-200 ease-out cursor-pointer",
+                  variant === "WTS"
+                    ? "border border-orange-500/60 hover:border-orange-400"
+                    : "border border-sky-400/60 hover:border-sky-300",
+                  wizardState.listingType === variant && "bg-primary/10 shadow-lg"
+                )}
               >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              {["Listing type", "Trade details", "Review & terms"].map((label, idx) => (
-                <div
-                  key={label}
-                  className={cn(
-                    "rounded-lg border border-border px-3 py-2",
-                    wizardStep === idx + 1 ? "bg-primary/10 border-primary text-primary" : "bg-secondary/20 text-muted-foreground"
-                  )}
-                >
-                  <p className="font-semibold">{label}</p>
-                </div>
-              ))}
-            </div>
-
-            {wizardStep === 1 && (
-              <div className="grid gap-4 md:grid-cols-2">
-                {(["WTS", "WTB"] as const).map((variant) => (
-                  <button
-                    key={variant}
-                    type="button"
-                    onClick={() => setWizardState((prev) => ({ ...prev, listingType: variant }))}
+                <div className="space-y-1">
+                  <p
                     className={cn(
-                      "rounded-xl border border-border p-4 text-left transition hover:border-primary/60 hover:shadow-lg",
-                      wizardState.listingType === variant && "border-primary bg-primary/10 shadow-lg"
+                      "text-xl font-semibold",
+                      variant === "WTS" ? "text-orange-300" : "text-sky-300"
                     )}
                   >
-                    <p className="text-xs uppercase text-muted-foreground">{variant}</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {variant === "WTS" ? "Selling items" : "Buying items"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {variant === "WTS"
-                        ? "List your gear and set what you expect in return."
-                        : "Post what you need and the payment you can offer."}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {wizardStep === 2 && (
-              <div className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-3">
-                  {(["seeds", "barter", "open"] as const).map((trade) => (
-                    <button
-                      key={trade}
-                      type="button"
-                      onClick={() =>
-                        setWizardState((prev) => ({
-                          ...prev,
-                          tradeType: trade,
-                        }))
-                      }
-                      className={cn(
-                        "rounded-lg border border-border p-3 text-left transition hover:border-primary/60 hover:shadow",
-                        wizardState.tradeType === trade && "border-primary bg-primary/10 shadow"
-                      )}
-                    >
-                      <p className="text-xs uppercase text-muted-foreground">
-                        {trade === "seeds" ? "Seeds" : trade === "barter" ? "Item for Item" : "Open to Offers"}
-                      </p>
-                      <p className="text-sm text-foreground">
-                        {trade === "seeds"
-                          ? "Set a seeds price per item."
-                          : trade === "barter"
-                          ? "Offer/request specific items."
-                          : "No fixed price, negotiate openly."}
-                      </p>
-                    </button>
-                  ))}
+                    {variant === "WTS" ? "WTS (Want to Sell)" : "WTB (Want to Buy)"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {variant === "WTS"
+                      ? "List items you want to sell in our marketplace."
+                      : "List items you want to buy in our marketplace."}
+                  </p>
                 </div>
+                <div
+                  className={cn(
+                    "mt-4 flex h-14 w-14 items-center justify-center rounded-full border",
+                    variant === "WTS"
+                      ? "border-orange-500/50 bg-orange-500/15 text-orange-300"
+                      : "border-sky-400/50 bg-sky-400/15 text-sky-300"
+                  )}
+                >
+                  {variant === "WTS" ? <ShoppingBag className="h-7 w-7" /> : <ShoppingCart className="h-7 w-7" />}
+                </div>
+              </button>
+            ))}
+          </div>
+        </WizardStepOverlay>
+      )}
 
-                <div className="rounded-xl border border-border bg-secondary/5 p-4 space-y-3">
-                  <p className="text-sm font-semibold text-foreground">Item selection</p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground">Choose item</label>
-                      <div className="flex flex-wrap gap-2">
-                        {filteredItemsForWizard.slice(0, 6).map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => selectItemForWizard(item)}
-                            className={cn(
-                              "flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-left transition hover:border-primary/60 hover:bg-background",
-                              wizardState.selectedItem?.id === item.id && "border-primary bg-primary/10"
-                            )}
-                          >
-                            <div className="flex h-8 w-8 items-center justify-center rounded bg-secondary/30">
-                              {item.icon ? (
-                                <img
-                                  src={item.icon}
-                                  alt=""
-                                  className="h-full w-full rounded object-contain"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <span className="text-xs text-muted-foreground">?</span>
-                              )}
-                            </div>
-                            <span className="text-sm text-foreground">{item.name}</span>
-                          </button>
-                        ))}
+      {showWizard && wizardStep === 2 && (
+        <WizardStepOverlay onClose={closeWizard}>
+          <div className={cn("space-y-2", inter.className)}>
+            <p className="mt-0 text-center text-2xl font-black uppercase tracking-wide text-foreground">
+              {wizardState.listingType === "WTB" ? "What will you pay with?" : "What do you want in return?"}
+            </p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {(["seeds", "barter", "open"] as const).map((trade) => (
+              <button
+                key={trade}
+                type="button"
+                onClick={() => {
+                  setWizardState((prev) => ({
+                    ...prev,
+                    tradeType: trade,
+                  }));
+                  setWizardStep(3);
+                }}
+                className={cn(
+                  "flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-3 rounded-xl border border-border bg-background/70 p-4 text-center transition hover:border-primary/60 hover:shadow-lg opacity-80 hover:opacity-100 duration-200 ease-out cursor-pointer",
+                  wizardState.tradeType === trade && "border-primary bg-primary/10 shadow-lg"
+                )}
+              >
+                <div className="space-y-1">
+                  <p className="text-xl font-semibold uppercase text-foreground">
+                    {trade === "seeds" ? "Seeds" : trade === "barter" ? "Items" : "Open to Offers"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {trade === "seeds"
+                      ? "Trade using in-game Seeds."
+                      : trade === "barter"
+                      ? "Trade item for item (Barter)."
+                      : "Let others make you offers."}
+                  </p>
+                </div>
+                <div className="mt-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary/30 text-primary">
+                  {trade === "seeds" && <Coins className="h-7 w-7" />}
+                  {trade === "barter" && <RefreshCw className="h-7 w-7" />}
+                  {trade === "open" && <MessageSquare className="h-7 w-7" />}
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={resetToStep1}
+              className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
+            >
+              Back
+            </button>
+          </div>
+        </WizardStepOverlay>
+      )}
+
+      {showWizard && wizardStep === 3 && (
+        <WizardStepOverlay onClose={closeWizard}>
+          {(() => {
+            const isBuying = wizardState.listingType === "WTB";
+            const itemPrompt = `1. What item do you want to ${isBuying ? "buy" : "sell"}?`;
+            const quantityPrompt = isBuying ? "2. How many items do you want?" : "2. How many items are you selling?";
+            const seedsPrompt = isBuying
+              ? "3. How many seeds will you pay per item?"
+              : "3. How many seeds will you charge per item?";
+            const barterHeader = isBuying ? "3. What items will you offer?" : "3. What items will you accept?";
+            const barterSub = isBuying
+              ? "Add items you are willing to give for this trade. You can add multiple options."
+              : "Add items you want in return for this trade. You can add multiple options.";
+
+            const renderItemPicker = () => (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-foreground">{itemPrompt}</p>
+                {wizardState.selectedItem ? (
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-background/70 px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded bg-secondary/30">
+                        {wizardState.selectedItem.icon ? (
+                          <img
+                            src={wizardState.selectedItem.icon}
+                            alt=""
+                            className="h-full w-full rounded object-contain"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">?</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{wizardState.selectedItem.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {wizardState.selectedItem.item_type || "Unknown type"}
+                        </p>
                       </div>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWizardState((prev) => ({ ...prev, selectedItem: undefined }));
+                        setWizardStep(3);
+                      }}
+                      className="rounded-lg border border-border px-3 py-1 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      value={wtbSearch}
+                      onChange={(e) => setWtbSearch(e.target.value)}
+                      placeholder="Type to search for an item..."
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                    />
+                    <div className="space-y-2">
+                      {wtbSearch.trim().length > 0 && wtbSearch.trim().length < 3 && (
+                        <p className="text-xs text-muted-foreground">Enter at least 3 characters to search.</p>
+                      )}
+                      {wtbSearch.trim().length >= 3 && filteredWtbItems.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                          {filteredWtbItems.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => selectItemForWizard(item)}
+                              className="flex items-center justify-between rounded-lg border border-border bg-background/90 px-3 py-2 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 items-center justify-center rounded bg-secondary/30">
+                                  {item.icon ? (
+                                    <img
+                                      src={item.icon}
+                                      alt=""
+                                      className="h-full w-full rounded object-contain"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">?</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                                  <p className="text-xs text-muted-foreground">{item.item_type || "Unknown type"}</p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {wtbSearch.trim().length >= 3 && filteredWtbItems.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No items match your search.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+
+            const renderQuantity = () => (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-foreground">{quantityPrompt}</p>
+                <label className="text-xs text-muted-foreground">
+                  Quantity
+                  <input
+                    type="number"
+                    min={1}
+                    value={wizardState.quantity}
+                    onChange={(e) =>
+                      setWizardState((prev) => ({
+                        ...prev,
+                        quantity: Math.max(1, Number(e.target.value) || 1),
+                      }))
+                    }
+                    className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                  />
+                </label>
+              </div>
+            );
+
+            const renderDescription = (label: string) => (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-foreground">{label}</p>
+                <textarea
+                  value={wizardState.description}
+                  onChange={(e) =>
+                    setWizardState((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                  placeholder="Share timing, preferred servers, or extra info."
+                />
+              </div>
+            );
+
+            if (wizardState.tradeType === "seeds" && wizardState.listingType) {
+              return (
+                <div className="rounded-xl border border-border bg-secondary/5 p-4 space-y-4">
+                  {renderItemPicker()}
+                  {renderQuantity()}
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-foreground">{seedsPrompt}</p>
+                    <label className="text-xs text-muted-foreground">
+                      Price per item (in Seeds)
+                      <input
+                        type="number"
+                        min={1}
+                        value={wizardState.pricePerUnit ?? ""}
+                        onChange={(e) =>
+                          setWizardState((prev) => ({
+                            ...prev,
+                            pricePerUnit: Number(e.target.value) || undefined,
+                          }))
+                        }
+                        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                      />
+                    </label>
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      Total: {(wizardState.pricePerUnit || 0) * wizardState.quantity} Seeds
+                    </p>
+                  </div>
+                  {renderDescription("4. Trade description (optional)")}
+                </div>
+              );
+            }
+
+            if (wizardState.tradeType === "open" && wizardState.listingType) {
+              return (
+                <div className="rounded-xl border border-border bg-secondary/5 p-4 space-y-4">
+                  {renderItemPicker()}
+                  {renderQuantity()}
+                  {renderDescription("3. Trade description (optional)")}
+                </div>
+              );
+            }
+
+            if (wizardState.tradeType === "barter" && wizardState.listingType) {
+              return (
+                <div className="rounded-xl border border-border bg-secondary/5 p-4 space-y-4">
+                  {renderItemPicker()}
+                  {renderQuantity()}
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-foreground">{barterHeader}</p>
+                    <p className="text-xs text-muted-foreground">{barterSub}</p>
+                    <div className="space-y-2 rounded-lg border border-border bg-background/70 p-3">
+                      <p className="text-xs font-semibold text-foreground">Add an item:</p>
+                      <input
+                        value={wtbBarterSearch}
+                        onChange={(e) => setWtbBarterSearch(e.target.value)}
+                        placeholder="Search for an item..."
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                      />
+                      <div className="space-y-1">
+                        {wtbBarterSearch.trim().length > 0 && wtbBarterSearch.trim().length < 3 && (
+                          <p className="text-xs text-muted-foreground">Enter at least 3 characters to search.</p>
+                        )}
+                        {wtbBarterSearch.trim().length >= 3 && filteredWtbBarterItems.length > 0 && (
+                          <div className="flex flex-col gap-2">
+                            {filteredWtbBarterItems.map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  setWtbBarterSelected(item);
+                                }}
+                                className={cn(
+                                  "flex items-center justify-between rounded-lg border border-border bg-background/90 px-3 py-2 text-left transition hover:border-primary/60 hover:bg-secondary/50",
+                                  wtbBarterSelected?.id === item.id && "border-primary bg-primary/10"
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-9 w-9 items-center justify-center rounded bg-secondary/30">
+                                    {item.icon ? (
+                                      <img
+                                        src={item.icon}
+                                        alt=""
+                                        className="h-full w-full rounded object-contain"
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">?</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                                    <p className="text-xs text-muted-foreground">{item.item_type || "Unknown type"}</p>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {wtbBarterSearch.trim().length >= 3 && filteredWtbBarterItems.length === 0 && (
+                          <p className="text-sm text-muted-foreground">No items match your search.</p>
+                        )}
+                      </div>
+
                       <label className="text-xs text-muted-foreground">
                         Quantity
                         <input
                           type="number"
                           min={1}
-                          value={wizardState.quantity}
-                          onChange={(e) =>
-                            setWizardState((prev) => ({
-                              ...prev,
-                              quantity: Math.max(1, Number(e.target.value) || 1),
-                            }))
-                          }
+                          value={wtbBarterQuantity}
+                          onChange={(e) => setWtbBarterQuantity(Math.max(1, Number(e.target.value) || 1))}
                           className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
                         />
                       </label>
-                      {wizardState.tradeType === "seeds" && (
-                        <label className="text-xs text-muted-foreground">
-                          Seeds per item
-                          <input
-                            type="number"
-                            min={1}
-                            value={wizardState.pricePerUnit ?? ""}
-                            onChange={(e) =>
-                              setWizardState((prev) => ({
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!wtbBarterSelected) return;
+                          setWizardState((prev) => {
+                            const existing = prev.barterLines.find((b) => b.item?.id === wtbBarterSelected.id);
+                            if (existing) {
+                              return {
                                 ...prev,
-                                pricePerUnit: Number(e.target.value) || undefined,
-                              }))
+                                barterLines: prev.barterLines.map((b) =>
+                                  b.item?.id === wtbBarterSelected.id
+                                    ? { ...b, quantity: b.quantity + wtbBarterQuantity }
+                                    : b
+                                ),
+                              };
                             }
-                            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
-                          />
-                        </label>
+                            return {
+                              ...prev,
+                              barterLines: [
+                                ...prev.barterLines,
+                                {
+                                  id: `line-${prev.barterLines.length + 1}`,
+                                  item: wtbBarterSelected,
+                                  quantity: wtbBarterQuantity,
+                                },
+                              ],
+                            };
+                          });
+                          setWtbBarterSelected(null);
+                          setWtbBarterSearch("");
+                          setWtbBarterQuantity(1);
+                        }}
+                        disabled={!wtbBarterSelected}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold transition hover:bg-secondary",
+                          !wtbBarterSelected && "cursor-not-allowed opacity-60"
+                        )}
+                      >
+                        Add Item
+                      </button>
+
+                      {wizardState.barterLines.filter((line) => line.item).length > 0 && (
+                        <div className="space-y-2">
+                          {wizardState.barterLines
+                            .filter((line) => line.item)
+                            .map((line) => (
+                              <div
+                                key={line.id}
+                                className="flex items-center justify-between rounded-lg border border-border bg-background/60 px-3 py-2"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-9 w-9 items-center justify-center rounded bg-secondary/30">
+                                    {line.item?.icon ? (
+                                      <img
+                                        src={line.item.icon}
+                                        alt=""
+                                        className="h-full w-full rounded object-contain"
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">?</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-foreground">{line.item?.name || "Item"}</p>
+                                    <p className="text-xs text-muted-foreground">{line.item?.item_type || "Unknown type"}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-sm text-foreground">{line.quantity}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setWizardState((prev) => ({
+                                        ...prev,
+                                        barterLines: prev.barterLines.filter((b) => b.id !== line.id),
+                                      }))
+                                    }
+                                    className="rounded-lg border border-border p-2 text-muted-foreground transition hover:bg-secondary"
+                                    aria-label="Remove barter line"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  {wizardState.tradeType === "barter" && (
-                    <div className="space-y-2">
-                      <p className="text-xs uppercase text-muted-foreground">Barter wants</p>
-                      <div className="space-y-2">
-                        {wizardState.barterLines.map((line) => (
-                          <div
-                            key={line.id}
-                            className="flex items-center gap-2 rounded-lg border border-border bg-background/60 p-2"
-                          >
-                            <select
-                              value={line.item?.id || ""}
-                              onChange={(e) => {
-                                const chosen = sortedItems.find((it) => it.id === e.target.value);
-                                setWizardState((prev) => ({
-                                  ...prev,
-                                  barterLines: prev.barterLines.map((b) =>
-                                    b.id === line.id ? { ...b, item: chosen } : b
-                                  ),
-                                }));
-                              }}
-                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                            >
-                              <option value="">Select item</option>
-                              {sortedItems.slice(0, 20).map((it) => (
-                                <option key={it.id} value={it.id}>
-                                  {it.name}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="number"
-                              min={1}
-                              value={line.quantity}
-                              onChange={(e) =>
-                                setWizardState((prev) => ({
-                                  ...prev,
-                                  barterLines: prev.barterLines.map((b) =>
-                                    b.id === line.id ? { ...b, quantity: Math.max(1, Number(e.target.value) || 1) } : b
-                                  ),
-                                }))
-                              }
-                              className="w-24 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setWizardState((prev) => ({
-                                  ...prev,
-                                  barterLines: prev.barterLines.filter((b) => b.id !== line.id),
-                                }))
-                              }
-                              className="rounded-lg border border-border p-2 text-muted-foreground transition hover:bg-secondary"
-                              aria-label="Remove barter line"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setWizardState((prev) => ({
-                            ...prev,
-                            barterLines: [
-                              ...prev.barterLines,
-                              { id: `line-${prev.barterLines.length + 1}`, quantity: 1 },
-                            ],
-                          }))
-                        }
-                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-foreground transition hover:bg-secondary"
-                      >
-                        <CirclePlus className="h-4 w-4" />
-                        Add barter item
-                      </button>
-                    </div>
-                  )}
-
-                  <label className="block text-xs text-muted-foreground">
-                    Trade description (optional)
-                    <textarea
-                      value={wizardState.description}
-                      onChange={(e) =>
-                        setWizardState((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
-                      placeholder="Share timing, preferred servers, or extra info."
-                    />
-                  </label>
+                  {renderDescription("4. Trade description (optional)")}
                 </div>
+              );
+            }
+
+            return (
+              <div className="rounded-xl border border-border bg-secondary/5 p-4 text-sm text-muted-foreground">
+                Select a trade type to continue.
               </div>
-            )}
+            );
+          })()}
 
-            {wizardStep === 3 && (
-              <div className="space-y-3">
-                <div className="rounded-lg border border-border bg-secondary/10 p-3">
-                  <p className="text-sm font-semibold text-foreground">Review</p>
-                  <p className="text-sm text-muted-foreground">
-                    {wizardState.listingType} {wizardState.quantity}x {wizardState.selectedItem?.name || "item"} using{" "}
-                    {wizardState.tradeType === "seeds"
-                      ? `${wizardState.pricePerUnit || 0} seeds each`
-                      : wizardState.tradeType === "barter"
-                      ? "barter requirements"
-                      : "open offers"}.
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/10 p-3 space-y-2 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">Rules & timers</p>
-                  <ul className="list-disc space-y-1 pl-5">
-                    <li>Listings pause after 48h inactivity.</li>
-                    <li>Accepted offers are locked for 2h to prevent sniping.</li>
-                    <li>All trades must follow in-game ToS and community guidelines.</li>
-                    <li>Misconduct or scams lead to suspension.</li>
-                  </ul>
-                </div>
-                <label className="flex items-start gap-3 text-sm text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={wizardState.accepted}
-                    onChange={(e) =>
-                      setWizardState((prev) => ({
-                        ...prev,
-                        accepted: e.target.checked,
-                      }))
-                    }
-                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                  />
-                  <span>
-                    I understand the inactivity rules, lock-in behavior, review timers, and marketplace disclaimers.
-                  </span>
-                </label>
-              </div>
-            )}
-
-            <div className="flex justify-between">
-              <button
-                type="button"
-                onClick={() => setWizardStep((prev) => Math.max(1, prev - 1))}
-                disabled={wizardStep === 1}
-                className={cn(
-                  "rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary",
-                  wizardStep === 1 && "cursor-not-allowed opacity-60"
-                )}
-              >
-                Back
-              </button>
-              {wizardStep < 3 ? (
-                <button
-                  type="button"
-                  onClick={() => setWizardStep((prev) => Math.min(3, prev + 1))}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90"
-                  disabled={wizardStep === 2 && !wizardState.selectedItem}
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={publishListing}
-                  disabled={
-                    !wizardState.selectedItem ||
-                    (wizardState.tradeType === "seeds" && !wizardState.pricePerUnit) ||
-                    !wizardState.accepted
-                  }
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90",
-                    (!wizardState.selectedItem ||
-                      (wizardState.tradeType === "seeds" && !wizardState.pricePerUnit) ||
-                      !wizardState.accepted) &&
-                      "cursor-not-allowed opacity-60"
-                  )}
-                >
-                  Publish listing
-                </button>
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={resetToStep2}
+              className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => setWizardStep(4)}
+              disabled={
+                !wizardState.selectedItem ||
+                !wizardState.listingType ||
+                !wizardState.tradeType ||
+                (wizardState.tradeType === "seeds" && !wizardState.pricePerUnit) ||
+                (wizardState.tradeType === "barter" && !wizardState.barterLines.some((line) => line.item))
+              }
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90",
+                (!wizardState.selectedItem ||
+                  (wizardState.tradeType === "seeds" && !wizardState.pricePerUnit) ||
+                  (wizardState.tradeType === "barter" && !wizardState.barterLines.some((line) => line.item)) ||
+                  !wizardState.tradeType ||
+                  !wizardState.listingType) &&
+                  "cursor-not-allowed opacity-60"
               )}
-            </div>
+            >
+              Proceed
+            </button>
           </div>
-        </div>
+        </WizardStepOverlay>
+      )}
+
+      {showWizard && wizardStep === 4 && (
+        <WizardStepOverlay onClose={closeWizard}>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border bg-secondary/10 p-3">
+              <p className="text-sm font-semibold text-foreground">Review</p>
+              <p className="text-sm text-muted-foreground">
+                {wizardState.listingType} {wizardState.quantity}x {wizardState.selectedItem?.name || "item"} using{" "}
+                {wizardState.tradeType === "seeds"
+                  ? `${wizardState.pricePerUnit || 0} seeds each`
+                  : wizardState.tradeType === "barter"
+                  ? "barter requirements"
+                  : "open offers"}.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-secondary/10 p-3 space-y-2 text-sm text-muted-foreground">
+              <p className="font-semibold text-foreground">Platform & responsibility</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>
+                  <span className="font-semibold text-foreground">Platform Scope:</span> Our website is a listing and redirection
+                  platform only. We do not provide chat, negotiation, or trade execution. Clicking a listing redirects users to
+                  Discord server, where all communication and trading take place.
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">Trading Responsibility:</span> All trades occur entirely on Discord.
+                  We do not monitor, verify, or enforce trades and are not responsible for trade outcomes, disputes, scams, losses, or
+                  user behavior on Discord.
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">User Responsibility:</span> You are solely responsible for your
+                  safety, security, and decisions when trading. You must verify the other party yourself and trade at your own risk.
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">Listings:</span> Creating a listing does not guarantee a successful
+                  trade or a response from other users.
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">Disclaimer:</span> We act only as a directory and redirection
+                  service and make no warranties or guarantees regarding trades or users.
+                </li>
+              </ul>
+            </div>
+            <label className="flex items-start gap-3 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={wizardState.accepted}
+                onChange={(e) =>
+                  setWizardState((prev) => ({
+                    ...prev,
+                    accepted: e.target.checked,
+                  }))
+                }
+                className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <span>
+                I have read and accept the platform scope, trading responsibility, user responsibility, listing expectations, and
+                disclaimer above.
+              </span>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setWizardStep(3)}
+              className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition hover:bg-secondary"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={publishListing}
+              disabled={
+                !wizardState.selectedItem ||
+                (wizardState.tradeType === "seeds" && !wizardState.pricePerUnit) ||
+                !wizardState.accepted
+              }
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90",
+                (!wizardState.selectedItem ||
+                  (wizardState.tradeType === "seeds" && !wizardState.pricePerUnit) ||
+                  !wizardState.accepted) &&
+                  "cursor-not-allowed opacity-60"
+              )}
+            >
+              Publish listing
+            </button>
+          </div>
+        </WizardStepOverlay>
       )}
 
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-transparent to-secondary/20 p-6">
@@ -1781,7 +2126,7 @@ export default function DatabaseItemsPage() {
 
       {!isMarketplaceRoute && (
         <div className="space-y-3 rounded-xl border border-border bg-card/70 p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Items database</p>
             <h3 className="text-xl font-semibold text-foreground">All items</h3>
