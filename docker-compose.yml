@@ -19,6 +19,30 @@ services:
     networks:
       - arcraiders-network
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arcraiders-migrate
+    restart: 'no'  # Run once and exit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: []  # Override Dockerfile ENTRYPOINT
+    command: >
+      sh -c "
+        echo '🔄 Running database migrations...' &&
+        npx prisma migrate deploy &&
+        echo '✅ Migrations completed successfully!'
+      "
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-arcraiders}?schema=public
+    volumes:
+      - ./prisma:/app/prisma
+    networks:
+      - arcraiders-network
+
   app:
     build:
       context: .
@@ -28,14 +52,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     entrypoint: []  # Override Dockerfile ENTRYPOINT
-    command: >
-      sh -c "
-        echo '🔄 Running database migrations...' &&
-        npx prisma migrate deploy &&
-        echo '🎯 Starting application...' &&
-        node server.js
-      "
+    command: ['node', 'server.js']
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-arcraiders}?schema=public
