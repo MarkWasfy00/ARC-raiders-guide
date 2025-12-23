@@ -11,6 +11,7 @@ interface ItemCardProps {
 
 export function ItemCard({ item }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const cardRef = useRef<HTMLAnchorElement>(null);
   const hoverCardRef = useRef<HTMLDivElement>(null);
 
@@ -43,13 +44,20 @@ export function ItemCard({ item }: ItemCardProps) {
     >
       {/* Item Thumbnail */}
       <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-muted rounded-md overflow-hidden">
-        <Image
-          src={item.imageUrl}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="48px"
-        />
+        {!imageError ? (
+          <Image
+            src={item.imageUrl}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="48px"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+            N/A
+          </div>
+        )}
       </div>
 
       {/* Item Name */}
@@ -71,13 +79,20 @@ export function ItemCard({ item }: ItemCardProps) {
         >
           {/* Item Photo - Larger */}
           <div className="relative w-full h-32 bg-muted rounded-md overflow-hidden mb-3">
-            <Image
-              src={item.imageUrl}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="256px"
-            />
+            {!imageError ? (
+              <Image
+                src={item.imageUrl}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="256px"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                No Image
+              </div>
+            )}
           </div>
 
           {/* Classification Badge */}

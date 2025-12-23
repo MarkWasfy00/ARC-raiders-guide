@@ -4,6 +4,25 @@ import { ItemType, Rarity } from '@/lib/generated/prisma/enums';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Converts an icon value to a valid image URL
+ */
+function getImageUrl(icon: string | null): string | null {
+  // If no icon, return null (component will show fallback)
+  if (!icon || icon.trim() === '') {
+    return null;
+  }
+
+  // If already a full URL, return as-is
+  if (icon.startsWith('http://') || icon.startsWith('https://')) {
+    return icon;
+  }
+
+  // If it's just an ID or partial path, construct full CDN URL
+  const iconId = icon.endsWith('.webp') ? icon : `${icon}.webp`;
+  return `https://cdn.metaforge.app/arc-raiders/icons/${iconId}`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -64,13 +83,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Calculate weight from stat_block if it exists
+    // Calculate weight from stat_block and fix icon URLs
     const itemsWithWeight = items.map(item => {
       const statBlock = item.stat_block as any;
       const weight = statBlock?.weight || 0;
 
       return {
         ...item,
+        icon: getImageUrl(item.icon),
         weight,
       };
     });
