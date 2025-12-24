@@ -57,14 +57,8 @@ const mapItems: SidebarItem[] = [
 ];
 
 const trackerItems: SidebarItem[] = [
-  {
-    icon: Crosshair,
-    label: 'Trackers',
-    children: [
-      { label: 'Hideout Tracker', href: '/trackers/hideout' },
-      { label: 'Recipe Tracker', href: '/trackers/recipe' },
-    ]
-  },
+  { icon: Wrench, label: 'Workshop Planner', href: '/trackers/workshop-planner' },
+  { icon: Crosshair, label: 'BluePrint Tracker', href: '/trackers/blueprint' },
 ];
 
 const otherItems: SidebarItem[] = [
