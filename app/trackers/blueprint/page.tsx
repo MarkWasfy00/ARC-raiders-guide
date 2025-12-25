@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Check,
   Filter,
+  Lock,
   Search,
   Sparkles,
   Star,
@@ -43,6 +44,30 @@ const emptyVoteToggleState: VoteToggleState = {
   Containers: [],
   Maps: [],
   Events: [],
+};
+
+const voteCategories: VoteCategory[] = ['Containers', 'Maps', 'Events'];
+
+const normalizeVoteData = (value: unknown): Record<string, VoteEntry[]> => {
+  if (!value || typeof value !== 'object') return {};
+  const normalized: Record<string, VoteEntry[]> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([blueprintId, entries]) => {
+    if (!Array.isArray(entries)) return;
+    const cleaned = entries
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null;
+        const name = (entry as VoteEntry).name;
+        const category = (entry as VoteEntry).category;
+        const percentage = Number((entry as VoteEntry).percentage);
+        if (typeof name !== 'string') return null;
+        if (category !== 'Containers' && category !== 'Maps' && category !== 'Events') return null;
+        const safePercentage = Number.isFinite(percentage) ? Math.max(0, Math.round(percentage)) : 0;
+        return { name, category, percentage: safePercentage };
+      })
+      .filter((entry): entry is VoteEntry => Boolean(entry));
+    normalized[blueprintId] = cleaned;
+  });
+  return normalized;
 };
 
 const initialBlueprints: Blueprint[] = [
@@ -491,6 +516,7 @@ export default function BlueprintTrackerPage() {
   const [locationQuery, setLocationQuery] = useState('');
   const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null);
   const [activeVoteFilter, setActiveVoteFilter] = useState<VoteCategory>('Containers');
+  const [showLockedNotice, setShowLockedNotice] = useState(false);
   const [voteData, setVoteData] = useState<Record<string, VoteEntry[]>>(() => initialLocationVotes);
   const [userVotes, setUserVotes] = useState<Record<string, VoteToggleState>>({});
   const [draftToggles, setDraftToggles] = useState<Record<string, VoteToggleState>>({});
@@ -538,7 +564,7 @@ export default function BlueprintTrackerPage() {
     if (storedVotes) {
       try {
         const parsedVotes = JSON.parse(storedVotes) as Record<string, VoteEntry[]>;
-        setVoteData(parsedVotes);
+        setVoteData(normalizeVoteData(parsedVotes));
       } catch {
         // Ignore invalid stored data.
       }
@@ -576,6 +602,10 @@ export default function BlueprintTrackerPage() {
     if (!hasHydratedVotes.current) return;
     localStorage.setItem(USER_VOTER_COUNT_KEY, JSON.stringify(voterCounts));
   }, [voterCounts]);
+
+  useEffect(() => {
+    setShowLockedNotice(false);
+  }, [selectedBlueprintId]);
 
   const filteredBlueprints = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -667,44 +697,83 @@ export default function BlueprintTrackerPage() {
     return mappedVotes;
   }, [selectedBlueprint?.id, draftVoteSets, userVoteSets, selectedVotesRaw]);
 
+  const hasDraftPreview = selectedDraftToggles.size > 0;
+  const userHasSavedVotes = voteCategories.some(
+    (category) => (selectedUserVotesByCategory[category]?.length ?? 0) > 0
+  );
+
   const effectiveVotesRaw = useMemo(() => {
     if (!selectedBlueprint) return [];
     const voters = voterCounts[selectedBlueprint.id] ?? 0;
-    if (voters === 0) return [];
+    if (voters === 0 && !hasDraftPreview && !userHasSavedVotes) return [];
     return adjustedVotesRaw;
-  }, [adjustedVotesRaw, selectedBlueprint?.id, voterCounts]);
+  }, [adjustedVotesRaw, hasDraftPreview, selectedBlueprint?.id, userHasSavedVotes, voterCounts]);
 
-  const normalizedVotes = useMemo(() => {
-    const categoryVotes = effectiveVotesRaw.filter((vote) => vote.category === activeVoteFilter);
-    const total = categoryVotes.reduce((sum, vote) => sum + vote.percentage, 0);
-    if (total === 0) return [];
-    const normalized = categoryVotes.map((vote) => ({
-      ...vote,
-      percentage: Math.round((vote.percentage / total) * 100),
-    }));
-    const totalNormalized = normalized.reduce((sum, vote) => sum + vote.percentage, 0);
-    const diff = 100 - totalNormalized;
-    if (normalized.length > 0) {
-      normalized[normalized.length - 1] = {
-        ...normalized[normalized.length - 1],
-        percentage: normalized[normalized.length - 1].percentage + diff,
-      };
-    }
-    return normalized;
-  }, [activeVoteFilter, effectiveVotesRaw]);
-
-  const activeVotesTotal = effectiveVotesRaw.filter((vote) => vote.category === activeVoteFilter)
-    .reduce((sum, vote) => sum + vote.percentage, 0);
-  const totalVotesCount = effectiveVotesRaw.reduce((sum, vote) => sum + vote.percentage, 0);
+  const uniqueVotersCount = selectedBlueprint
+    ? Math.max(voterCounts[selectedBlueprint.id] ?? 0, userHasSavedVotes ? 1 : 0)
+    : 0;
+  const totalVotesCount =
+    uniqueVotersCount === 0 ? 0 : selectedVotesRaw.reduce((sum, vote) => sum + vote.percentage, 0);
   const hasPendingVotes = selectedDraftToggles.size > 0;
-  const uniqueVotersCount = selectedBlueprint ? voterCounts[selectedBlueprint.id] ?? 0 : 0;
+  useEffect(() => {
+    if (!hasPendingVotes) setShowLockedNotice(false);
+  }, [hasPendingVotes]);
 
   const displayVotes = useMemo(() => {
-    if (totalVotesCount > 0) return normalizedVotes;
-    return selectedVotesRaw
-      .filter((vote) => vote.category === activeVoteFilter)
-      .map((vote) => ({ ...vote, percentage: 0 }));
-  }, [activeVoteFilter, normalizedVotes, selectedVotesRaw, totalVotesCount]);
+    const baseVotes = selectedVotesRaw.filter((vote) => vote.category === activeVoteFilter);
+    if (uniqueVotersCount === 0) {
+      const selectedDrafts = new Set(selectedDraftTogglesByCategory[activeVoteFilter] ?? []);
+      const totalDrafts = selectedDrafts.size;
+      if (totalDrafts === 0) {
+        return baseVotes.map((vote) => ({ ...vote, percentage: 0 }));
+      }
+      const normalized = baseVotes.map((vote) => ({
+        ...vote,
+        percentage: selectedDrafts.has(vote.name) ? Math.round((1 / totalDrafts) * 100) : 0,
+      }));
+      const totalNormalized = normalized.reduce((sum, vote) => sum + vote.percentage, 0);
+      const diff = 100 - totalNormalized;
+      if (diff !== 0) {
+        const lastSelectedIndex = [...normalized]
+          .map((vote, index) => (selectedDrafts.has(vote.name) ? index : -1))
+          .filter((index) => index >= 0)
+          .pop();
+        if (lastSelectedIndex !== undefined) {
+          normalized[lastSelectedIndex] = {
+            ...normalized[lastSelectedIndex],
+            percentage: normalized[lastSelectedIndex].percentage + diff,
+          };
+        }
+      }
+      return normalized;
+    }
+
+    const categoryVotes = effectiveVotesRaw.filter((vote) => vote.category === activeVoteFilter);
+    const total = categoryVotes.reduce((sum, vote) => sum + vote.percentage, 0);
+    if (total > 0) {
+      const normalized = categoryVotes.map((vote) => ({
+        ...vote,
+        percentage: Math.round((vote.percentage / total) * 100),
+      }));
+      const totalNormalized = normalized.reduce((sum, vote) => sum + vote.percentage, 0);
+      const diff = 100 - totalNormalized;
+      if (normalized.length > 0) {
+        normalized[normalized.length - 1] = {
+          ...normalized[normalized.length - 1],
+          percentage: normalized[normalized.length - 1].percentage + diff,
+        };
+      }
+      return normalized;
+    }
+
+    return baseVotes.map((vote) => ({ ...vote, percentage: 0 }));
+  }, [
+    activeVoteFilter,
+    effectiveVotesRaw,
+    selectedDraftTogglesByCategory,
+    selectedVotesRaw,
+    uniqueVotersCount,
+  ]);
   const voteFillColors: Record<VoteCategory, string> = {
     Containers: 'rgba(249, 115, 22, 0.35)',
     Maps: 'rgba(96, 165, 250, 0.35)',
@@ -739,7 +808,12 @@ export default function BlueprintTrackerPage() {
   };
 
   const toggleVoteFilter = (category: VoteCategory) => {
+    if (hasPendingVotes && category !== activeVoteFilter) {
+      setShowLockedNotice(true);
+      return;
+    }
     setActiveVoteFilter(category);
+    setShowLockedNotice(false);
   };
 
   const handleVoteToggle = (vote: VoteEntry) => {
@@ -769,35 +843,41 @@ export default function BlueprintTrackerPage() {
       if (!current) return prev;
       return {
         ...prev,
-        [selectedBlueprint.id]: {
-          ...current,
-          [activeVoteFilter]: [],
-        },
+        [selectedBlueprint.id]: { ...emptyVoteToggleState },
       };
     });
+    setShowLockedNotice(false);
   };
 
   const handleSaveVotes = () => {
     if (!selectedBlueprint) return;
     const toggles = selectedDraftTogglesByCategory[activeVoteFilter] ?? [];
     if (toggles.length === 0) return;
-    const toggleSet = new Set(toggles);
     const currentUserState = userVotes[selectedBlueprint.id] ?? emptyVoteToggleState;
-    const currentUserSet = new Set(currentUserState[activeVoteFilter] ?? []);
+    const currentUserSets: Record<VoteCategory, Set<string>> = {
+      Containers: new Set(currentUserState.Containers ?? []),
+      Maps: new Set(currentUserState.Maps ?? []),
+      Events: new Set(currentUserState.Events ?? []),
+    };
+    const hadAnySavedVotes = voteCategories.some((category) => currentUserSets[category].size > 0);
+    let didAddVote = false;
 
     const applyToggles = (entries: VoteEntry[]) => {
       const updatedEntries = [...entries];
+      const toggleSet = new Set(selectedDraftTogglesByCategory[activeVoteFilter] ?? []);
+      if (toggleSet.size === 0) return updatedEntries;
       toggleSet.forEach((name) => {
         const entryIndex = updatedEntries.findIndex(
           (entry) => entry.category === activeVoteFilter && entry.name === name
         );
-        const hasVoted = currentUserSet.has(name);
+        const hasVoted = currentUserSets[activeVoteFilter].has(name);
         const delta = hasVoted ? -1 : 1;
 
         if (hasVoted) {
-          currentUserSet.delete(name);
+          currentUserSets[activeVoteFilter].delete(name);
         } else {
-          currentUserSet.add(name);
+          currentUserSets[activeVoteFilter].add(name);
+          didAddVote = true;
         }
 
         if (entryIndex >= 0) {
@@ -824,7 +904,9 @@ export default function BlueprintTrackerPage() {
       ...prev,
       [selectedBlueprint.id]: {
         ...currentUserState,
-        [activeVoteFilter]: Array.from(currentUserSet),
+        Containers: Array.from(currentUserSets.Containers),
+        Maps: Array.from(currentUserSets.Maps),
+        Events: Array.from(currentUserSets.Events),
       },
     }));
 
@@ -839,10 +921,13 @@ export default function BlueprintTrackerPage() {
       };
     });
 
-    setVoterCounts((prev) => ({
-      ...prev,
-      [selectedBlueprint.id]: (prev[selectedBlueprint.id] ?? 0) + 1,
-    }));
+    if (!hadAnySavedVotes && didAddVote) {
+      setVoterCounts((prev) => ({
+        ...prev,
+        [selectedBlueprint.id]: (prev[selectedBlueprint.id] ?? 0) + 1,
+      }));
+    }
+    setShowLockedNotice(false);
   };
 
   return (
@@ -856,7 +941,7 @@ export default function BlueprintTrackerPage() {
               <Link href="/" className="hover:text-foreground transition-colors">
                 Arc Raiders
               </Link>
-              <span className="text-border">›</span>
+              <span className="text-border">{'>'}</span>
               <span className="text-foreground font-semibold">Blueprint Tracker</span>
             </div>
           </div>
@@ -1046,7 +1131,7 @@ export default function BlueprintTrackerPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Total votes</p>
+                    <p className="text-xs text-muted-foreground">Unique Voters</p>
                     <p className="text-lg font-bold text-foreground">{uniqueVotersCount}</p>
                   </div>
                 </div>
@@ -1089,13 +1174,11 @@ export default function BlueprintTrackerPage() {
                         <Sparkles className="w-4 h-4 text-primary" />
                         <span className="text-sm font-semibold text-foreground">Location Votes</span>
                       </div>
-                      <span className="text-xs font-semibold text-muted-foreground">
-                        {totalVotesCount || 0} total votes
-                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground">Total Votes: {totalVotesCount}</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {(['Containers', 'Maps', 'Events'] as VoteCategory[]).map((category) => (
+                      {voteCategories.map((category) => (
                         <button
                           key={category}
                           onClick={() => toggleVoteFilter(category)}
@@ -1110,8 +1193,14 @@ export default function BlueprintTrackerPage() {
                         </button>
                       ))}
                     </div>
+                    {showLockedNotice && (
+                      <div className="flex items-center gap-2 text-xs font-semibold text-orange-500">
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Unsaved changes - Save or cancel to switch categories</span>
+                      </div>
+                    )}
 
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                       {displayVotes.length > 0 ? (
                         displayVotes.map((vote) => {
                           const isSelected =
@@ -1119,7 +1208,7 @@ export default function BlueprintTrackerPage() {
                           return (
                             <button
                               type="button"
-                              key={`${selectedBlueprint.id}-${vote.name}`}
+                              key={`${selectedBlueprint.id}-${vote.category}-${vote.name}`}
                               onClick={() => handleVoteToggle(vote)}
                               className="flex items-center gap-3 w-full text-left rounded-lg border border-border bg-muted/40 px-3 py-2 transition-colors"
                               style={{
@@ -1179,3 +1268,7 @@ export default function BlueprintTrackerPage() {
     </main>
   );
 }
+
+
+
+

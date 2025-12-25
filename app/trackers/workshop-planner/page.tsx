@@ -197,6 +197,60 @@ const workshopModules: WorkshopModule[] = [
       },
     ],
   },
+  {
+    name: 'Fabricator Copy',
+    slug: 'fabricator-copy',
+    image: 'https://cdn.metaforge.app/arc-raiders/guides/loot.webp',
+    maxLevel: 6,
+    currentLevel: 2,
+    plannedLevel: 3,
+    levels: [
+      {
+        level: 1,
+        requirements: [
+          { name: 'Steel Plate', quantity: '5x', icon: 'https://cdn.metaforge.app/arc-raiders/items/steel-plate.webp' },
+          { name: 'Bandage', quantity: '6x', icon: 'https://cdn.metaforge.app/arc-raiders/items/bandage.webp' },
+        ],
+        unlocks: [
+          { name: 'Basic Med Kit', quantity: '2x', icon: 'https://cdn.metaforge.app/arc-raiders/items/medical-supplies.webp' },
+          { name: 'Adrenaline Shot', quantity: '3x', icon: 'https://cdn.metaforge.app/arc-raiders/items/adrenaline-shot.webp' },
+        ],
+      },
+      {
+        level: 2,
+        requirements: [
+          { name: 'Circuit Board', quantity: '4x', icon: 'https://cdn.metaforge.app/arc-raiders/items/circuit-board.webp' },
+          { name: 'Arc Alloy', quantity: '2x', icon: 'https://cdn.metaforge.app/arc-raiders/items/arc-alloy.webp' },
+        ],
+        unlocks: [
+          { name: 'Stimulant Kit', quantity: '2x', icon: 'https://cdn.metaforge.app/arc-raiders/items/medical-supplies.webp' },
+          { name: 'Armor Patch', quantity: '4x', icon: 'https://cdn.metaforge.app/arc-raiders/items/steel-plate.webp' },
+        ],
+      },
+      {
+        level: 3,
+        requirements: [
+          { name: 'Nano Fiber', quantity: '3x', icon: 'https://cdn.metaforge.app/arc-raiders/items/nano-fiber.webp' },
+          { name: 'Energy Cell', quantity: '10x', icon: 'https://cdn.metaforge.app/arc-raiders/items/energy-cell.webp' },
+        ],
+        unlocks: [
+          { name: 'Improved Med Kit', quantity: '3x', icon: 'https://cdn.metaforge.app/arc-raiders/items/medical-supplies.webp' },
+          { name: 'Combat Stims', quantity: '2x', icon: 'https://cdn.metaforge.app/arc-raiders/items/adrenaline-shot.webp' },
+        ],
+      },
+      {
+        level: 4,
+        requirements: [
+          { name: 'Plasma Core', quantity: '1x', icon: 'https://cdn.metaforge.app/arc-raiders/items/plasma-core.webp' },
+          { name: 'Nano Fiber', quantity: '4x', icon: 'https://cdn.metaforge.app/arc-raiders/items/nano-fiber.webp' },
+        ],
+        unlocks: [
+          { name: 'Advanced Med Crate', quantity: '1x', icon: 'https://cdn.metaforge.app/arc-raiders/items/medical-supplies.webp' },
+          { name: 'Stim Injector Mk II', quantity: '2x', icon: 'https://cdn.metaforge.app/arc-raiders/items/adrenaline-shot.webp' },
+        ],
+      },
+    ],
+  },
 ];
 
 type TabView = 'requirements' | 'unlocks';
@@ -263,24 +317,24 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
       </div>
 
       <div className="flex flex-col gap-4 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-nowrap items-center gap-1.5">
           <button
             onClick={handleDowngrade}
-            className="inline-flex min-w-[130px] items-center justify-center gap-2 rounded-full bg-muted/60 px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <Triangle className="w-4 h-4 -rotate-90" />
             Downgrade
           </button>
 
-          <div className="flex flex-1 items-center justify-center gap-3 rounded-full border border-border bg-muted/40 px-4 py-2 text-xs font-semibold sm:text-sm">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap">
             <span className="text-muted-foreground">Current: {currentLevel}</span>
-            <div className="h-5 w-px bg-border" />
+            <div className="h-4 w-px bg-border" />
             <span className="text-primary">Planned: {plannedLevel}</span>
           </div>
 
           <button
             onClick={handleUpgrade}
-            className="inline-flex min-w-[130px] items-center justify-center gap-2 rounded-full bg-primary/90 px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary/90 px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary transition-colors"
           >
             Upgrade
             <Triangle className="w-4 h-4 rotate-90" />
