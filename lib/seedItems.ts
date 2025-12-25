@@ -99,7 +99,7 @@ export async function seedItems() {
         description: item.description ?? '',
         item_type: item.item_type ? ITEM_TYPE_MAP[item.item_type] : null,
         loadout_slots: [],
-        icon: item.icon,
+        icon: item.icon?.includes('cdn.metaforge.app') ? null : item.icon,
         rarity: item.rarity ? RARITY_MAP[item.rarity] : null,
         value: item.value ?? 0,
         workbench: item.workbench ? WORKBENCH_MAP[item.workbench] : null,

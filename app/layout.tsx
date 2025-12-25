@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { SessionProvider } from "@/components/SessionProvider";
 import { auth } from "@/lib/auth";
+import { StructuredData, getOrganizationSchema, getWebSiteSchema } from "@/components/StructuredData";
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -12,9 +13,65 @@ const cairo = Cairo({
   weight: ["400", "500", "600", "700"],
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+
 export const metadata: Metadata = {
-  title: "دليل آرك رايدرز - رفيقك الكامل للبقاء",
-  description: "دليل شامل لآرك رايدرز يتضمن المغيرين والخرائط والعناصر وآخر الأخبار والاستراتيجيات.",
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: "3RB - Your Complete ARC Raiders Companion",
+    template: "%s | 3RB"
+  },
+  description: "Comprehensive guide for ARC Raiders including items database, traders, maps, marketplace, event timers, and latest strategies.",
+  keywords: ["ARC Raiders", "3RB", "game guide", "items", "traders", "marketplace", "maps", "quests", "gaming"],
+  authors: [{ name: "3RB Team" }],
+  creator: "3RB Team",
+  publisher: "3RB",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'ar_SA',
+    alternateLocale: ['en_US'],
+    url: baseUrl,
+    title: '3RB - Your Complete ARC Raiders Companion',
+    description: 'Comprehensive guide for ARC Raiders including items database, traders, maps, marketplace, event timers, and latest strategies.',
+    siteName: '3RB',
+    images: [
+      {
+        url: `${baseUrl}/og-image.jpg`,
+        width: 1200,
+        height: 630,
+        alt: '3RB - ARC Raiders Guide',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '3RB - Your Complete ARC Raiders Companion',
+    description: 'Comprehensive guide for ARC Raiders including items database, traders, maps, marketplace, event timers, and latest strategies.',
+    images: [`${baseUrl}/og-image.jpg`],
+    creator: '@3RB',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
 };
 
 export default async function RootLayout({
@@ -26,10 +83,14 @@ export default async function RootLayout({
 
   return (
     <html lang="ar" dir="rtl">
+      <head>
+        <StructuredData data={getOrganizationSchema(baseUrl)} />
+        <StructuredData data={getWebSiteSchema(baseUrl)} />
+      </head>
       <body
         className={`${cairo.variable} antialiased`}
         style={{
-          background: 'radial-gradient(ellipse at top, oklch(0.24 0.03 50) 0%, var(--background) 50%, oklch(0.18 0.02 230) 100%)',
+          backgroundColor: 'var(--background)',
           color: 'var(--foreground)',
           minHeight: '100vh',
           fontFamily: 'var(--font-cairo)'

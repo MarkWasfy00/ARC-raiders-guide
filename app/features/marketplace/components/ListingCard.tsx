@@ -8,6 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Star,
   AlertTriangle,
   Sparkles,
@@ -15,14 +25,19 @@ import {
 } from "lucide-react";
 import { Listing } from "./Marketplace";
 import { ListingDetailModal } from "./ListingDetailModal";
+import Link from "next/link";
 
 interface ListingCardProps {
   listing: Listing;
   currentUserId?: string;
+  userProfile: {
+    discord_username: string | null;
+    embark_id: string | null;
+  } | null;
   onUpdate: () => void;
 }
 
-export function ListingCard({ listing, currentUserId }: ListingCardProps) {
+export function ListingCard({ listing, currentUserId, userProfile }: ListingCardProps) {
   const isOwnListing = currentUserId === listing.user.id;
   const router = useRouter();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
@@ -30,11 +45,15 @@ export function ListingCard({ listing, currentUserId }: ListingCardProps) {
   const [existingChatId, setExistingChatId] = useState<string | null>(null);
   const [checkingChat, setCheckingChat] = useState(true);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showProfileWarning, setShowProfileWarning] = useState(false);
 
   // Check if account is less than 7 days old
   const accountAge = new Date().getTime() - new Date(listing.user.createdAt).getTime();
   const daysOld = accountAge / (1000 * 60 * 60 * 24);
   const isNewAccount = daysOld < 7;
+
+  // Check if current user's profile is complete
+  const isProfileIncomplete = !!currentUserId && (!userProfile?.discord_username || !userProfile?.embark_id);
 
   // Check if user already has an active chat for this listing
   useEffect(() => {
@@ -63,6 +82,12 @@ export function ListingCard({ listing, currentUserId }: ListingCardProps) {
 
   const handleStartChat = async () => {
     if (!currentUserId || isCreatingChat) return;
+
+    // Check if profile is complete
+    if (isProfileIncomplete) {
+      setShowProfileWarning(true);
+      return;
+    }
 
     // If chat already exists, navigate to it
     if (hasActiveChat && existingChatId) {
@@ -271,7 +296,7 @@ export function ListingCard({ listing, currentUserId }: ListingCardProps) {
             size="sm"
             className={`${hasActiveChat ? 'bg-blue-600 hover:bg-blue-700' : listingTypeConfig.actionBg} text-white font-semibold`}
             onClick={handleStartChat}
-            disabled={isCreatingChat || checkingChat}
+            disabled={isCreatingChat || checkingChat || isProfileIncomplete}
           >
             {checkingChat ? "..." : isCreatingChat ? "..." : hasActiveChat ? "فتح المحادثة" : listingTypeConfig.actionText}
           </Button>
@@ -293,6 +318,33 @@ export function ListingCard({ listing, currentUserId }: ListingCardProps) {
         open={showDetailModal}
         onOpenChange={setShowDetailModal}
       />
+
+      {/* Profile Warning Alert Dialog */}
+      <AlertDialog open={showProfileWarning} onOpenChange={setShowProfileWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>يجب إكمال ملفك الشخصي</AlertDialogTitle>
+            <AlertDialogDescription className="text-right space-y-2">
+              <p>
+                يجب إضافة معرف Discord و Embark ID في ملفك الشخصي قبل التواصل مع البائعين أو المشترين.
+              </p>
+              <p className="font-semibold">
+                انتقل إلى صفحة الملف الشخصي لإضافة هذه المعلومات.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <Link href="/profile">
+              <AlertDialogAction className="bg-orange-600 hover:bg-orange-700">
+                انتقل إلى الملف الشخصي
+              </AlertDialogAction>
+            </Link>
+            <AlertDialogCancel onClick={() => setShowProfileWarning(false)}>
+              إلغاء
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -16,9 +16,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     const chatId = searchParams.get("id");
-    if (chatId) {
-      setSelectedChatId(chatId);
-      setShowMobileChat(true);
+    if (chatId) { 
+      requestAnimationFrame(() => {
+        setSelectedChatId(chatId);
+        setShowMobileChat(true);
+      });
     }
   }, [searchParams]);
 
@@ -31,7 +33,7 @@ export default function ChatPage() {
         <p className="text-muted-foreground mb-4">
           يجب تسجيل الدخول للوصول إلى المحادثات
         </p>
-        <Button onClick={() => router.push("/auth/login")} className="bg-orange-600 hover:bg-orange-700">
+        <Button onClick={() => router.push("/login")} className="bg-orange-600 hover:bg-orange-700">
           تسجيل الدخول
         </Button>
       </div>

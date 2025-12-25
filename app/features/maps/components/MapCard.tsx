@@ -27,8 +27,8 @@ export function MapCard({ map }: MapCardProps) {
         />
       </div>
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/50 to-transparent" />
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-background/60" />
 
       {/* Content */}
       <div className="absolute inset-0 flex flex-col justify-center p-3 md:p-4">

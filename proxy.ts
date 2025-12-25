@@ -10,7 +10,8 @@ export default auth((req) => {
   // Define protected routes
   const isProtectedRoute = pathname.startsWith("/dashboard") ||
                           pathname.startsWith("/traders") ||
-                          pathname.startsWith("/events");
+                          pathname.startsWith("/events") ||
+                          pathname.startsWith("/profile");
 
   // Define auth routes
   const isAuthRoute = pathname.startsWith("/login") ||

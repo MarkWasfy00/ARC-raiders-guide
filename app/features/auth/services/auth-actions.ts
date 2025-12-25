@@ -168,6 +168,35 @@ export async function logoutAction() {
   redirect("/");
 }
 
+/**
+ * Invalidate all sessions for a user by incrementing their session version.
+ * This will immediately invalidate all JWT tokens for this user.
+ * Use this for security purposes (e.g., password reset, account compromise).
+ */
+export async function invalidateUserSessions(userId: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      sessionVersion: {
+        increment: 1
+      }
+    },
+  });
+}
+
+/**
+ * Logout and invalidate all sessions for the current user.
+ * This will sign out the user and prevent all their existing tokens from working.
+ */
+export async function logoutAndInvalidateAllSessions(userId: string) {
+  // Increment session version to invalidate all tokens
+  await invalidateUserSessions(userId);
+
+  // Sign out from current session
+  await signOut({ redirect: false });
+  redirect("/login");
+}
+
 export async function discordSignInAction() {
   await signIn("discord", { redirectTo: "/" });
 }

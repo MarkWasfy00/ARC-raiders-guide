@@ -8,16 +8,16 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'cdn.metaforge.app',
+        hostname: 'unhbvkszwhczbjxgetgk.supabase.co',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'unhbvkszwhczbjxgetgk.supabase.co',
+        hostname: 'cdn.metaforge.app',
         port: '',
         pathname: '/**',
-      }
+      },
     ],
   },
 };

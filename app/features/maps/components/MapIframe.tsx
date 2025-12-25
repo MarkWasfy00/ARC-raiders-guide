@@ -49,7 +49,6 @@ export function MapIframe({ src, title, mapName }: MapIframeProps) {
 
           {/* Iframe wrapper with theme-matched border */}
           <div className="relative bg-background-elevated">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
             <iframe
               src={src}
               title={title}

@@ -8,6 +8,9 @@ declare module "next-auth" {
       email?: string | null;
       name?: string | null;
       image?: string | null;
+      username?: string | null;
+      embark_id?: string | null;
+      discord_username?: string | null;
     };
   }
 
@@ -16,11 +19,15 @@ declare module "next-auth" {
     email?: string | null;
     name?: string | null;
     image?: string | null;
+    username?: string | null;
+    embark_id?: string | null;
+    discord_username?: string | null;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
+    email?: string | null;
   }
 }

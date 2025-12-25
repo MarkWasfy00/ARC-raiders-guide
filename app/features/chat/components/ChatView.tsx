@@ -9,6 +9,8 @@ import { Star, Send, Gamepad2, MessageSquare, Sparkles, ArrowLeft, CheckCircle2,
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { getSocket } from "@/lib/socket";
+import { RatingDialog } from "./RatingDialog";
+import { DiscordShareDialog } from "./DiscordShareDialog";
 
 interface User {
   id: string;
@@ -69,6 +71,10 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const [tradeId, setTradeId] = useState<string | null>(null);
+  const [hasRated, setHasRated] = useState(false);
+  const [showDiscordDialog, setShowDiscordDialog] = useState(false);
 
   const otherUser = chat
     ? chat.participant1.id === currentUserId
@@ -201,6 +207,12 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
               }
             : null
         );
+
+        // If trade completed and tradeId returned, show rating dialog
+        if (data.status === "COMPLETED" && data.tradeId && !hasRated) {
+          setTradeId(data.tradeId);
+          setShowRatingDialog(true);
+        }
       } else {
         console.error("Failed to approve trade:", await res.text());
       }
@@ -237,6 +249,36 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
       console.error("Error leaving chat:", error);
     } finally {
       setLeaving(false);
+    }
+  };
+
+  const handleSubmitRating = async (ratingData: {
+    score: number;
+    honest: boolean;
+    comment: string;
+  }) => {
+    if (!tradeId) return;
+
+    try {
+      const res = await fetch("/api/ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tradeId,
+          ...ratingData,
+        }),
+      });
+
+      if (res.ok) {
+        setHasRated(true);
+        alert("شكراً لتقييمك!"); // Thank you for your rating!
+      } else {
+        const error = await res.json();
+        alert(error.error || "فشل إرسال التقييم"); // Failed to submit rating
+      }
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+      alert("فشل إرسال التقييم"); // Failed to submit rating
     }
   };
 
@@ -353,6 +395,14 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
               )}
             </div>
           </div>
+          <Button
+            onClick={() => setShowDiscordDialog(true)}
+            size="sm"
+            className="bg-[#5865F2] hover:bg-[#4752C4] text-white shrink-0"
+            title="مشاركة على Discord"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -548,6 +598,27 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
           </div>
         )}
       </div>
+
+      {/* Rating Dialog */}
+      {showRatingDialog && otherUser && tradeId && (
+        <RatingDialog
+          open={showRatingDialog}
+          onOpenChange={setShowRatingDialog}
+          tradeId={tradeId}
+          otherUser={otherUser}
+          onSubmit={handleSubmitRating}
+        />
+      )}
+
+      {/* Discord Share Dialog */}
+      {chat && (
+        <DiscordShareDialog
+          open={showDiscordDialog}
+          onOpenChange={setShowDiscordDialog}
+          discordUsername={otherUser?.discord_username || null}
+          itemName={chat.listing.item.name}
+        />
+      )}
     </div>
   );
 }

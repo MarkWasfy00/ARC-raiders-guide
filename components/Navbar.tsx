@@ -67,7 +67,7 @@ export function Navbar({ session }: NavbarProps) {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">AR</span>
+                <span className="text-primary-foreground font-bold text-sm">3RB</span>
               </div>
             </Link>
 
@@ -81,9 +81,9 @@ export function Navbar({ session }: NavbarProps) {
                 <DropdownMenuItem asChild>
                   <Link href="/" className="flex items-center gap-3 cursor-pointer">
                     <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center">
-                      <span className="text-primary text-xs font-bold">AR</span>
+                      <span className="text-primary text-xs font-bold">3RB</span>
                     </div>
-                    <span className="text-sm">آرك رايدرز</span>
+                    <span className="text-sm">3RB</span>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -96,7 +96,7 @@ export function Navbar({ session }: NavbarProps) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="ابحث في ميتافورج"
+                placeholder="ابحث في 3RB"
                 className="search-input w-full"
                 value={query}
                 onChange={(e) => {
@@ -258,18 +258,24 @@ export function Navbar({ session }: NavbarProps) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/profile" className="w-full text-right cursor-pointer justify-end">
+                    <Link href="/profile/edit" className="w-full text-right cursor-pointer justify-end">
                       تعديل الملف الشخصي
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="justify-end">
-                    قوائمي
+                  <DropdownMenuItem asChild>
+                    <Link href="/listings" className="w-full text-right cursor-pointer justify-end">
+                      قوائمي
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="justify-end">
-                    صفقاتي
+                  <DropdownMenuItem asChild>
+                    <Link href="/trades" className="w-full text-right cursor-pointer justify-end">
+                      صفقاتي
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="justify-end">
-                    الرسائل
+                  <DropdownMenuItem asChild>
+                    <Link href="/chat" className="w-full text-right cursor-pointer justify-end">
+                      الرسائل
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1.5">

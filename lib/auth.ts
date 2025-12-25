@@ -8,9 +8,63 @@ import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   trustHost: true,
   ...authConfig,
+  callbacks: {
+    ...authConfig.callbacks,
+    // Override session callback to always fetch fresh user data and validate session version
+    async session({ session, token }) {
+      if (token && session.user) {
+        session.user.id = token.id as string;
+
+        // Fetch fresh user data from database
+        if (token.email) {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email as string },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              image: true,
+              username: true,
+              embark_id: true,
+              discord_username: true,
+              sessionVersion: true,
+            },
+          });
+
+          // Debug logging
+          console.log('Session callback - token.sessionVersion:', token.sessionVersion);
+          console.log('Session callback - dbUser.sessionVersion:', dbUser?.sessionVersion);
+
+          // Validate session version - if mismatch, session is invalidated
+          if (dbUser && typeof token.sessionVersion === 'number' && typeof dbUser.sessionVersion === 'number') {
+            if (dbUser.sessionVersion !== token.sessionVersion) {
+              console.log('🔴 SESSION INVALIDATED - Version mismatch!');
+              // Session has been invalidated - throw error to force re-login
+              throw new Error('Session invalidated');
+            }
+          }
+
+          // Update session with fresh data from database
+          if (dbUser) {
+            session.user.email = dbUser.email || '';
+            session.user.name = dbUser.name || '';
+            session.user.image = dbUser.image || '';
+            // Add custom fields to session
+            (session.user as any).username = dbUser.username;
+            (session.user as any).embark_id = dbUser.embark_id;
+            (session.user as any).discord_username = dbUser.discord_username;
+          }
+        }
+      }
+      return session;
+    },
+  },
   providers: [
     Discord({
       clientId: process.env.DISCORD_CLIENT_ID!,
@@ -58,12 +112,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Invalid credentials");
         }
 
-        return {
+        const userResponse = {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.image,
+          sessionVersion: user.sessionVersion,
         };
+
+        console.log('Authorize callback - returning user with sessionVersion:', user.sessionVersion);
+
+        return userResponse;
       },
     }),
   ],

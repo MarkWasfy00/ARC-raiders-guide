@@ -50,12 +50,54 @@ export async function POST(
       (isParticipant1 && updatedChat.participant2Approved) ||
       (!isParticipant1 && updatedChat.participant1Approved);
 
-    // If both approved, mark chat as completed
+    // If both approved, mark chat and listing as completed and create trade
     if (bothApproved) {
-      await prisma.chat.update({
-        where: { id: chatId },
-        data: { status: "COMPLETED" },
+      // Fetch listing to determine buyer/seller
+      const listing = await prisma.listing.findUnique({
+        where: { id: chat.listingId },
+        select: { type: true, userId: true },
       });
+
+      if (!listing) {
+        return NextResponse.json(
+          { error: "Listing not found" },
+          { status: 404 }
+        );
+      }
+
+      // Determine buyer and seller based on listing type
+      // For WTS: listing owner is seller, other participant is buyer
+      // For WTB: listing owner is buyer, other participant is seller
+      const isParticipant1Seller =
+        (listing.type === "WTS" && listing.userId === chat.participant1Id) ||
+        (listing.type === "WTB" && listing.userId !== chat.participant1Id);
+
+      const sellerId = isParticipant1Seller
+        ? chat.participant1Id
+        : chat.participant2Id;
+      const buyerId = isParticipant1Seller
+        ? chat.participant2Id
+        : chat.participant1Id;
+
+      await prisma.$transaction([
+        prisma.chat.update({
+          where: { id: chatId },
+          data: { status: "COMPLETED" },
+        }),
+        prisma.listing.update({
+          where: { id: chat.listingId },
+          data: { status: "COMPLETED" },
+        }),
+        // Create Trade record
+        prisma.trade.create({
+          data: {
+            listingId: chat.listingId,
+            buyerId,
+            sellerId,
+            status: "COMPLETED",
+          },
+        }),
+      ]);
     }
 
     // Fetch updated chat with all relations for Socket.IO broadcast
@@ -99,11 +141,22 @@ export async function POST(
       global.io.to(chatId).emit("chat-updated", fullChat);
     }
 
+    // Fetch the trade if both approved
+    let tradeId = null;
+    if (bothApproved) {
+      const trade = await prisma.trade.findFirst({
+        where: { listingId: chat.listingId },
+        orderBy: { created_at: "desc" },
+      });
+      tradeId = trade?.id || null;
+    }
+
     return NextResponse.json({
       success: true,
       participant1Approved: updatedChat.participant1Approved,
       participant2Approved: updatedChat.participant2Approved,
       status: bothApproved ? "COMPLETED" : updatedChat.status,
+      tradeId,
     });
   } catch (error) {
     console.error("Error approving trade:", error);

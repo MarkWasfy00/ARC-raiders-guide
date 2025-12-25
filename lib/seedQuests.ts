@@ -27,7 +27,7 @@ export async function seedQuests() {
         granted_items: quest.granted_items || [],
         locations: quest.locations || [],
         marker_category: quest.marker_category ?? null,
-        image: quest.image ?? null,
+        image: quest.image?.includes('cdn.metaforge.app') ? null : quest.image ?? null,
         guide_links: quest.guide_links || [],
         required_items: quest.required_items || [],
         created_at: new Date(quest.created_at),

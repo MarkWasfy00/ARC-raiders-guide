@@ -19,7 +19,7 @@ export function UserButton({ user }: UserButtonProps) {
       </span>
       <form action={logoutAction}>
         <Button type="submit" variant="outline" size="sm">
-          Sign Out
+          تسجيل الخروج
         </Button>
       </form>
     </div>

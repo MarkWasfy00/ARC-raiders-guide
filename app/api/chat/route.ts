@@ -95,6 +95,22 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check if user has completed their profile (Discord and Embark ID)
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        discord_username: true,
+        embark_id: true,
+      },
+    });
+
+    if (!currentUser?.discord_username || !currentUser?.embark_id) {
+      return NextResponse.json(
+        { error: "Please complete your profile with Discord username and Embark ID before starting a chat" },
+        { status: 400 }
+      );
+    }
+
     // Check if chat already exists (order-independent)
     let chat = await prisma.chat.findFirst({
       where: {

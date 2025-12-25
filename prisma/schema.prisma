@@ -66,6 +66,7 @@ enum ItemType {
 }
 
 enum Workbench {
+  WORKBENCH
   SCRAPPY
   GUNSMITH
   GEAR_BENCH
@@ -141,6 +142,7 @@ model User {
   image             String?
   embark_id         String?
   discord_username  String?
+  sessionVersion    Int       @default(0)
   accounts          Account[]
   sessions          Session[]
   comments          Comment[]
@@ -417,4 +419,58 @@ model QuestReward {
 
   @@index([questId])
   @@index([itemId])
+}
+
+// Workbench Planner Models
+model WorkbenchPlanner {
+  id          String                  @id @default(cuid())
+  name        String                  @unique
+  description String?                 @db.Text
+  type        Workbench
+  levels      WorkbenchPlannerLevel[]
+  created_at  DateTime                @default(now())
+  updated_at  DateTime                @updatedAt
+
+  @@index([name])
+  @@index([type])
+}
+
+model WorkbenchPlannerLevel {
+  id                String                        @id @default(cuid())
+  workbenchId       String
+  workbench         WorkbenchPlanner              @relation(fields: [workbenchId], references: [id], onDelete: Cascade)
+  level             Int
+  levelName         String?                       // For Scrappy levels like "1 - Fledgling"
+  rates             String?                       // For Scrappy passive rates
+  requirements      WorkbenchPlannerRequirement[]
+  crafts            WorkbenchPlannerCraft[]
+  created_at        DateTime                      @default(now())
+  updated_at        DateTime                      @updatedAt
+
+  @@unique([workbenchId, level])
+  @@index([workbenchId])
+  @@index([level])
+}
+
+model WorkbenchPlannerRequirement {
+  id                String                @id @default(cuid())
+  workbenchLevelId  String
+  workbenchLevel    WorkbenchPlannerLevel @relation(fields: [workbenchLevelId], references: [id], onDelete: Cascade)
+  itemName          String                // Item name as it appears in items table
+  quantity          Int
+  created_at        DateTime              @default(now())
+
+  @@index([workbenchLevelId])
+  @@index([itemName])
+}
+
+model WorkbenchPlannerCraft {
+  id                String                @id @default(cuid())
+  workbenchLevelId  String
+  workbenchLevel    WorkbenchPlannerLevel @relation(fields: [workbenchLevelId], references: [id], onDelete: Cascade)
+  itemName          String                // Item name as it appears in items table
+  created_at        DateTime              @default(now())
+
+  @@index([workbenchLevelId])
+  @@index([itemName])
 }

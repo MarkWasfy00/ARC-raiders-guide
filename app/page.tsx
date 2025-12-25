@@ -4,13 +4,24 @@ import { ExploreRaiders } from './features/explore-raiders';
 import { Maps } from './features/maps';
 import { Items } from './features/items';
 import { NewsGuides } from './features/news-guides';
+import { StructuredData, getBreadcrumbSchema } from '@/components/StructuredData';
+
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+// Force dynamic rendering to avoid database queries during build
+export const dynamic = 'force-dynamic';
 
 export default function Home() {
   return (
     <main className="min-h-screen">
+      <StructuredData
+        data={getBreadcrumbSchema(baseUrl, [
+          { name: 'الرئيسية', url: '/' },
+        ])}
+      />
       <div className="container mx-auto px-4 py-8 space-y-12">
         {/* Hero Banner */}
-        <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden bg-gradient-to-r from-primary/20 to-secondary/20">
+        <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden bg-card">
           <Image
             src="https://cdn.metaforge.app/backgrounds/banner-arc-2.webp"
             alt="Arc Raiders"
@@ -18,13 +29,13 @@ export default function Home() {
             className="object-cover opacity-60"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-background/40" />
           <div className="relative h-full flex flex-col justify-center px-8">
             <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground">
-              آرك رايدرز
+              3RB
             </h1>
             <p className="mt-2 text-muted-foreground max-w-lg">
-              رفيقك الأمثل لآرك رايدرز. قاعدة البيانات والأدلة والخرائط والأدوات كلها في مكان واحد.
+              Your complete companion for 3RB. Database, guides, maps, and tools all in one place.
             </p>
           </div>
         </div>

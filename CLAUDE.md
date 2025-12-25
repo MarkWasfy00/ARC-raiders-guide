@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ARC Raiders Guide is a comprehensive Next.js 16 application for the ARC Raiders game community. It features an RTL (Right-to-Left) Arabic interface and includes game items database, marketplace, real-time chat, event timers, and trader information.
+3RB is a comprehensive Next.js 16 application for the ARC Raiders game community. It features an RTL (Right-to-Left) Arabic interface and includes game items database, marketplace, real-time chat, event timers, and trader information.
 
 ## Development Commands
 

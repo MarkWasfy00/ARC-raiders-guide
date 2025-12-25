@@ -20,8 +20,8 @@ export function HeroBanner() {
         priority
       />
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40" />
 
       {/* Content */}
       <div className="absolute inset-0 flex flex-col justify-center p-3 md:p-4">

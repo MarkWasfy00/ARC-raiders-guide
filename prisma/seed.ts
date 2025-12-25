@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { seedItems } from '@/lib/seedItems'
 import { seedArcs } from '@/lib/seedArcs'
 import { seedQuests } from '@/lib/seedQuests'
+import { seedWorkbenches } from '@/lib/workbenchesSeed'
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
@@ -12,13 +13,16 @@ async function main() {
 
   try {
     // Seed items first (ARCs and Quests depend on items for loot/rewards)
-    await seedItems()
+    // await seedItems()
 
     // Seed ARCs
-    await seedArcs()
+    // await seedArcs()
 
     // Seed Quests (depends on items for rewards)
-    await seedQuests()
+    // await seedQuests()
+
+    // Seed Workbenches (references items by name)
+    await seedWorkbenches()
 
     // Add more seed functions here as needed
     // await seedWeapons()

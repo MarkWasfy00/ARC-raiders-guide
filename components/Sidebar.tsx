@@ -4,15 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home, FileText, AppWindow, Package, Database, Map, Target,
-  Wrench, List, Calendar, Code, MessageCircle, Settings,
-  Shield, FileQuestion, Mail, ChevronDown, ChevronRight,
-  Swords, ScrollText, Users, MapPin, Crosshair, Trophy, Layers,
-  MessageSquare
+  Home, AppWindow, Package, Database, Map, Target,
+  List, Calendar, MessageCircle, ChevronDown,
+  Crosshair, MessageSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 
 interface SidebarItem {
   icon: React.ElementType;
@@ -24,12 +20,10 @@ interface SidebarItem {
 
 const mainItems: SidebarItem[] = [
   { icon: Home, label: 'الرئيسية', href: '/' },
-  { icon: FileText, label: 'الأدلة', href: '/guides' },
-  { icon: AppWindow, label: 'تطبيق التراكب', href: 'https://www.overwolf.com/app/metaforge', external: true },
+  { icon: AppWindow, label: 'تطبيق التراكب', href: 'https://www.overwolf.com/app/3rb', external: true },
   { icon: Package, label: 'السوق', href: '/marketplace' },
   { icon: MessageSquare, label: 'المحادثات', href: '/chat' },
-  { icon: Layers, label: 'مستويات قيمة الغنائم', href: '/loot-value' },
-  { icon: Target, label: 'العناصر المطلوبة', href: '/needed-items' },
+  { icon: List, label: 'قوائمي', href: '/listings' },
 ];
 
 const databaseItems: SidebarItem[] = [
@@ -50,9 +44,8 @@ const mapItems: SidebarItem[] = [
     icon: Map,
     label: 'الخرائط',
     children: [
-      { label: 'عرض الكل', href: '/maps' },
-      { label: 'السد', href: '/maps/dam' },
-      { label: 'الميناء الفضائي', href: '/maps/spaceport' },
+      { label: 'السد', href: '/maps/dam-battlegrounds' },
+      { label: 'الميناء الفضائي', href: '/maps/the-spaceport' },
       { label: 'المدينة المدفونة', href: '/maps/buried-city' },
       { label: 'البوابة الزرقاء', href: '/maps/blue-gate' },
       { label: 'ستيلا مونتيس', href: '/maps/stella-montis' },
@@ -65,31 +58,21 @@ const trackerItems: SidebarItem[] = [
     icon: Crosshair,
     label: 'المتتبعات',
     children: [
-      { label: 'متتبع المخبأ', href: '/trackers/hideout' },
-      { label: 'متتبع الوصفات', href: '/trackers/recipe' },
+      { label: 'متتبع المخططات', href: '/trackers/blueprint' },
+      { label: 'مخطط الورشة', href: '/trackers/workshop-planner' },
     ]
   },
 ];
 
 const otherItems: SidebarItem[] = [
-  { icon: Swords, label: 'التجهيزات', href: '/loadouts' },
-  { icon: ScrollText, label: 'شجرة المهارات', href: '/skilltree' },
-  { icon: Trophy, label: 'قوائم المستويات', href: '/tier-lists' },
+  { icon: Target, label: 'تصنيف الأسلحة', href: '/weapons-tier-list' },
   { icon: Calendar, label: 'مؤقت الأحداث', href: '/events' },
-  { icon: Code, label: 'واجهة برمجية', href: '/api' },
 ];
 
-const externalItems: SidebarItem[] = [
-  { icon: MessageCircle, label: 'ريديت', href: 'https://www.reddit.com/r/ArcRaiders/', external: true },
-  { icon: Users, label: 'مركز ديسكورد', href: 'https://discord.com/invite/mVMtSsfswq', external: true },
-];
+const externalItems: SidebarItem[] = [];
 
 const bottomItems: SidebarItem[] = [
-  { icon: Settings, label: 'الإعدادات', href: '/settings' },
-  { icon: MessageCircle, label: 'ديسكورد', href: 'https://discord.com/invite/8UEK9TrQDs', external: true },
-  { icon: Shield, label: 'سياسة الخصوصية', href: '/privacy' },
-  { icon: FileQuestion, label: 'شروط الخدمة', href: '/terms' },
-  { icon: Mail, label: 'اتصل بنا', href: '/contact' },
+  { icon: MessageCircle, label: 'ديسكورد', href: 'https://discord.com/invite/tags', external: true },
 ];
 
 function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: boolean }) {
@@ -113,47 +96,51 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
         const hasChildren = item.children && item.children.length > 0;
         const isOpen = openMenus.includes(item.label) || (hasChildren && isChildActive(item.children!));
         const active = item.href ? isActive(item.href) : false;
+        const labelClasses = expanded
+          ? "flex-1 min-w-0 text-right text-base truncate"
+          : "hidden";
 
         if (hasChildren) {
           return (
             <div key={item.label}>
-              <Button
-                variant="ghost"
+              <button
                 onClick={() => toggleMenu(item.label)}
                 className={cn(
-                  "w-full justify-start gap-3 h-auto px-3 py-2",
-                  "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  isChildActive(item.children!) && "text-primary bg-sidebar-accent/10"
+                  "w-full flex items-center rounded-lg transition-colors h-11 px-3 gap-3 justify-start",
+                  "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent",
+                  isChildActive(item.children!) && "text-primary"
                 )}
               >
                 <Icon className="w-5 h-5 shrink-0" />
+                <span className={labelClasses}>
+                  {item.label}
+                </span>
                 {expanded && (
-                  <>
-                    <span className="flex-1 text-left text-sm">{item.label}</span>
-                    <ChevronDown className={cn(
-                      "w-4 h-4 transition-transform",
-                      isOpen && "rotate-180"
-                    )} />
-                  </>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 transition-transform",
+                    isOpen && "rotate-180"
+                  )} />
                 )}
-              </Button>
+              </button>
 
               {expanded && isOpen && (
-                <div className="mr-8 mt-1 space-y-1 animate-fade-in">
+                <div
+                  className="mr-8 mt-1 space-y-1 overflow-hidden transition-[max-height] duration-300 ease-out"
+                  style={{ maxHeight: isOpen ? item.children!.length * 44 : 0 }}
+                >
                   {item.children!.map((child) => (
-                    <Button
+                    <Link
                       key={child.href}
-                      variant="ghost"
-                      asChild
+                      href={child.href}
                       className={cn(
-                        "w-full justify-start h-auto px-3 py-1.5 text-sm",
+                        "block px-3 py-1.5 text-sm rounded-lg transition-colors text-right",
                         isActive(child.href)
-                          ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          ? "text-primary bg-sidebar-accent"
+                          : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
                       )}
                     >
-                      <Link href={child.href}>{child.label}</Link>
-                    </Button>
+                      {child.label}
+                    </Link>
                   ))}
                 </div>
               )}
@@ -163,46 +150,34 @@ function SidebarSection({ items, expanded }: { items: SidebarItem[]; expanded: b
 
         if (item.external) {
           return (
-            <Button
+            <a
               key={item.label}
-              variant="ghost"
-              asChild
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
               className={cn(
-                "w-full justify-start gap-3 h-auto px-3 py-2",
-                active
-                  ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                "flex items-center rounded-lg transition-colors h-11 px-3 gap-3 justify-start",
+                active ? "text-primary bg-sidebar-accent" : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
               )}
             >
-              <a
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Icon className="w-5 h-5 shrink-0" />
-                {expanded && <span className="text-sm">{item.label}</span>}
-              </a>
-            </Button>
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className={labelClasses}>{item.label}</span>
+            </a>
           );
         }
 
         return (
-          <Button
+          <Link
             key={item.label}
-            variant="ghost"
-            asChild
+            href={item.href!}
             className={cn(
-              "w-full justify-start gap-3 h-auto px-3 py-2",
-              active
-                ? "text-sidebar-accent-foreground bg-sidebar-accent"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              "flex items-center rounded-lg transition-colors h-11 px-3 gap-3 justify-start",
+              active ? "text-primary bg-sidebar-accent" : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
             )}
           >
-            <Link href={item.href!}>
-              <Icon className="w-5 h-5 shrink-0" />
-              {expanded && <span className="text-sm">{item.label}</span>}
-            </Link>
-          </Button>
+            <Icon className="w-5 h-5 shrink-0" />
+            <span className={labelClasses}>{item.label}</span>
+          </Link>
         );
       })}
     </div>
@@ -217,61 +192,58 @@ export function Sidebar() {
       className={cn(
         "fixed right-0 top-14 bottom-0 bg-sidebar border-l border-sidebar-border z-40",
         "transition-all duration-300 ease-out overflow-hidden",
-        expanded ? "w-56" : "w-14"
+        expanded ? "w-64" : "w-16"
       )}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
-      <div className="flex flex-col h-full py-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="relative flex flex-col h-full min-h-0 py-4">
         {/* Game icon at top */}
-        <div className="px-3 mb-4">
+        <div className="px-2 mb-4 relative z-20 bg-sidebar">
           <Link
             href="/"
             className={cn(
-              "flex items-center gap-3 px-2 py-2 rounded-lg",
+              "flex w-full items-center rounded-lg h-11 px-2 gap-2 transition-colors justify-start",
               "text-primary hover:bg-sidebar-accent transition-colors"
             )}
           >
-            <div className="w-6 h-6 rounded bg-primary/20 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-primary">AR</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded bg-primary/20 text-primary shrink-0">
+              <span className="text-sm font-bold">3RB</span>
             </div>
-            {expanded && <span className="text-sm font-medium">آرك رايدرز</span>}
+            <span
+              className={cn(
+                "text-base font-medium truncate whitespace-nowrap transition-opacity duration-200 flex-1 min-w-0",
+                expanded ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}
+            >
+              3RB
+            </span>
           </Link>
         </div>
+        <div className="mx-3 mb-4 border-b border-sidebar-border relative z-10" />
 
-        {/* Main section */}
-        <div className="px-2 space-y-6 flex-1">
+        {/* Main + secondary sections */}
+        <div
+          className={cn(
+            "px-2 space-y-3 flex-1 min-h-0 pb-6 relative z-10",
+            expanded ? "overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" : "overflow-hidden"
+          )}
+        >
           <SidebarSection items={mainItems} expanded={expanded} />
 
-          <div className="space-y-4">
-            <Separator className="bg-sidebar-border" />
-            <SidebarSection items={databaseItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={databaseItems} expanded={expanded} />
 
-          <div className="space-y-4">
-            <Separator className="bg-sidebar-border" />
-            <SidebarSection items={mapItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={mapItems} expanded={expanded} />
 
-          <div className="space-y-4">
-            <Separator className="bg-sidebar-border" />
-            <SidebarSection items={trackerItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={trackerItems} expanded={expanded} />
 
-          <div className="space-y-4">
-            <Separator className="bg-sidebar-border" />
-            <SidebarSection items={otherItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={otherItems} expanded={expanded} />
 
-          <div className="space-y-4">
-            <Separator className="bg-sidebar-border" />
-            <SidebarSection items={externalItems} expanded={expanded} />
-          </div>
+          <SidebarSection items={externalItems} expanded={expanded} />
         </div>
 
-        {/* Bottom section */}
-        <div className="px-2 mt-auto space-y-4">
-          <Separator className="bg-sidebar-border" />
+        {/* Bottom section - Fixed at bottom */}
+        <div className="px-2 pb-4 pt-4 border-t border-sidebar-border bg-sidebar relative z-20">
           <SidebarSection items={bottomItems} expanded={expanded} />
         </div>
       </div>

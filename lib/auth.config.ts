@@ -24,12 +24,27 @@ export const authConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        // Preserve email in token for profile lookups
+        if (user.email) {
+          token.email = user.email;
+        }
+        // Store sessionVersion in token for validation
+        const sessionVersion = (user as any).sessionVersion;
+        console.log('JWT callback - user.sessionVersion:', sessionVersion);
+        if (sessionVersion !== undefined) {
+          token.sessionVersion = sessionVersion;
+          console.log('JWT callback - token.sessionVersion set to:', token.sessionVersion);
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
+        // Ensure email is included in session for profile lookups
+        if (token.email) {
+          session.user.email = token.email as string;
+        }
       }
       return session;
     },
