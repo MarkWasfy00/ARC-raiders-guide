@@ -10,39 +10,39 @@ interface SkillTreeState {
   expeditionPoints: number;
 }
 
-const getInitialState = (): SkillTreeState => {
-  if (typeof window === "undefined") {
-    return {
-      skillLevels: {},
-      expeditionPoints: 0,
-    };
-  }
-
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (error) {
-    console.error("Failed to load skill tree state:", error);
-  }
-
-  return {
-    skillLevels: {},
-    expeditionPoints: 0,
-  };
+const DEFAULT_STATE: SkillTreeState = {
+  skillLevels: {},
+  expeditionPoints: 0,
 };
 
 export function useSkillTree() {
-  const [state, setState] = useState<SkillTreeState>(getInitialState);
+  const [state, setState] = useState<SkillTreeState>(DEFAULT_STATE);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setState(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error("Failed to load skill tree state:", error);
+    } finally {
+      setHasLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoaded) return;
+
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
       console.error("Failed to save skill tree state:", error);
     }
-  }, [state]);
+  }, [hasLoaded, state]);
 
   const getSkillLevel = useCallback(
     (skillId: string) => {
