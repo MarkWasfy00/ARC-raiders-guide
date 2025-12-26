@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Search, Star, StarOff } from 'lucide-react';
+import { ChevronDown, Search, Star, StarOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Tier = 'S' | 'A' | 'B' | 'C' | 'D';
@@ -234,6 +234,7 @@ const tierColors: Record<Tier, { solid: string; soft: string }> = {
 export default function LootValueTiersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('sell');
+  const [sortOpen, setSortOpen] = useState(false);
   const [includeWeapons, setIncludeWeapons] = useState(true);
   const [favorited, setFavorited] = useState(false);
 
@@ -276,7 +277,7 @@ export default function LootValueTiersPage() {
             <h1 className="text-3xl md:text-4xl font-bold text-foreground">Loot Value Tiers</h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground border border-dashed border-border/70 rounded-full px-3 py-1 bg-muted/40">
               <span>Arc Raiders</span>
-              <span className="text-border">ƒ?§</span>
+              <span className="text-border">&gt;</span>
               <span className="text-foreground font-semibold">Loot Value Tiers</span>
             </div>
           </div>
@@ -311,25 +312,47 @@ export default function LootValueTiersPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {([
-              { key: 'sell', label: 'Sell Price' },
-              { key: 'perKg', label: 'Price per Kg' },
-              { key: 'recycle', label: 'Recycle Value' },
-            ] as { key: SortKey; label: string }[]).map((option) => (
-              <button
-                key={option.key}
-                onClick={() => setSortKey(option.key)}
-                className={cn(
-                  'rounded-full border px-4 py-2 text-sm font-semibold transition-colors',
-                  sortKey === option.key
-                    ? 'border-primary/70 bg-primary/10 text-primary'
-                    : 'border-border bg-muted/40 text-foreground'
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Sort By</div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setSortOpen((prev) => !prev)}
+                  className="flex w-full min-w-[200px] items-center justify-between gap-3 rounded-full border border-border bg-card/60 px-4 py-2 text-left text-sm font-semibold text-foreground shadow-sm hover:border-primary/50"
+                >
+                  <span>
+                    {sortKey === 'sell' ? 'Sell Price' : sortKey === 'perKg' ? 'Price per Kg' : 'Recycle Value'}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </button>
+                {sortOpen && (
+                  <div className="absolute left-0 right-0 z-20 mt-2 rounded-xl border border-border bg-card/95 p-2 shadow-lg">
+                    {([
+                      { key: 'sell', label: 'Sell Price' },
+                      { key: 'perKg', label: 'Price per Kg' },
+                      { key: 'recycle', label: 'Recycle Value' },
+                    ] as { key: SortKey; label: string }[]).map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setSortKey(option.key);
+                          setSortOpen(false);
+                        }}
+                        className={cn(
+                          'w-full rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors',
+                          sortKey === option.key
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-foreground hover:bg-muted/40'
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
-              >
-                {option.label}
-              </button>
-            ))}
-
+              </div>
+            </div>
             <button
               onClick={() => setIncludeWeapons((prev) => !prev)}
               className={cn(
@@ -400,7 +423,7 @@ export default function LootValueTiersPage() {
                                 <Image src={item.image} alt={item.name} fill className="object-cover" />
                               </div>
                               <div className="mt-3 text-xs uppercase tracking-wide text-muted-foreground">
-                                {item.classification} · {item.rarity}
+                                {item.classification} - {item.rarity}
                               </div>
                               <h4 className="mt-1 text-sm font-semibold text-foreground">{item.name}</h4>
                               <p className="text-xs text-muted-foreground">{item.description}</p>
@@ -408,13 +431,13 @@ export default function LootValueTiersPage() {
                                 <div className="flex items-center justify-between">
                                   <span>Stack size</span>
                                   <span className="text-foreground">
-                                    {item.stackSize} · {item.size} {item.sizeClass}
+                                    {item.stackSize} - {item.size} {item.sizeClass}
                                   </span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                   <span>Weight</span>
                                   <span className="text-foreground">
-                                    {item.weight}kg · {item.recycleValue} recycle
+                                    {item.weight}kg - {item.recycleValue} recycle
                                   </span>
                                 </div>
                               </div>
@@ -433,3 +456,6 @@ export default function LootValueTiersPage() {
     </main>
   );
 }
+
+
+
