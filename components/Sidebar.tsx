@@ -63,7 +63,7 @@ const trackerItems: SidebarItem[] = [
 
 const otherItems: SidebarItem[] = [
   { icon: Swords, label: 'Loadouts', href: '/loadouts' },
-  { icon: ScrollText, label: 'Skilltree', href: '/skilltree' },
+  { icon: ScrollText, label: 'Skill Tree Builder', href: '/skill-tree-builder' },
   { icon: Trophy, label: 'Tier Lists', href: '/tier-lists' },
   { icon: Calendar, label: 'Event Timer', href: '/events' },
   { icon: MessageCircle, label: 'Reddit', href: 'https://www.reddit.com/r/ArcRaiders/', external: true },
