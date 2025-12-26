@@ -12,7 +12,7 @@ export function AllSkillsSection() {
       <h2 className="text-xl font-bold text-foreground">All Available Skills</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {(["survival", "mobility", "conditioning"] as SkillCategory[]).map((category) => {
+        {(["conditioning", "mobility", "survival"] as SkillCategory[]).map((category) => {
           const skills = skillsByCategory[category];
           const colors = CATEGORY_COLORS[category];
 

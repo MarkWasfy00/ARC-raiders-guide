@@ -3,20 +3,23 @@ import {
   MOCK_SKILLS,
   CATEGORY_COLORS,
   CATEGORY_LABELS,
-  MAX_TOTAL_POINTS,
   SkillCategory,
+  ROOT_NODE,
+  SKILL_TREE_CENTER,
   mapSkillPosition,
+  mapTreePosition,
 } from "@/lib/skillTreeData";
 import { SkillNode } from "./SkillNode";
 import { SkillConnections } from "./SkillConnections";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Plus, Minus, Hand, MousePointer2, Orbit } from "lucide-react";
+import { RotateCcw, Plus, Minus, Hand, MousePointer2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SkillTreeCanvasProps {
   skillLevels: Record<string, number>;
   expeditionPoints: number;
   totalPointsUsed: number;
+  totalPointsLimit: number;
   pointsByCategory: Record<SkillCategory, number>;
   getSkillLevel: (skillId: string) => number;
   canLearnSkill: (skillId: string) => boolean;
@@ -30,6 +33,7 @@ export function SkillTreeCanvas({
   skillLevels,
   expeditionPoints,
   totalPointsUsed,
+  totalPointsLimit,
   pointsByCategory,
   getSkillLevel,
   canLearnSkill,
@@ -43,6 +47,7 @@ export function SkillTreeCanvas({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hoveredSkillId, setHoveredSkillId] = useState<string | null>(null);
 
   const handleMouseDown = useCallback(
     (event: React.MouseEvent) => {
@@ -97,7 +102,9 @@ export function SkillTreeCanvas({
     ),
   };
 
-  const canvasCenter = { x: 500, y: 260 };
+  const rootPosition = mapTreePosition(ROOT_NODE.position);
+  const rootX = rootPosition.x + SKILL_TREE_CENTER.x;
+  const rootY = rootPosition.y + SKILL_TREE_CENTER.y;
 
   return (
     <div className="relative w-full h-[720px] bg-[#060810] border border-border/50 rounded-2xl overflow-hidden shadow-2xl">
@@ -155,7 +162,7 @@ export function SkillTreeCanvas({
         <div className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2">
           <div className="text-sm font-semibold text-foreground">
             Points Used: <span className="text-primary">{totalPointsUsed}</span> /{" "}
-            {MAX_TOTAL_POINTS}
+            {totalPointsLimit}
           </div>
           <div className="text-xs text-muted-foreground">
             Expedition Points: {expeditionPoints}
@@ -191,7 +198,7 @@ export function SkillTreeCanvas({
             width: "1100px",
             height: "650px",
             marginLeft: "-550px",
-            marginTop: "-200px",
+            marginTop: "-325px",
             transition: isDragging ? "none" : "transform 0.1s ease-out",
           }}
         >
@@ -201,28 +208,27 @@ export function SkillTreeCanvas({
           </div>
 
           <div
-            className="absolute flex flex-col items-center gap-1 text-center"
+            className="absolute flex flex-col items-center gap-2 text-center"
             style={{
-              left: canvasCenter.x,
-              top: canvasCenter.y,
+              left: rootX,
+              top: rootY,
               transform: "translate(-50%, -50%)",
             }}
           >
-            <div
-              className="rounded-full border-[3px] flex items-center justify-center shadow-[0_0_35px_rgba(0,0,0,0.5)]"
-              style={{
-                width: "72px",
-                height: "72px",
-                borderColor: "hsl(var(--primary))",
-                background:
-                  "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.12), rgba(255,255,255,0.02))",
-                boxShadow: "0 0 40px rgba(255,255,255,0.2)",
-              }}
-            >
-              <Orbit className="w-8 h-8 text-primary" />
+            <div className="relative flex items-center justify-center">
+              <div className="w-24 h-24 rounded-full border-[4px] border-primary/60 shadow-[0_0_30px_hsl(var(--primary)/0.4)] flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-background shadow-[inset_0_0_18px_hsl(var(--muted)/0.6)] flex items-center justify-center text-primary">
+                  <svg viewBox="0 0 64 64" className="w-7 h-7" aria-hidden="true">
+                    <path
+                      fill="currentColor"
+                      d="M28 10c5 0 9 4 9 9v5l7 3 10-2c2 0 4 2 4 4v4h-6l-6 6H35l-4 6h-7l2-8-6-7-8-1c-2-1-3-3-2-5l1-3 10 2 8-4v-4c0-5 4-9 9-9zm-6 17-6 3 4 5 6 1 3 4 2-3h9l4-4 4-2-8 1-9-4-1-1v-3l-4 3z"
+                    />
+                  </svg>
+                </div>
+              </div>
             </div>
             <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/80">
-              Core Link
+              Core
             </div>
           </div>
 
@@ -231,40 +237,29 @@ export function SkillTreeCanvas({
             const colors = CATEGORY_COLORS[category as SkillCategory];
             const points = pointsByCategory[category as SkillCategory];
             const position = mapSkillPosition(skill);
-
-            const startX = canvasCenter.x;
-            const startY = canvasCenter.y;
-            const endX = position.x + 500;
-            const endY = position.y + 50;
-
-            return (
-              <svg key={`${category}-stem`} className="absolute inset-0 pointer-events-none">
-                <path
-                  d={`M ${startX} ${startY} Q ${(startX + endX) / 2} ${startY - 120} ${endX} ${endY}`}
-                  fill="none"
-                  stroke={`${colors.primary}60`}
-                  strokeWidth={10}
-                  strokeLinecap="round"
-                  style={{ filter: `drop-shadow(0 0 18px ${colors.primary}50)` }}
-                />
-              </svg>
+            const midX = (rootX + position.x + SKILL_TREE_CENTER.x) / 2;
+            const midY = (rootY + position.y + SKILL_TREE_CENTER.y) / 2;
+            const angle = Math.atan2(
+              position.y + SKILL_TREE_CENTER.y - rootY,
+              position.x + SKILL_TREE_CENTER.x - rootX
             );
-          })}
-
-          {Object.entries(rootSkills).map(([category, skill]) => {
-            if (!skill) return null;
-            const colors = CATEGORY_COLORS[category as SkillCategory];
-            const points = pointsByCategory[category as SkillCategory];
-            const position = mapSkillPosition(skill);
+            const offset = category === "mobility" ? 0 : 18;
+            const labelX = midX + Math.cos(angle + Math.PI / 2) * offset;
+            const labelY = midY + Math.sin(angle + Math.PI / 2) * offset;
+            const baseRotation = (angle * 180) / Math.PI + 90;
+            const rotation =
+              category === "survival" || category === "conditioning"
+                ? baseRotation + 180
+                : baseRotation;
 
             return (
               <div
                 key={category}
                 className="absolute flex items-center gap-2 bg-card/80 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-border/50"
                 style={{
-                  left: position.x + 500 - 40,
-                  top: position.y + 50 - 60,
-                  transform: "translateX(-50%)",
+                  left: labelX,
+                  top: labelY,
+                  transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
                 }}
               >
                 <span
@@ -280,7 +275,7 @@ export function SkillTreeCanvas({
             );
           })}
 
-          <SkillConnections skillLevels={skillLevels} />
+          <SkillConnections skillLevels={skillLevels} highlightedSkillId={hoveredSkillId} />
 
           {MOCK_SKILLS.map((skill) => (
             <SkillNode
@@ -290,6 +285,8 @@ export function SkillTreeCanvas({
               canLearn={canLearnSkill(skill.id)}
               onAddPoint={() => addPoint(skill.id)}
               onRemovePoint={() => removePoint(skill.id)}
+              onHover={() => setHoveredSkillId(skill.id)}
+              onBlur={() => setHoveredSkillId(null)}
             />
           ))}
         </div>

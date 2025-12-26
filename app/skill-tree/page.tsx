@@ -17,6 +17,7 @@ export default function SkillTreePage() {
     skillLevels,
     expeditionPoints,
     totalPointsUsed,
+    totalPointsLimit,
     pointsByCategory,
     getSkillLevel,
     canLearnSkill,
@@ -58,6 +59,7 @@ export default function SkillTreePage() {
         skillLevels={skillLevels}
         expeditionPoints={expeditionPoints}
         totalPointsUsed={totalPointsUsed}
+        totalPointsLimit={totalPointsLimit}
         pointsByCategory={pointsByCategory}
         getSkillLevel={getSkillLevel}
         canLearnSkill={canLearnSkill}
@@ -71,6 +73,7 @@ export default function SkillTreePage() {
         selectedSkills={selectedSkills}
         getSkillLevel={getSkillLevel}
         totalLevel={totalLevel}
+        totalPointsLimit={totalPointsLimit}
       />
 
       <InfoSection />

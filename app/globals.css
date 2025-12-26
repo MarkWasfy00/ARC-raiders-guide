@@ -317,4 +317,33 @@
       transform: scale(1);
     }
   }
+
+  @keyframes skillPulse {
+    0% {
+      box-shadow: 0 0 16px currentColor;
+    }
+    50% {
+      box-shadow: 0 0 28px currentColor;
+    }
+    100% {
+      box-shadow: 0 0 16px currentColor;
+    }
+  }
+
+  @keyframes skillGateGlow {
+    0% {
+      box-shadow: 0 0 18px currentColor;
+    }
+    100% {
+      box-shadow: 0 0 30px currentColor;
+    }
+  }
+
+  .skill-node-maxed {
+    animation: skillPulse 1.6s ease-in-out infinite;
+  }
+
+  .skill-node-gate {
+    animation: skillGateGlow 1.2s ease-in-out infinite alternate;
+  }
 }

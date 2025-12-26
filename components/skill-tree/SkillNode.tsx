@@ -1,8 +1,8 @@
 import { memo } from "react";
-import { Skill, CATEGORY_COLORS, mapSkillPosition } from "@/lib/skillTreeData";
+import { Skill, CATEGORY_COLORS, SKILL_TREE_CENTER, mapSkillPosition } from "@/lib/skillTreeData";
 import { cn } from "@/lib/utils";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Shield, Zap, Leaf, Lock } from "lucide-react";
+import { Shield, Zap, Leaf } from "lucide-react";
 
 interface SkillNodeProps {
   skill: Skill;
@@ -10,6 +10,8 @@ interface SkillNodeProps {
   canLearn: boolean;
   onAddPoint: () => void;
   onRemovePoint: () => void;
+  onHover?: () => void;
+  onBlur?: () => void;
 }
 
 const CategoryIcon = ({ category }: { category: string }) => {
@@ -31,10 +33,14 @@ export const SkillNode = memo(function SkillNode({
   canLearn,
   onAddPoint,
   onRemovePoint,
+  onHover,
+  onBlur,
 }: SkillNodeProps) {
   const isLearned = currentLevel > 0;
   const isMaxed = currentLevel >= skill.maxLevel;
+  const isUnlocked = canLearn && !isLearned;
   const isLocked = !canLearn && !isLearned;
+  const isGate = skill.maxLevel === 1;
   const colors = CATEGORY_COLORS[skill.category];
   const position = mapSkillPosition(skill);
 
@@ -60,57 +66,65 @@ export const SkillNode = memo(function SkillNode({
         <div
           className={cn(
             "flex flex-col items-center gap-2 cursor-pointer select-none transition-all duration-300",
-            isLocked && "opacity-50 cursor-not-allowed"
+            isLocked && "opacity-60 grayscale cursor-not-allowed"
           )}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
+          onMouseEnter={onHover}
+          onMouseLeave={onBlur}
           style={{
             position: "absolute",
-            left: position.x + 500,
-            top: position.y + 50,
+            left: position.x + SKILL_TREE_CENTER.x,
+            top: position.y + SKILL_TREE_CENTER.y,
             transform: "translate(-50%, -50%)",
           }}
         >
-          <div
-            className={cn(
-              "relative w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300",
-              "border-[3px] shadow-[0_0_30px_rgba(0,0,0,0.25)]",
-              isLearned && "scale-105 shadow-[0_0_30px_rgba(0,0,0,0.45)]"
-            )}
-            style={{
-              borderColor: isLearned ? colors.primary : "hsl(var(--muted-foreground) / 0.4)",
-              background: isLearned
-                ? `radial-gradient(circle at 30% 30%, ${colors.primary}40, ${colors.bg})`
-                : "linear-gradient(135deg, hsl(var(--muted) / 0.2), hsl(var(--muted) / 0.05))",
-              boxShadow: isLearned ? `0 0 24px ${colors.primary}50` : "none",
-            }}
-          >
+          <div className="relative flex items-center justify-center">
             <div
-              className="absolute inset-0 rounded-full"
+              className={cn(
+                "flex items-center justify-center rounded-full transition-all duration-300",
+                "w-16 h-16 border-[3px]",
+                isLearned && "scale-105",
+                isMaxed && "skill-node-maxed",
+                isGate && isLearned && "skill-node-gate"
+              )}
               style={{
-                boxShadow: isLearned ? `0 0 60px ${colors.primary}40` : "none",
-              }}
-            />
-            <div
-              style={{
-                color: isLearned ? colors.primary : "hsl(var(--muted-foreground))",
+                borderColor: isLearned
+                  ? colors.primary
+                  : isUnlocked
+                  ? "hsl(var(--muted-foreground) / 0.55)"
+                  : "hsl(var(--muted-foreground) / 0.25)",
+                color: colors.primary,
+                boxShadow: isLearned
+                  ? `0 0 22px ${colors.primary}60`
+                  : "0 0 0 transparent",
               }}
             >
-              <CategoryIcon category={skill.category} />
-            </div>
-
-            {isLocked && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/60 rounded-full">
-                <Lock className="w-4 h-4 text-muted-foreground" />
+              <div
+                className="flex items-center justify-center rounded-full w-10 h-10"
+                style={{
+                  backgroundColor: "hsl(var(--background))",
+                  boxShadow: "inset 0 0 12px hsl(var(--muted) / 0.6)",
+                }}
+              >
+                <div
+                  style={{
+                    color: isLearned || isUnlocked
+                      ? colors.primary
+                      : "hsl(var(--muted-foreground) / 0.7)",
+                  }}
+                >
+                  <CategoryIcon category={skill.category} />
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           <div
             className="text-[11px] font-bold px-2 py-0.5 rounded-full tracking-wide transition-colors duration-300"
             style={{
-              color: isLearned ? colors.primary : "hsl(var(--muted-foreground))",
-              backgroundColor: isLearned ? `${colors.primary}18` : "hsl(var(--muted) / 0.08)",
+              color: isLearned || isUnlocked ? colors.primary : "hsl(var(--muted-foreground))",
+              backgroundColor: isLearned ? `${colors.primary}12` : "hsl(var(--muted) / 0.08)",
               border: `1px solid ${isLearned ? colors.primary : "hsl(var(--border))"}`,
             }}
           >

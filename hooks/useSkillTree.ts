@@ -51,6 +51,14 @@ export function useSkillTree() {
     [state.skillLevels]
   );
 
+  const totalPointsUsed = useMemo(() => {
+    return Object.values(state.skillLevels).reduce((sum, level) => sum + level, 0);
+  }, [state.skillLevels]);
+
+  const totalPointsLimit = useMemo(() => {
+    return MAX_TOTAL_POINTS + state.expeditionPoints;
+  }, [state.expeditionPoints]);
+
   const canLearnSkill = useCallback(
     (skillId: string) => {
       const skill = MOCK_SKILLS.find((s) => s.id === skillId);
@@ -58,6 +66,7 @@ export function useSkillTree() {
 
       const currentLevel = getSkillLevel(skillId);
       if (currentLevel >= skill.maxLevel) return false;
+      if (totalPointsUsed >= totalPointsLimit) return false;
 
       for (const prereqId of skill.prerequisites) {
         const prereqSkill = MOCK_SKILLS.find((s) => s.id === prereqId);
@@ -68,7 +77,7 @@ export function useSkillTree() {
 
       return true;
     },
-    [getSkillLevel]
+    [getSkillLevel, totalPointsLimit, totalPointsUsed]
   );
 
   const addPoint = useCallback(
@@ -122,10 +131,6 @@ export function useSkillTree() {
     }));
   }, []);
 
-  const totalPointsUsed = useMemo(() => {
-    return Object.values(state.skillLevels).reduce((sum, level) => sum + level, 0);
-  }, [state.skillLevels]);
-
   const pointsByCategory = useMemo(() => {
     const result: Record<SkillCategory, number> = {
       conditioning: 0,
@@ -146,8 +151,8 @@ export function useSkillTree() {
   }, [state.skillLevels]);
 
   const totalLevel = useMemo(() => {
-    return Math.min(15 + totalPointsUsed, MAX_TOTAL_POINTS);
-  }, [totalPointsUsed]);
+    return Math.min(15 + totalPointsUsed, totalPointsLimit);
+  }, [totalPointsLimit, totalPointsUsed]);
 
   return {
     skillLevels: state.skillLevels,
@@ -159,6 +164,7 @@ export function useSkillTree() {
     resetTree,
     setExpeditionPoints,
     totalPointsUsed,
+    totalPointsLimit,
     pointsByCategory,
     selectedSkills,
     totalLevel,

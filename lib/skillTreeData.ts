@@ -15,18 +15,18 @@ export const CATEGORY_COLORS: Record<
   { primary: string; muted: string; bg: string }
 > = {
   conditioning: {
-    primary: "hsl(142, 71%, 45%)",
-    muted: "hsl(142, 40%, 35%)",
+    primary: "hsl(142, 70%, 50%)",
+    muted: "hsl(142, 45%, 38%)",
     bg: "hsl(142, 40%, 12%)",
   },
   mobility: {
-    primary: "hsl(46, 100%, 62%)",
-    muted: "hsl(46, 70%, 45%)",
-    bg: "hsl(46, 60%, 12%)",
+    primary: "hsl(190, 85%, 55%)",
+    muted: "hsl(190, 60%, 40%)",
+    bg: "hsl(190, 50%, 12%)",
   },
   survival: {
-    primary: "hsl(0, 72%, 51%)",
-    muted: "hsl(0, 55%, 42%)",
+    primary: "hsl(0, 75%, 52%)",
+    muted: "hsl(0, 55%, 40%)",
     bg: "hsl(0, 45%, 12%)",
   },
 };
@@ -46,7 +46,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 5,
     prerequisites: [],
-    position: { x: -300, y: 0 },
+    position: { x: -139, y: 80 },
   },
   {
     id: "blast-born",
@@ -56,7 +56,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 5,
     prerequisites: ["used-to-the-weight"],
-    position: { x: -350, y: 100 },
+    position: { x: -272, y: 88 },
   },
   {
     id: "survivors-stamina",
@@ -66,7 +66,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 3,
     prerequisites: ["used-to-the-weight"],
-    position: { x: -250, y: 100 },
+    position: { x: -212, y: 192 },
   },
   {
     id: "iron-lungs",
@@ -76,7 +76,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 5,
     prerequisites: ["blast-born"],
-    position: { x: -400, y: 200 },
+    position: { x: -391, y: 122 },
   },
   {
     id: "thick-skinned",
@@ -86,7 +86,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 3,
     prerequisites: ["blast-born", "survivors-stamina"],
-    position: { x: -300, y: 200 },
+    position: { x: -346, y: 200 },
   },
   {
     id: "last-stand",
@@ -96,7 +96,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 3,
     prerequisites: ["survivors-stamina"],
-    position: { x: -200, y: 200 },
+    position: { x: -301, y: 278 },
   },
   {
     id: "endurance-master",
@@ -106,7 +106,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 5,
     prerequisites: ["iron-lungs", "thick-skinned"],
-    position: { x: -350, y: 300 },
+    position: { x: -480, y: 208 },
   },
   {
     id: "pain-tolerance",
@@ -116,7 +116,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "conditioning",
     maxLevel: 3,
     prerequisites: ["thick-skinned", "last-stand"],
-    position: { x: -250, y: 300 },
+    position: { x: -420, y: 312 },
   },
   {
     id: "marathon-runner",
@@ -126,7 +126,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 5,
     prerequisites: [],
-    position: { x: 0, y: 0 },
+    position: { x: 0, y: -160 },
   },
   {
     id: "carry-the-momentum",
@@ -136,7 +136,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 3,
     prerequisites: ["marathon-runner"],
-    position: { x: -50, y: 100 },
+    position: { x: -60, y: -280 },
   },
   {
     id: "nimble-climber",
@@ -146,7 +146,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 5,
     prerequisites: ["marathon-runner"],
-    position: { x: 50, y: 100 },
+    position: { x: 60, y: -280 },
   },
   {
     id: "quick-recovery",
@@ -155,7 +155,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 3,
     prerequisites: ["carry-the-momentum"],
-    position: { x: -100, y: 200 },
+    position: { x: -90, y: -400 },
   },
   {
     id: "acrobat",
@@ -165,7 +165,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 5,
     prerequisites: ["carry-the-momentum", "nimble-climber"],
-    position: { x: 0, y: 200 },
+    position: { x: 0, y: -400 },
   },
   {
     id: "wall-runner",
@@ -175,7 +175,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 3,
     prerequisites: ["nimble-climber"],
-    position: { x: 100, y: 200 },
+    position: { x: 90, y: -400 },
   },
   {
     id: "ghost-step",
@@ -185,7 +185,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 3,
     prerequisites: ["quick-recovery", "acrobat"],
-    position: { x: -50, y: 300 },
+    position: { x: -70, y: -520 },
   },
   {
     id: "parkour-master",
@@ -195,7 +195,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "mobility",
     maxLevel: 5,
     prerequisites: ["acrobat", "wall-runner"],
-    position: { x: 50, y: 300 },
+    position: { x: 70, y: -520 },
   },
   {
     id: "in-round-crafting",
@@ -204,7 +204,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 3,
     prerequisites: [],
-    position: { x: 300, y: 0 },
+    position: { x: 139, y: 80 },
   },
   {
     id: "security-breach",
@@ -214,7 +214,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 1,
     prerequisites: ["in-round-crafting"],
-    position: { x: 250, y: 100 },
+    position: { x: 212, y: 192 },
   },
   {
     id: "minesweeper",
@@ -223,7 +223,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 3,
     prerequisites: ["in-round-crafting"],
-    position: { x: 350, y: 100 },
+    position: { x: 272, y: 88 },
   },
   {
     id: "scavenger",
@@ -232,7 +232,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 5,
     prerequisites: ["security-breach"],
-    position: { x: 200, y: 200 },
+    position: { x: 301, y: 278 },
   },
   {
     id: "field-medic",
@@ -242,7 +242,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 3,
     prerequisites: ["security-breach", "minesweeper"],
-    position: { x: 300, y: 200 },
+    position: { x: 346, y: 200 },
   },
   {
     id: "trap-master",
@@ -252,7 +252,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 5,
     prerequisites: ["minesweeper"],
-    position: { x: 400, y: 200 },
+    position: { x: 391, y: 122 },
   },
   {
     id: "resource-expert",
@@ -262,7 +262,7 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 3,
     prerequisites: ["scavenger", "field-medic"],
-    position: { x: 250, y: 300 },
+    position: { x: 420, y: 312 },
   },
   {
     id: "survival-instinct",
@@ -272,18 +272,38 @@ export const MOCK_SKILLS: Skill[] = [
     category: "survival",
     maxLevel: 3,
     prerequisites: ["field-medic", "trap-master"],
-    position: { x: 350, y: 300 },
+    position: { x: 480, y: 208 },
   },
 ];
 
-const POSITION_Y_MAX = Math.max(...MOCK_SKILLS.map((skill) => skill.position.y));
+export const ROOT_NODE = {
+  id: "core",
+  name: "Core",
+  position: { x: 0, y: 0 },
+};
+
+export const SKILL_TREE_CENTER = { x: 550, y: 325 };
+const BRANCH_SPACING_MULTIPLIER = 1;
+
+export const mapTreePosition = (position: { x: number; y: number }) => {
+  return { x: position.x, y: position.y };
+};
 
 export const mapSkillPosition = (skill: Skill) => {
-  const mappedX = skill.position.x;
-  const mappedY = POSITION_Y_MAX - skill.position.y;
-
-  return { x: mappedX, y: mappedY };
+  const multiplier = BRANCH_SPACING_MULTIPLIER;
+  return mapTreePosition({
+    x: skill.position.x * multiplier,
+    y: skill.position.y * multiplier,
+  });
 };
+
+const SKILL_TREE_MAX_DISTANCE = Math.max(
+  ...MOCK_SKILLS.map((skill) => {
+    const mapped = mapSkillPosition(skill);
+    return Math.hypot(mapped.x - ROOT_NODE.position.x, mapped.y - ROOT_NODE.position.y);
+  })
+);
+export const SKILL_TREE_RADIUS = SKILL_TREE_MAX_DISTANCE;
 
 export const MAX_TOTAL_POINTS = 76;
 

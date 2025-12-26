@@ -1,21 +1,17 @@
-import {
-  Skill,
-  CATEGORY_COLORS,
-  CATEGORY_LABELS,
-  SkillCategory,
-  MAX_TOTAL_POINTS,
-} from "@/lib/skillTreeData";
+import { Skill, CATEGORY_COLORS, CATEGORY_LABELS, SkillCategory } from "@/lib/skillTreeData";
 
 interface SelectedSkillsSectionProps {
   selectedSkills: Skill[];
   getSkillLevel: (skillId: string) => number;
   totalLevel: number;
+  totalPointsLimit: number;
 }
 
 export function SelectedSkillsSection({
   selectedSkills,
   getSkillLevel,
   totalLevel,
+  totalPointsLimit,
 }: SelectedSkillsSectionProps) {
   const skillsByCategory = {
     conditioning: selectedSkills.filter((skill) => skill.category === "conditioning"),
@@ -29,12 +25,12 @@ export function SelectedSkillsSection({
         <h2 className="text-xl font-bold text-foreground">Your Selected Skills</h2>
         <span className="text-sm text-muted-foreground">
           Level: <span className="text-primary font-semibold">{totalLevel}</span> /{" "}
-          {MAX_TOTAL_POINTS}
+          {totalPointsLimit}
         </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {(["survival", "mobility", "conditioning"] as SkillCategory[]).map((category) => {
+        {(["conditioning", "mobility", "survival"] as SkillCategory[]).map((category) => {
           const skills = skillsByCategory[category];
           const colors = CATEGORY_COLORS[category];
 
