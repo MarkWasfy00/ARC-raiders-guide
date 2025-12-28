@@ -60,6 +60,8 @@ export const SkillNode = memo(function SkillNode({
     }
   };
 
+  const hoverSide = skill.category === "conditioning" ? "left" : "right";
+
   return (
     <HoverCard openDelay={100} closeDelay={50}>
       <HoverCardTrigger asChild>
@@ -134,7 +136,7 @@ export const SkillNode = memo(function SkillNode({
       </HoverCardTrigger>
 
       <HoverCardContent
-        side="right"
+        side={hoverSide}
         className="w-64 bg-card/95 backdrop-blur-sm border-border/50"
         sideOffset={10}
       >

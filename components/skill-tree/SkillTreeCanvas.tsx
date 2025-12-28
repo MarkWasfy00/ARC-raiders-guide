@@ -139,40 +139,42 @@ export function SkillTreeCanvas({
         </div>
       </div>
 
-      <div className="absolute right-4 top-4 z-20 bg-card/90 backdrop-blur-sm border border-border/50 rounded-lg p-4 space-y-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Hand className="h-4 w-4" />
-          <span>Drag to navigate</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <MousePointer2 className="h-4 w-4" />
-          <span>Scroll-wheel to zoom</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="w-4 h-4 rounded-full bg-green-500/30 border border-green-500" />
-          <span>Left-click to learn skill</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="w-4 h-4 rounded-full bg-red-500/30 border border-red-500" />
-          <span>Right-click to remove points</span>
-        </div>
-      </div>
+      <div className="absolute right-4 top-4 z-20 flex items-start gap-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2">
+            <div className="text-sm font-semibold text-foreground">
+              Points Used: <span className="text-primary">{totalPointsUsed}</span> /{" "}
+              {totalPointsLimit}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Expedition Points: {expeditionPoints}
+            </div>
+          </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2 top-4 z-20 flex items-center gap-8">
-        <div className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-lg px-4 py-2">
-          <div className="text-sm font-semibold text-foreground">
-            Points Used: <span className="text-primary">{totalPointsUsed}</span> /{" "}
-            {totalPointsLimit}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Expedition Points: {expeditionPoints}
-          </div>
+          <Button variant="destructive" size="sm" onClick={resetTree} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Reset
+          </Button>
         </div>
 
-        <Button variant="destructive" size="sm" onClick={resetTree} className="gap-2">
-          <RotateCcw className="h-4 w-4" />
-          Reset
-        </Button>
+        <div className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Hand className="h-4 w-4" />
+            <span>Drag to navigate</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <MousePointer2 className="h-4 w-4" />
+            <span>Scroll-wheel to zoom</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="w-4 h-4 rounded-full bg-green-500/30 border border-green-500" />
+            <span>Left-click to learn skill</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="w-4 h-4 rounded-full bg-red-500/30 border border-red-500" />
+            <span>Right-click to remove points</span>
+          </div>
+        </div>
       </div>
 
       <div
