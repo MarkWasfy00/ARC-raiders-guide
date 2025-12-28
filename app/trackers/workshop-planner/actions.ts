@@ -59,6 +59,37 @@ export async function getWorkbenchItems(): Promise<WorkbenchPlannerData[]> {
       },
     });
 
+    // Collect all unique item names
+    const allItemNames = new Set<string>();
+    for (const workbench of workbenches) {
+      for (const level of workbench.levels) {
+        for (const req of level.requirements) {
+          allItemNames.add(req.itemName);
+        }
+        for (const craft of level.crafts) {
+          allItemNames.add(craft.itemName);
+        }
+      }
+    }
+
+    // Fetch all items in a single query
+    const items = await prisma.item.findMany({
+      where: {
+        name: {
+          in: Array.from(allItemNames),
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        icon: true,
+        rarity: true,
+      },
+    });
+
+    // Create a lookup map for fast access
+    const itemMap = new Map(items.map(item => [item.name, item]));
+
     // Enrich with item data
     const enrichedWorkbenches: WorkbenchPlannerData[] = [];
 
@@ -66,44 +97,18 @@ export async function getWorkbenchItems(): Promise<WorkbenchPlannerData[]> {
       const enrichedLevels: WorkbenchLevelData[] = [];
 
       for (const level of workbench.levels) {
-        // Fetch item data for requirements
-        const enrichedRequirements: WorkbenchRequirementItem[] = [];
-        for (const req of level.requirements) {
-          const item = await prisma.item.findFirst({
-            where: { name: req.itemName },
-            select: {
-              id: true,
-              name: true,
-              icon: true,
-              rarity: true,
-            },
-          });
+        // Enrich requirements with item data
+        const enrichedRequirements: WorkbenchRequirementItem[] = level.requirements.map(req => ({
+          itemName: req.itemName,
+          quantity: req.quantity,
+          item: itemMap.get(req.itemName) || null,
+        }));
 
-          enrichedRequirements.push({
-            itemName: req.itemName,
-            quantity: req.quantity,
-            item: item || null,
-          });
-        }
-
-        // Fetch item data for crafts
-        const enrichedCrafts: WorkbenchCraftItem[] = [];
-        for (const craft of level.crafts) {
-          const item = await prisma.item.findFirst({
-            where: { name: craft.itemName },
-            select: {
-              id: true,
-              name: true,
-              icon: true,
-              rarity: true,
-            },
-          });
-
-          enrichedCrafts.push({
-            itemName: craft.itemName,
-            item: item || null,
-          });
-        }
+        // Enrich crafts with item data
+        const enrichedCrafts: WorkbenchCraftItem[] = level.crafts.map(craft => ({
+          itemName: craft.itemName,
+          item: itemMap.get(craft.itemName) || null,
+        }));
 
         enrichedLevels.push({
           level: level.level,

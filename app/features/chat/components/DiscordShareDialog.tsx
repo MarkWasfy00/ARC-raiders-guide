@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ExternalLink } from "lucide-react";
+import { DiscordIcon } from "@/components/icons/DiscordIcon";
 
 interface DiscordShareDialogProps {
   open: boolean;
@@ -40,6 +41,24 @@ export function DiscordShareDialog({
     }
   };
 
+  const handleOpenDiscord = () => {
+    // Try to open Discord desktop app first, fallback to web
+    window.location.href = "discord://";
+
+    // Fallback to web version after a short delay if app doesn't open
+    setTimeout(() => {
+      window.open("https://discord.com/app", "_blank");
+    }, 1000);
+  };
+
+  const handleCopyAndOpen = async () => {
+    await handleCopy();
+    // Wait a moment for user to see the "copied" confirmation
+    setTimeout(() => {
+      handleOpenDiscord();
+    }, 500);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -57,22 +76,51 @@ export function DiscordShareDialog({
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleCopy}
-            className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white"
-          >
-            {copied ? (
-              <>
-                <Check className="h-4 w-4 ml-2" />
-                تم النسخ!
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4 ml-2" />
-                نسخ النص
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={handleCopyAndOpen}
+              className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4 ml-2" />
+                  تم النسخ! جاري فتح Discord...
+                </>
+              ) : (
+                <>
+                  <DiscordIcon className="h-4 w-4 ml-2" />
+                  نسخ وفتح Discord
+                </>
+              )}
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleCopy}
+                variant="outline"
+                className="flex-1"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 ml-2" />
+                    تم النسخ!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 ml-2" />
+                    نسخ فقط
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleOpenDiscord}
+                variant="outline"
+                className="flex-1"
+              >
+                <ExternalLink className="h-4 w-4 ml-2" />
+                فتح Discord
+              </Button>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

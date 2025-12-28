@@ -3,7 +3,7 @@ import next from "next";
 import { Server } from "socket.io";
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = process.env.HOSTNAME || "localhost";
+const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 
 const app = next({ dev, hostname, port });
@@ -27,6 +27,20 @@ app.prepare().then(() => {
   // Socket.IO connection handling
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
+
+    // Join a user's notification room
+    socket.on("join-notifications", (userId) => {
+      const room = `notifications:${userId}`;
+      socket.join(room);
+      console.log(`Socket ${socket.id} joined notifications: ${room}`);
+    });
+
+    // Leave a user's notification room
+    socket.on("leave-notifications", (userId) => {
+      const room = `notifications:${userId}`;
+      socket.leave(room);
+      console.log(`Socket ${socket.id} left notifications: ${room}`);
+    });
 
     // Join a chat room
     socket.on("join-chat", (chatId) => {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/app/features/notifications/services/notification-actions";
 
 // GET - Fetch messages for a chat
 export async function GET(
@@ -125,6 +126,34 @@ export async function POST(
     if (global.io) {
       global.io.to(chatId).emit("new-message", message);
     }
+
+    // Create notification for the recipient (the other participant)
+    const recipientId =
+      chat.participant1Id === session.user.id
+        ? chat.participant2Id
+        : chat.participant1Id;
+
+    const senderName =
+      message.sender.username ||
+      message.sender.name ||
+      "مستخدم";
+
+    // Truncate message content for notification preview (max 50 chars)
+    const messagePreview =
+      content.length > 50 ? content.substring(0, 50) + "..." : content;
+
+    await createNotification({
+      userId: recipientId,
+      type: "CHAT_MESSAGE",
+      title: `رسالة جديدة من ${senderName}`,
+      message: messagePreview,
+      link: `/chat?chatId=${chatId}`,
+      metadata: {
+        chatId,
+        senderId: session.user.id,
+        messageId: message.id,
+      },
+    });
 
     return NextResponse.json(message);
   } catch (error) {

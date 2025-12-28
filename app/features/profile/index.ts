@@ -1,8 +1,14 @@
 // Components
 export { ProfileForm } from "./components/ProfileForm";
+export { ProfileAvatarUpload } from "./components/ProfileAvatarUpload";
 
 // Services
-export { getUserProfile, updateProfile } from "./services/profile-actions";
+export {
+  getUserProfile,
+  updateProfile,
+  updateProfileImage,
+  removeProfileImage,
+} from "./services/profile-actions";
 
 // Types
 export type {

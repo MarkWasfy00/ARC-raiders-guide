@@ -3,6 +3,7 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
+import { Footer } from "@/components/Footer";
 import { SessionProvider } from "@/components/SessionProvider";
 import { auth } from "@/lib/auth";
 import { StructuredData, getOrganizationSchema, getWebSiteSchema } from "@/components/StructuredData";
@@ -102,6 +103,9 @@ export default async function RootLayout({
           <main className="mr-14 mt-14">
             {children}
           </main>
+          <div className="mr-14">
+            <Footer />
+          </div>
         </SessionProvider>
       </body>
     </html>

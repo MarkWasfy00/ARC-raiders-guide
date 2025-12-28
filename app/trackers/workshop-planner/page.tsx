@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   description: 'خطط ترقيات الورشة الخاصة بك في آرك رايدرز. تتبع مستويات طاولات العمل والمتطلبات والعناصر المفتوحة.',
 };
 
+// Force dynamic rendering to avoid build-time database queries
+export const dynamic = 'force-dynamic';
+
 export default async function WorkshopPlannerPage() {
   const workbenchData = await getWorkbenchItems();
 

@@ -4,6 +4,9 @@ import { seedItems } from '@/lib/seedItems'
 import { seedArcs } from '@/lib/seedArcs'
 import { seedQuests } from '@/lib/seedQuests'
 import { seedWorkbenches } from '@/lib/workbenchesSeed'
+import { seedDamMap } from '@/lib/damMapSeed'
+import { seedStellaMontisMap } from '@/lib/stellaMontisMapSeed'
+import { seedSpaceportMap } from '@/lib/spaceportMapSeed'
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
@@ -22,7 +25,16 @@ async function main() {
     // await seedQuests()
 
     // Seed Workbenches (references items by name)
-    await seedWorkbenches()
+    // await seedWorkbenches()
+
+    // Seed Dam map markers
+    // await seedDamMap()
+
+    // Seed Stella Montis map markers
+    // await seedStellaMontisMap()
+
+    // Seed Spaceport map markers
+    await seedSpaceportMap()
 
     // Add more seed functions here as needed
     // await seedWeapons()

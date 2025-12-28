@@ -15,7 +15,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { User, Mail, AtSign, Gamepad2, MessageSquare, CheckCircle2, AlertCircle } from "lucide-react";
-import { updateProfile } from "../services/profile-actions";
+import { updateProfile, updateProfileImage, removeProfileImage } from "../services/profile-actions";
+import { ProfileAvatarUpload } from "./ProfileAvatarUpload";
 import type { UserProfile, UpdateProfileData } from "../types";
 
 interface ProfileFormProps {
@@ -26,6 +27,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
+  const [profileImage, setProfileImage] = useState<string | null>(user.image);
+  const [imageError, setImageError] = useState<string>("");
   const [formData, setFormData] = useState<UpdateProfileData>({
     name: user.name || "",
     username: user.username || "",
@@ -57,6 +60,38 @@ export function ProfileForm({ user }: ProfileFormProps) {
     }));
   };
 
+  const handleImageUpload = async (url: string) => {
+    setImageError("");
+    setError("");
+    setSuccess("");
+
+    const result = await updateProfileImage(url);
+
+    if (result.success) {
+      setProfileImage(url);
+      setSuccess("تم تحديث صورة الملف الشخصي بنجاح!");
+      setTimeout(() => setSuccess(""), 3000);
+    } else {
+      setImageError(result.error?.message || "فشل تحديث الصورة");
+    }
+  };
+
+  const handleImageRemove = async () => {
+    setImageError("");
+    setError("");
+    setSuccess("");
+
+    const result = await removeProfileImage();
+
+    if (result.success) {
+      setProfileImage(null);
+      setSuccess("تم حذف صورة الملف الشخصي!");
+      setTimeout(() => setSuccess(""), 3000);
+    } else {
+      setImageError(result.error?.message || "فشل حذف الصورة");
+    }
+  };
+
   const missingFieldsCount = [!user.embark_id, !user.discord_username].filter(Boolean).length;
   const profileCompletion = Math.round(((4 - missingFieldsCount) / 4) * 100);
 
@@ -86,7 +121,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center space-y-4">
               <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-xl">
-                <AvatarImage src={user.image || undefined} alt={user.name || "User"} />
+                <AvatarImage
+                  src={profileImage || undefined}
+                  alt={user.name || "User"}
+                />
                 <AvatarFallback className="text-3xl font-bold bg-gradient-orange text-primary-foreground">
                   {getInitials()}
                 </AvatarFallback>
@@ -176,6 +214,34 @@ export function ProfileForm({ user }: ProfileFormProps) {
                 <span>{success}</span>
               </div>
             )}
+
+            {imageError && (
+              <div className="flex items-center gap-2 p-4 text-sm text-red-600 dark:text-red-500 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-lg">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{imageError}</span>
+              </div>
+            )}
+
+            {/* Profile Picture */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2">
+                <div className="h-8 w-1 bg-gradient-orange rounded-full" />
+                <h3 className="text-lg font-bold">صورة الملف الشخصي</h3>
+              </div>
+
+              <ProfileAvatarUpload
+                currentImage={profileImage}
+                userName={user.name || user.username}
+                onUpload={handleImageUpload}
+                onRemove={handleImageRemove}
+              />
+
+              <p className="text-xs text-muted-foreground text-center">
+                قم برفع صورة شخصية. يمكنك استخدام JPG, PNG, GIF (متحرك), أو WebP
+              </p>
+            </div>
+
+            <Separator className="my-6" />
 
             {/* Basic Information */}
             <div className="space-y-4">

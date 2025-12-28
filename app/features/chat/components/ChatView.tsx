@@ -11,6 +11,7 @@ import { ar } from "date-fns/locale";
 import { getSocket } from "@/lib/socket";
 import { RatingDialog } from "./RatingDialog";
 import { DiscordShareDialog } from "./DiscordShareDialog";
+import { DiscordIcon } from "@/components/icons/DiscordIcon";
 
 interface User {
   id: string;
@@ -389,7 +390,7 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
               )}
               {otherUser.discord_username && (
                 <div className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" />
+                  <DiscordIcon className="h-3 w-3" />
                   <span>{otherUser.discord_username}</span>
                 </div>
               )}
@@ -401,7 +402,7 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
             className="bg-[#5865F2] hover:bg-[#4752C4] text-white shrink-0"
             title="مشاركة على Discord"
           >
-            <MessageSquare className="h-4 w-4" />
+            <DiscordIcon className="h-4 w-4" />
           </Button>
         </div>
       </div>

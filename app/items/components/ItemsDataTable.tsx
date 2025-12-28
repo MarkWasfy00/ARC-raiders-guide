@@ -1,39 +1,18 @@
 'use client';
 
-import * as React from 'react';
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from '@tanstack/react-table';
-import { ChevronDown, Search } from 'lucide-react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { ArrowDownUp, Filter, Search } from "lucide-react";
+import { Pagination } from "@/components/common/Pagination";
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+const rarityOrder: Record<string, number> = { LEGENDARY: 5, EPIC: 4, RARE: 3, UNCOMMON: 2, COMMON: 1 };
+
+type SortField = "name" | "rarity" | "value" | "type";
+type SortDirection = "asc" | "desc";
 
 type Item = {
   id: string;
@@ -76,21 +55,12 @@ const ITEM_TYPES = [
 
 const RARITIES = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY'];
 
-const getRarityColor = (rarity: string | null) => {
-  switch (rarity) {
-    case 'COMMON':
-      return 'text-gray-500';
-    case 'UNCOMMON':
-      return 'text-green-500';
-    case 'RARE':
-      return 'text-blue-500';
-    case 'EPIC':
-      return 'text-purple-500';
-    case 'LEGENDARY':
-      return 'text-orange-500';
-    default:
-      return 'text-muted-foreground';
-  }
+const rarityStyles: Record<string, { bg: string; color: string }> = {
+  COMMON: { bg: "hsl(0 0% 18% / 0.6)", color: "hsl(0 0% 60%)" },
+  UNCOMMON: { bg: "hsl(120 40% 50% / 0.2)", color: "hsl(120 40% 50%)" },
+  RARE: { bg: "hsl(210 80% 55% / 0.2)", color: "hsl(210 80% 55%)" },
+  EPIC: { bg: "hsl(270 70% 60% / 0.2)", color: "hsl(270 70% 60%)" },
+  LEGENDARY: { bg: "hsl(40 95% 55% / 0.2)", color: "hsl(40 95% 55%)" },
 };
 
 const formatEnumValue = (value: string | null) => {
@@ -103,361 +73,417 @@ const formatEnumValue = (value: string | null) => {
 
 export function ItemsDataTable() {
   const router = useRouter();
-  const [data, setData] = React.useState<Item[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [search, setSearch] = React.useState('');
-  const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [typeFilter, setTypeFilter] = React.useState<string>('all');
-  const [rarityFilter, setRarityFilter] = React.useState<string>('all');
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(10);
-  const [totalPages, setTotalPages] = React.useState(1);
-  const [totalCount, setTotalCount] = React.useState(0);
+  const searchParams = useSearchParams();
+  const [data, setData] = useState<Item[]>([]);
+  const [allData, setAllData] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [rarityFilter, setRarityFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [valueRange, setValueRange] = useState<{ min?: number; max?: number }>({});
+  const [valueDraft, setValueDraft] = useState<{ min: string; max: string }>({ min: "", max: "" });
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
-  const columns: ColumnDef<Item>[] = [
-    {
-      accessorKey: 'icon',
-      header: 'الأيقونة',
-      cell: ({ row }) => (
-        <div className="relative w-10 h-10 flex-shrink-0 bg-muted rounded-md overflow-hidden">
-          {row.original.icon ? (
-            <Image
-              src={row.original.icon}
-              alt={row.original.name}
-              fill
-              className="object-cover"
-              sizes="40px"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-              غير متوفر
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'name',
-      header: 'الاسم',
-      cell: ({ row }) => (
-        <div className="font-medium">{row.getValue('name')}</div>
-      ),
-    },
-    {
-      accessorKey: 'description',
-      header: 'الوصف',
-      cell: ({ row }) => (
-        <div className="max-w-md text-sm text-muted-foreground line-clamp-2">
-          {row.getValue('description')}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'rarity',
-      header: 'الندرة',
-      cell: ({ row }) => {
-        const rarity = row.getValue('rarity') as string | null;
-        return (
-          <div className={`font-medium ${getRarityColor(rarity)}`}>
-            {formatEnumValue(rarity)}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: 'value',
-      header: () => <div className="text-right">القيمة</div>,
-      cell: ({ row }) => (
-        <div className="text-right font-medium">
-          {row.getValue('value') || 0}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'weight',
-      header: () => <div className="text-right">الوزن</div>,
-      cell: ({ row }) => (
-        <div className="text-right">
-          {row.getValue('weight') || 0}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'item_type',
-      header: 'النوع',
-      cell: ({ row }) => (
-        <div className="text-sm">
-          {formatEnumValue(row.getValue('item_type'))}
-        </div>
-      ),
-    },
-  ];
+  const pageSize = 12;
 
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    pageCount: totalPages,
-  });
+  // Fetch all items from API
+  useEffect(() => {
+    const fetchAllItems = async () => {
+      setLoading(true);
+      try {
+        // Fetch with a large page size to get all items
+        const response = await fetch('/api/items?pageSize=10000');
+        const result = await response.json();
 
-  // Debounce search input
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      if (search !== debouncedSearch) {
-        setPage(1); // Reset to first page when search actually changes
+        if (result.success) {
+          setAllData(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching items:', error);
+      } finally {
+        setLoading(false);
       }
-    }, 500); // 500ms delay
+    };
 
-    return () => clearTimeout(timer);
-  }, [search, debouncedSearch]);
+    fetchAllItems();
+  }, []);
 
-  const fetchItems = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-      });
+  // Filter and sort data
+  const filtered = useMemo(() => {
+    let next = allData;
 
-      if (debouncedSearch) {
-        params.append('search', debouncedSearch);
-      }
-
-      if (typeFilter !== 'all') {
-        params.append('type', typeFilter);
-      }
-
-      if (rarityFilter !== 'all') {
-        params.append('rarity', rarityFilter);
-      }
-
-      const response = await fetch(`/api/items?${params}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setData(result.data);
-        setTotalPages(result.pagination.totalPages);
-        setTotalCount(result.pagination.totalCount);
-      }
-    } catch (error) {
-      console.error('Error fetching items:', error);
-    } finally {
-      setLoading(false);
+    if (search) {
+      const q = search.toLowerCase();
+      next = next.filter((item) => item.name.toLowerCase().includes(q));
     }
-  }, [page, pageSize, debouncedSearch, typeFilter, rarityFilter]);
 
-  React.useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    if (rarityFilter) {
+      next = next.filter((item) => rarityFilter === (item.rarity || "COMMON"));
+    }
 
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
+    if (typeFilter) {
+      next = next.filter((item) => item.item_type && typeFilter === item.item_type);
+    }
+
+    if (valueRange.min !== undefined) {
+      next = next.filter((item) => (item.value || 0) >= valueRange.min!);
+    }
+
+    if (valueRange.max !== undefined) {
+      next = next.filter((item) => (item.value || 0) <= valueRange.max!);
+    }
+
+    const sorted = [...next].sort((a, b) => {
+      switch (sortField) {
+        case "type": {
+          const left = a.item_type || "";
+          const right = b.item_type || "";
+          return sortDir === "asc" ? left.localeCompare(right) : right.localeCompare(left);
+        }
+        case "value":
+          return sortDir === "asc" ? (a.value || 0) - (b.value || 0) : (b.value || 0) - (a.value || 0);
+        case "rarity": {
+          const left = rarityOrder[(a.rarity || "COMMON")] || 0;
+          const right = rarityOrder[(b.rarity || "COMMON")] || 0;
+          return sortDir === "asc" ? left - right : right - left;
+        }
+        case "name":
+        default:
+          return sortDir === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      }
+    });
+
+    return sorted;
+  }, [allData, search, rarityFilter, typeFilter, sortField, sortDir, valueRange.min, valueRange.max]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageParam = Number(searchParams.get("page") || "1");
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const updateSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
   };
 
-  const handleTypeFilterChange = (value: string) => {
-    setTypeFilter(value);
-    setPage(1);
+  const toggleRarity = (value: string) => {
+    setRarityFilter((prev) => (prev === value ? "" : value));
   };
 
-  const handleRarityFilterChange = (value: string) => {
-    setRarityFilter(value);
-    setPage(1);
+  const toggleType = (value: string) => {
+    setTypeFilter((prev) => (prev === value ? "" : value));
   };
+
+  const applyValueRange = (min?: number, max?: number) => {
+    setValueRange({ min, max });
+  };
+
+  useEffect(() => {
+    setValueDraft({
+      min: valueRange.min !== undefined ? String(valueRange.min) : "",
+      max: valueRange.max !== undefined ? String(valueRange.max) : "",
+    });
+  }, [valueRange.min, valueRange.max]);
 
   return (
-    <div className="w-full space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="ابحث عن العناصر..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+    <div className="w-full space-y-6" dir="ltr">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+          }}
+          placeholder="ابحث عن العناصر..."
+          className="w-full rounded-lg border border-border bg-card px-10 py-2 text-sm outline-none transition focus:ring-2 focus:ring-primary/50"
+        />
+      </div>
 
-        {/* Type Filter */}
-        <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="تصفية حسب النوع" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">جميع الأنواع</SelectItem>
-            {ITEM_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>
-                {formatEnumValue(type)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Rarity Filter */}
-        <Select value={rarityFilter} onValueChange={handleRarityFilterChange}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="تصفية حسب الندرة" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">جميع الندرات</SelectItem>
-            {RARITIES.map((rarity) => (
-              <SelectItem key={rarity} value={rarity}>
-                <span className={getRarityColor(rarity)}>
-                  {formatEnumValue(rarity)}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Column Visibility */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              الأعمدة <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/40 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left">
+                  <button
+                    type="button"
+                    onClick={() => updateSort("name")}
+                    className="flex items-center gap-1 font-medium transition hover:text-foreground"
                   >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Table */}
-      <div className="overflow-hidden rounded-md border"  dir="ltr">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
+                    الاسم
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                  </button>
+                </th>
+                <th className="px-3 py-2 text-left">الوصف</th>
+                <th className="px-3 py-2 text-left">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateSort("rarity")}
+                      className="flex items-center gap-1 font-medium transition hover:text-foreground"
+                    >
+                      الندرة
+                      <ArrowDownUp className="h-3.5 w-3.5" />
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={`rounded p-1 ${
+                            rarityFilter ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary"
+                          }`}
+                          aria-label="Filter by rarity"
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-48 space-y-2 border-border bg-card p-3 text-sm shadow-lg">
+                        <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <span>الندرة</span>
+                          <button
+                            type="button"
+                            onClick={() => setRarityFilter("")}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            مسح
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {RARITIES.map((r) => {
+                            const active = rarityFilter === r;
+                            return (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => toggleRarity(r)}
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded px-3 py-2 text-left text-foreground transition",
+                                  active ? "bg-secondary text-foreground" : "hover:bg-secondary/40"
+                                )}
+                              >
+                                <span className="capitalize">{formatEnumValue(r)}</span>
+                                {active && <ArrowDownUp className="h-3 w-3 text-primary" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-3 py-2 text-left">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateSort("value")}
+                      className="flex items-center gap-1 font-medium transition hover:text-foreground"
+                    >
+                      القيمة
+                      <ArrowDownUp className="h-3.5 w-3.5" />
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={`rounded p-1 ${
+                            valueRange.min !== undefined || valueRange.max !== undefined
+                              ? "bg-secondary text-foreground"
+                              : "text-muted-foreground hover:bg-secondary"
+                          }`}
+                          aria-label="Filter by value range"
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-56 space-y-3 border-border bg-card p-3 text-sm shadow-lg">
+                        <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <span>نطاق القيمة</span>
+                          <button
+                            type="button"
+                            onClick={() => setValueRange({})}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            مسح
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="text-xs text-muted-foreground">
+                            الحد الأدنى
+                            <input
+                              value={valueDraft.min}
+                              onChange={(e) =>
+                                setValueDraft((prev) => ({ ...prev, min: e.target.value.replace(/[^0-9]/g, "") }))
+                              }
+                              className="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                              inputMode="numeric"
+                            />
+                          </label>
+                          <label className="text-xs text-muted-foreground">
+                            الحد الأقصى
+                            <input
+                              value={valueDraft.max}
+                              onChange={(e) =>
+                                setValueDraft((prev) => ({ ...prev, max: e.target.value.replace(/[^0-9]/g, "") }))
+                              }
+                              className="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+                              inputMode="numeric"
+                            />
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            applyValueRange(
+                              valueDraft.min ? Number(valueDraft.min) : undefined,
+                              valueDraft.max ? Number(valueDraft.max) : undefined
+                            )
+                          }
+                          className="w-full rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+                        >
+                          تطبيق
+                        </button>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-3 py-2 text-left">الوزن</th>
+                <th className="px-3 py-2 text-left">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateSort("type")}
+                      className="flex items-center gap-1 font-medium transition hover:text-foreground"
+                    >
+                      النوع
+                      <ArrowDownUp className="h-3.5 w-3.5" />
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className={`rounded p-1 ${
+                            typeFilter ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary"
+                          }`}
+                          aria-label="Filter by type"
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-56 space-y-2 border-border bg-card p-3 text-sm shadow-lg">
+                        <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <span>النوع</span>
+                          <button
+                            type="button"
+                            onClick={() => setTypeFilter("")}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            مسح
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {ITEM_TYPES.map((t) => {
+                            const active = typeFilter === t;
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => toggleType(t)}
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded px-3 py-2 text-left text-foreground transition",
+                                  active ? "bg-secondary text-foreground" : "hover:bg-secondary/40"
+                                )}
+                              >
+                                <span>{formatEnumValue(t)}</span>
+                                {active && <ArrowDownUp className="h-3 w-3 text-primary" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                    جاري التحميل...
+                  </td>
+                </tr>
+              ) : paginated.length > 0 ? (
+                paginated.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="border-b border-border/60 transition hover:bg-secondary/30"
+                  >
+                    <td className="px-3 py-3">
+                      <Link href={`/items/${item.id}`} className="flex items-center gap-3 text-foreground transition hover:text-primary">
+                        <div className="flex h-10 w-10 items-center justify-center rounded bg-secondary">
+                          {item.icon ? (
+                            <Image src={item.icon} alt="" width={40} height={40} className="h-10 w-10 rounded object-contain" />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">?</span>
                           )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  جاري التحميل...
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className="cursor-pointer hover:bg-accent"
-                  onClick={() => router.push(`/items/${row.original.id}`)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  لا توجد نتائج.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="text-sm text-muted-foreground">
-          عرض {data.length > 0 ? (page - 1) * pageSize + 1 : 0} إلى{' '}
-          {Math.min(page * pageSize, totalCount)} من {totalCount} عنصر
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Page Size Selector */}
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => {
-              setPageSize(Number(value));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 / صفحة</SelectItem>
-              <SelectItem value="20">20 / صفحة</SelectItem>
-              <SelectItem value="50">50 / صفحة</SelectItem>
-              <SelectItem value="100">100 / صفحة</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Previous Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1 || loading}
-          >
-            السابق
-          </Button>
-
-          {/* Page Info */}
-          <div className="text-sm font-medium">
-            صفحة {page} من {totalPages}
-          </div>
-
-          {/* Next Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(page + 1)}
-            disabled={page >= totalPages || loading}
-          >
-            التالي
-          </Button>
+                        </div>
+                        <span className="font-medium">{item.name}</span>
+                      </Link>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      <p className="line-clamp-2 text-xs sm:text-sm">{item.description || "-"}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      {(() => {
+                        const key = (item.rarity || "COMMON");
+                        const style = rarityStyles[key] || rarityStyles.COMMON;
+                        return (
+                          <span
+                            className="rounded px-2 py-1 text-xs font-semibold uppercase"
+                            style={{ backgroundColor: style.bg, color: style.color }}
+                          >
+                            {formatEnumValue(item.rarity)}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1 text-primary">
+                        {item.value ?? 0}
+                        <Image
+                          src="/images/coins/coin.webp"
+                          alt="Coin"
+                          width={16}
+                          height={16}
+                          className="inline-block"
+                        />
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      {item.weight ? `${item.weight} KG` : "0 KG"}
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">{formatEnumValue(item.item_type)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                    لا توجد عناصر. حاول تعديل الفلاتر.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      <Pagination basePath="/items" currentPage={safePage} totalPages={totalPages} className="pt-2" />
     </div>
   );
 }
