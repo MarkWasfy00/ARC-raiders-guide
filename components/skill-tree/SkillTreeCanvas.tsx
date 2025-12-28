@@ -44,7 +44,7 @@ export function SkillTreeCanvas({
 }: SkillTreeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: 0, y: 80 });
   const [scale, setScale] = useState(1);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredSkillId, setHoveredSkillId] = useState<string | null>(null);
@@ -107,7 +107,7 @@ export function SkillTreeCanvas({
   const rootY = rootPosition.y + SKILL_TREE_CENTER.y;
 
   return (
-    <div className="relative w-full h-[720px] bg-[#060810] border border-border/50 rounded-2xl overflow-hidden shadow-2xl">
+    <div className="relative w-full h-[1244px] bg-[#060810] border border-border/50 rounded-2xl overflow-hidden shadow-2xl">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-[-20%] bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.06),_transparent_45%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_rgba(255,255,255,0.05),_transparent_35%),radial-gradient(circle_at_70%_20%,_rgba(255,255,255,0.05),_transparent_35%)]" />
@@ -193,14 +193,12 @@ export function SkillTreeCanvas({
         <div
           className="absolute"
           style={{
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${scale})`,
             transformOrigin: "center center",
             left: "50%",
             top: "50%",
             width: "1100px",
             height: "650px",
-            marginLeft: "-550px",
-            marginTop: "-325px",
             transition: isDragging ? "none" : "transform 0.1s ease-out",
           }}
         >

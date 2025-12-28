@@ -20,6 +20,8 @@ export const SkillConnections = memo(function SkillConnections({
 }: SkillConnectionsProps) {
   const connections: JSX.Element[] = [];
   const highlightedEdges = new Set<string>();
+  const hoveredSkillLevel = highlightedSkillId ? skillLevels[highlightedSkillId] || 0 : 0;
+  const hoveredIsLearned = hoveredSkillLevel > 0;
 
   if (highlightedSkillId) {
     const skillById = new Map(MOCK_SKILLS.map((skill) => [skill.id, skill]));
@@ -76,27 +78,25 @@ export const SkillConnections = memo(function SkillConnections({
     const distance = Math.hypot(skill.position.x, skill.position.y);
     const strokeWidth = getStrokeWidth(distance, true);
 
+    const showRootConnection = Boolean(highlightedSkillId) && isHighlighted;
+
     connections.push(
       <path
         key={`root-${skill.id}`}
         d={pathD}
         fill="none"
         stroke={
-          isHighlighted
-            ? colors.primary
-            : isConnected
-            ? colors.primary
-            : "hsl(var(--muted-foreground) / 0.3)"
+          showRootConnection
+            ? hoveredIsLearned
+              ? colors.primary
+              : "hsl(var(--muted-foreground) / 0.7)"
+            : "transparent"
         }
         strokeWidth={strokeWidth}
         strokeLinecap="round"
-        opacity={isHighlighted ? 1 : isConnected ? 0.9 : 0.45}
+        opacity={showRootConnection ? 0.95 : 0}
         style={{
-          filter: isHighlighted
-            ? `drop-shadow(0 0 12px ${colors.primary}85)`
-            : isConnected
-            ? `drop-shadow(0 0 10px ${colors.primary}70)`
-            : "none",
+          filter: showRootConnection && hoveredIsLearned ? `drop-shadow(0 0 12px ${colors.primary}85)` : "none",
           transition: "all 0.3s ease",
         }}
       />
@@ -130,27 +130,25 @@ export const SkillConnections = memo(function SkillConnections({
       );
       const strokeWidth = getStrokeWidth(avgDistance, false);
 
+      const showConnection = Boolean(highlightedSkillId) && isHighlighted;
+
       connections.push(
         <path
           key={`${prereqId}-${skill.id}`}
           d={pathD}
           fill="none"
           stroke={
-            isHighlighted
-              ? colors.primary
-              : isConnected
-              ? colors.primary
-              : "hsl(var(--muted-foreground) / 0.25)"
+            showConnection
+              ? hoveredIsLearned
+                ? colors.primary
+                : "hsl(var(--muted-foreground) / 0.7)"
+              : "transparent"
           }
           strokeWidth={strokeWidth}
           strokeLinecap="round"
-          opacity={isHighlighted ? 1 : isConnected ? 0.85 : 0.4}
+          opacity={showConnection ? 0.95 : 0}
           style={{
-            filter: isHighlighted
-              ? `drop-shadow(0 0 10px ${colors.primary}85)`
-              : isConnected
-              ? `drop-shadow(0 0 8px ${colors.primary}60)`
-              : "none",
+            filter: showConnection && hoveredIsLearned ? `drop-shadow(0 0 10px ${colors.primary}85)` : "none",
             transition: "all 0.3s ease",
           }}
         />
