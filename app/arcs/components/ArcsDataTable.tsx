@@ -1,33 +1,14 @@
 'use client';
 
-import * as React from 'react';
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from '@tanstack/react-table';
-import { Search } from 'lucide-react';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { ArrowDownUp, Search } from "lucide-react";
+import { Pagination } from "@/components/common/Pagination";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+type SortField = "name" | "lootCount";
+type SortDirection = "asc" | "desc";
 
 type ArcLoot = {
   id: string;
@@ -49,314 +30,209 @@ type Arc = {
   loot: ArcLoot[];
 };
 
-const getRarityColor = (rarity: string | null) => {
-  switch (rarity) {
-    case 'COMMON':
-      return 'text-gray-500';
-    case 'UNCOMMON':
-      return 'text-green-500';
-    case 'RARE':
-      return 'text-blue-500';
-    case 'EPIC':
-      return 'text-purple-500';
-    case 'LEGENDARY':
-      return 'text-orange-500';
-    default:
-      return 'text-muted-foreground';
-  }
+const rarityStyles: Record<string, { bg: string; color: string }> = {
+  COMMON: { bg: "hsl(0 0% 18% / 0.6)", color: "hsl(0 0% 60%)" },
+  UNCOMMON: { bg: "hsl(120 40% 50% / 0.2)", color: "hsl(120 40% 50%)" },
+  RARE: { bg: "hsl(210 80% 55% / 0.2)", color: "hsl(210 80% 55%)" },
+  EPIC: { bg: "hsl(270 70% 60% / 0.2)", color: "hsl(270 70% 60%)" },
+  LEGENDARY: { bg: "hsl(40 95% 55% / 0.2)", color: "hsl(40 95% 55%)" },
 };
 
 export function ArcsDataTable() {
-  const router = useRouter();
-  const [data, setData] = React.useState<Arc[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [search, setSearch] = React.useState('');
-  const [debouncedSearch, setDebouncedSearch] = React.useState('');
-  const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(10);
-  const [totalPages, setTotalPages] = React.useState(1);
-  const [totalCount, setTotalCount] = React.useState(0);
+  const searchParams = useSearchParams();
+  const [allData, setAllData] = useState<Arc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
-  const columns: ColumnDef<Arc>[] = [
-    {
-      accessorKey: 'icon',
-      header: 'الأيقونة',
-      cell: ({ row }) => (
-        <div className="relative w-12 h-12 flex-shrink-0 bg-muted rounded-md overflow-hidden">
-          {row.original.icon ? (
-            <Image
-              src={row.original.icon}
-              alt={row.original.name}
-              fill
-              className="object-cover"
-              sizes="48px"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-              غير متوفر
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'name',
-      header: 'الاسم',
-      cell: ({ row }) => (
-        <div className="font-medium text-lg">{row.getValue('name')}</div>
-      ),
-    },
-    {
-      accessorKey: 'description',
-      header: 'الوصف',
-      cell: ({ row }) => (
-        <div className="max-w-2xl text-sm text-muted-foreground line-clamp-2">
-          {row.getValue('description')}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'loot',
-      header: 'عدد المواد',
-      cell: ({ row }) => {
-        const loot = row.original.loot;
-        return (
-          <div className="text-center font-medium">
-            {loot.length}
-          </div>
-        );
-      },
-    },
-    {
-      id: 'topLoot',
-      header: 'أهم المواد',
-      cell: ({ row }) => {
-        const loot = row.original.loot;
-        const topLoot = loot.slice(0, 3);
+  const pageSize = 12;
 
-        if (topLoot.length === 0) {
-          return <div className="text-sm text-muted-foreground">لا توجد مواد</div>;
+  // Fetch all ARCs from API
+  useEffect(() => {
+    const fetchAllArcs = async () => {
+      setLoading(true);
+      try {
+        // Fetch with a large page size to get all ARCs
+        const response = await fetch('/api/arcs?pageSize=10000');
+        const result = await response.json();
+
+        if (result.success) {
+          setAllData(result.data);
         }
-
-        return (
-          <div className="flex gap-2">
-            {topLoot.map((lootItem) => (
-              <div
-                key={lootItem.id}
-                className="relative w-8 h-8 bg-muted rounded overflow-hidden"
-                title={lootItem.item.name}
-              >
-                {lootItem.item.icon ? (
-                  <Image
-                    src={lootItem.item.icon}
-                    alt={lootItem.item.name}
-                    fill
-                    className="object-cover"
-                    sizes="32px"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                    ?
-                  </div>
-                )}
-              </div>
-            ))}
-            {loot.length > 3 && (
-              <div className="flex items-center text-xs text-muted-foreground">
-                +{loot.length - 3}
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-  ];
-
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    pageCount: totalPages,
-  });
-
-  // Debounce search input
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      if (search !== debouncedSearch) {
-        setPage(1);
+      } catch (error) {
+        console.error('Error fetching ARCs:', error);
+      } finally {
+        setLoading(false);
       }
-    }, 500);
+    };
 
-    return () => clearTimeout(timer);
-  }, [search, debouncedSearch]);
+    fetchAllArcs();
+  }, []);
 
-  const fetchArcs = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-      });
+  // Filter and sort data
+  const filtered = useMemo(() => {
+    let next = allData;
 
-      if (debouncedSearch) {
-        params.append('search', debouncedSearch);
-      }
-
-      const response = await fetch(`/api/arcs?${params}`);
-      const result = await response.json();
-
-      if (result.success) {
-        setData(result.data);
-        setTotalPages(result.pagination.totalPages);
-        setTotalCount(result.pagination.totalCount);
-      }
-    } catch (error) {
-      console.error('Error fetching ARCs:', error);
-    } finally {
-      setLoading(false);
+    if (search) {
+      const q = search.toLowerCase();
+      next = next.filter((arc) => arc.name.toLowerCase().includes(q));
     }
-  }, [page, pageSize, debouncedSearch]);
 
-  React.useEffect(() => {
-    fetchArcs();
-  }, [fetchArcs]);
+    const sorted = [...next].sort((a, b) => {
+      switch (sortField) {
+        case "lootCount": {
+          const left = a.loot.length;
+          const right = b.loot.length;
+          return sortDir === "asc" ? left - right : right - left;
+        }
+        case "name":
+        default:
+          return sortDir === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      }
+    });
 
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
+    return sorted;
+  }, [allData, search, sortField, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageParam = Number(searchParams.get("page") || "1");
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const updateSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
   };
 
   return (
-    <div className="w-full space-y-4">
-      {/* Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="ابحث عن وحدات ARC..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+    <div className="w-full space-y-6" dir="ltr">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+          }}
+          placeholder="ابحث عن وحدات ARC..."
+          className="w-full rounded-lg border border-border bg-card px-10 py-2 text-sm outline-none transition focus:ring-2 focus:ring-primary/50"
+        />
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-md border" dir="ltr">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-secondary/40 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left">
+                  <button
+                    type="button"
+                    onClick={() => updateSort("name")}
+                    className="flex items-center gap-1 font-medium transition hover:text-foreground"
+                  >
+                    الاسم
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                  </button>
+                </th>
+                <th className="px-3 py-2 text-left">الوصف</th>
+                <th className="px-3 py-2 text-left">
+                  <button
+                    type="button"
+                    onClick={() => updateSort("lootCount")}
+                    className="flex items-center gap-1 font-medium transition hover:text-foreground"
+                  >
+                    عدد المواد
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                  </button>
+                </th>
+                <th className="px-3 py-2 text-left">أهم المواد</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
+                    جاري التحميل...
+                  </td>
+                </tr>
+              ) : paginated.length > 0 ? (
+                paginated.map((arc) => (
+                  <tr
+                    key={arc.id}
+                    className="border-b border-border/60 transition hover:bg-secondary/30"
+                  >
+                    <td className="px-3 py-3">
+                      <Link href={`/arcs/${arc.id}`} className="flex items-center gap-3 text-foreground transition hover:text-primary">
+                        <div className="flex h-12 w-12 items-center justify-center rounded bg-secondary">
+                          {arc.icon ? (
+                            <Image src={arc.icon} alt="" width={48} height={48} className="h-12 w-12 rounded object-contain" />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">?</span>
                           )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  جاري التحميل...
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className="cursor-pointer hover:bg-accent"
-                  onClick={() => router.push(`/arcs/${row.original.id}`)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+                        </div>
+                        <span className="font-medium text-lg">{arc.name}</span>
+                      </Link>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">
+                      <p className="line-clamp-2 text-xs sm:text-sm max-w-2xl">{arc.description || "-"}</p>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span className="font-medium">{arc.loot.length}</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      {arc.loot.length > 0 ? (
+                        <div className="flex gap-2">
+                          {arc.loot.slice(0, 3).map((lootItem) => (
+                            <div
+                              key={lootItem.id}
+                              className="relative w-8 h-8 bg-muted rounded overflow-hidden"
+                              title={lootItem.item.name}
+                            >
+                              {lootItem.item.icon ? (
+                                <Image
+                                  src={lootItem.item.icon}
+                                  alt={lootItem.item.name}
+                                  width={32}
+                                  height={32}
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                                  ?
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          {arc.loot.length > 3 && (
+                            <div className="flex items-center text-xs text-muted-foreground">
+                              +{arc.loot.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">لا توجد مواد</span>
                       )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  لا توجد نتائج.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="text-sm text-muted-foreground">
-          عرض {data.length > 0 ? (page - 1) * pageSize + 1 : 0} إلى{' '}
-          {Math.min(page * pageSize, totalCount)} من {totalCount} وحدة ARC
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Page Size Selector */}
-          <Select
-            value={pageSize.toString()}
-            onValueChange={(value) => {
-              setPageSize(Number(value));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 / صفحة</SelectItem>
-              <SelectItem value="20">20 / صفحة</SelectItem>
-              <SelectItem value="50">50 / صفحة</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Previous Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1 || loading}
-          >
-            السابق
-          </Button>
-
-          {/* Page Info */}
-          <div className="text-sm font-medium">
-            صفحة {page} من {totalPages}
-          </div>
-
-          {/* Next Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(page + 1)}
-            disabled={page >= totalPages || loading}
-          >
-            التالي
-          </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-6 py-10 text-center text-muted-foreground">
+                    لا توجد وحدات ARC. حاول تعديل البحث.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      <Pagination basePath="/arcs" currentPage={safePage} totalPages={totalPages} className="pt-2" />
     </div>
   );
 }

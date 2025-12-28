@@ -474,3 +474,44 @@ model WorkbenchPlannerCraft {
   @@index([workbenchLevelId])
   @@index([itemName])
 }
+
+enum VoteCategory {
+  CONTAINERS
+  MAPS
+  EVENTS
+}
+
+model BlueprintLocationVote {
+  id           String        @id @default(cuid())
+  blueprintId  String
+  locationName String        // e.g., "Stella Montis", "Ammo Crate", "Cold Snap"
+  category     VoteCategory
+  userIp       String        // Anonymous tracking by IP address
+  created_at   DateTime      @default(now())
+
+  @@unique([blueprintId, locationName, userIp])
+  @@index([blueprintId])
+  @@index([blueprintId, category])
+  @@index([locationName])
+}
+
+// Map Markers Model
+model MapMarker {
+  id                  String   @id @default(uuid())
+  lat                 Float
+  lng                 Float
+  zlayers             Int      @default(2147483647)
+  mapID               String
+  category            String
+  subcategory         String?
+  instanceName        String?
+  behindLockedDoor    Boolean  @default(false)
+  eventConditionMask  Int      @default(1)
+  lootAreas           Json?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  @@index([mapID])
+  @@index([category])
+  @@index([subcategory])
+}

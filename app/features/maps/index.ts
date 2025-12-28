@@ -2,4 +2,7 @@ export { Maps } from './components/Maps';
 export { MapCard } from './components/MapCard';
 export { MapsGrid } from './components/MapsGrid';
 export { MapIframe } from './components/MapIframe';
+export { DamMap } from './components/DamMap';
+export { StellaMontisMap } from './components/StellaMontisMap';
+export { SpaceportMapClient } from './components/SpaceportMapClient';
 export type { MapData } from './types';

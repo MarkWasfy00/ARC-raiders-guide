@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import { TraderCard } from './TraderCard';
+import { CreditsCalculator, SelectedItem } from './CreditsCalculator';
 import { TradersData, TraderName, TraderItem } from '../types';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +20,7 @@ const traderTabs: { name: TraderName; label: string }[] = [
 ];
 
 const itemTypes = [
-  "All Types",
+  "جميع الأنواع",
   "Quick Use",
   "Topside Material",
   "Basic Material",
@@ -33,13 +34,37 @@ const itemTypes = [
   "Ammunition"
 ] as const;
 
-const rarities = ["All Rarities", "Common", "Uncommon", "Rare", "Epic"] as const;
+const itemTypeMapping: Record<string, string> = {
+  "جميع الأنواع": "All Types",
+  "Quick Use": "Quick Use",
+  "Topside Material": "Topside Material",
+  "Basic Material": "Basic Material",
+  "Nature": "Nature",
+  "Augment": "Augment",
+  "Shield": "Shield",
+  "Gadget": "Gadget",
+  "Key": "Key",
+  "Modification": "Modification",
+  "Weapon": "Weapon",
+  "Ammunition": "Ammunition"
+};
+
+const rarities = ["جميع الندرة", "Common", "Uncommon", "Rare", "Epic"] as const;
+
+const rarityMapping: Record<string, string> = {
+  "جميع الندرة": "All Rarities",
+  "Common": "Common",
+  "Uncommon": "Uncommon",
+  "Rare": "Rare",
+  "Epic": "Epic"
+};
 
 export function TradersContent({ data }: TradersContentProps) {
   const [activeTrader, setActiveTrader] = useState<TraderName>('Apollo');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('All Types');
-  const [selectedRarity, setSelectedRarity] = useState<string>('All Rarities');
+  const [selectedType, setSelectedType] = useState<string>('جميع الأنواع');
+  const [selectedRarity, setSelectedRarity] = useState<string>('جميع الندرة');
+  const [selectedItems, setSelectedItems] = useState<Record<string, SelectedItem>>({});
 
   const currentTraderItems = data[activeTrader];
 
@@ -47,11 +72,52 @@ export function TradersContent({ data }: TradersContentProps) {
   const filteredItems = useMemo(() => {
     return currentTraderItems.filter((item: TraderItem) => {
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType = selectedType === 'All Types' || item.item_type === selectedType;
-      const matchesRarity = selectedRarity === 'All Rarities' || item.rarity === selectedRarity;
+      const mappedType = itemTypeMapping[selectedType];
+      const mappedRarity = rarityMapping[selectedRarity];
+      const matchesType = mappedType === 'All Types' || item.item_type === mappedType;
+      const matchesRarity = mappedRarity === 'All Rarities' || item.rarity === mappedRarity;
       return matchesSearch && matchesType && matchesRarity;
     });
   }, [currentTraderItems, searchQuery, selectedType, selectedRarity]);
+
+  // Calculator handlers
+  const handleToggleItem = useCallback((item: TraderItem) => {
+    setSelectedItems((prev) => {
+      const isSelected = prev[item.id];
+      if (isSelected) {
+        const newItems = { ...prev };
+        delete newItems[item.id];
+        return newItems;
+      } else {
+        return {
+          ...prev,
+          [item.id]: { item, quantity: 1 },
+        };
+      }
+    });
+  }, []);
+
+  const handleUpdateQuantity = useCallback((itemId: string, quantity: number) => {
+    setSelectedItems((prev) => {
+      if (!prev[itemId]) return prev;
+      return {
+        ...prev,
+        [itemId]: { ...prev[itemId], quantity },
+      };
+    });
+  }, []);
+
+  const handleRemoveItem = useCallback((itemId: string) => {
+    setSelectedItems((prev) => {
+      const newItems = { ...prev };
+      delete newItems[itemId];
+      return newItems;
+    });
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    setSelectedItems({});
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -80,7 +146,7 @@ export function TradersContent({ data }: TradersContentProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search items..."
+            placeholder="ابحث عن العناصر..."
             className="w-full bg-card border border-border rounded-lg px-4 py-2 pl-10 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 focus:outline-none"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -116,25 +182,38 @@ export function TradersContent({ data }: TradersContentProps) {
 
       {/* Results Count */}
       <div className="text-sm text-muted-foreground">
-        Showing {filteredItems.length} of {currentTraderItems.length} items
+        عرض {filteredItems.length} من {currentTraderItems.length} عنصر
       </div>
 
       {/* Items Grid */}
       {filteredItems.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredItems.map((item) => (
-            <TraderCard key={item.id} item={item} />
+            <TraderCard
+              key={item.id}
+              item={item}
+              isSelected={!!selectedItems[item.id]}
+              onToggle={handleToggleItem}
+            />
           ))}
         </div>
       ) : (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            {searchQuery || selectedType !== 'All Types' || selectedRarity !== 'All Rarities'
-              ? 'No items found matching your filters'
-              : 'No items available for this trader'}
+            {searchQuery || selectedType !== 'جميع الأنواع' || selectedRarity !== 'جميع الندرة'
+              ? 'لم يتم العثور على عناصر تطابق الفلاتر'
+              : 'لا توجد عناصر متاحة لهذا التاجر'}
           </p>
         </div>
       )}
+
+      {/* Credits Calculator */}
+      <CreditsCalculator
+        selectedItems={selectedItems}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+        onClearAll={handleClearAll}
+      />
     </div>
   );
 }

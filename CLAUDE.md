@@ -1,4 +1,4 @@
-# CLAUDE.md
+****# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -34,8 +34,9 @@ npm run lint             # Run ESLint
 
 ### Docker
 ```bash
-docker compose up -d     # Start PostgreSQL container
-docker compose down      # Stop PostgreSQL container
+docker compose up -d     # Start PostgreSQL and MinIO containers
+docker compose down      # Stop all containers
+docker compose logs minio  # View MinIO logs
 ```
 
 ## Architecture Overview
@@ -43,6 +44,7 @@ docker compose down      # Stop PostgreSQL container
 ### Tech Stack
 - **Framework**: Next.js 16 (App Router) with React 19
 - **Database**: PostgreSQL with Prisma ORM
+- **Storage**: MinIO (S3-compatible object storage)
 - **Auth**: NextAuth v5 (credentials + Discord OAuth)
 - **Real-time**: Socket.IO for chat messaging
 - **UI**: Radix UI components, Tailwind CSS 4, shadcn/ui
@@ -201,12 +203,62 @@ import { Button } from '@/components/ui/button'
 - Must join room before receiving messages
 - Always handle disconnection cleanup
 
+### MinIO Object Storage
+- S3-compatible object storage for file uploads
+- Client utility located in `lib/minio.ts`
+- Default bucket: `arcraiders-uploads`
+- Web Console available at `http://localhost:9001`
+
+**Setup:**
+1. Start MinIO container: `docker compose up -d minio`
+2. Initialize bucket: `npm run minio:init`
+3. Access web console with credentials from `.env.local`
+
+**Usage in Code:**
+```typescript
+import { uploadFile, getFileUrl, deleteFile } from '@/lib/minio'
+
+// Upload file
+const result = await uploadFile('avatar.png', fileBuffer, {
+  'Content-Type': 'image/png'
+})
+
+// Get file URL (presigned, valid for 7 days)
+const url = await getFileUrl('avatar.png')
+
+// Delete file
+await deleteFile('avatar.png')
+```
+
+**Important Notes:**
+- Files are stored with presigned URLs (default 7-day expiry)
+- MinIO endpoint varies: use `minio` hostname in Docker, `localhost` for local dev
+- Web console credentials: Use `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`
+- Always initialize bucket before use with `npm run minio:init`
+
 ### Environment Variables Required
+
+**Database:**
 - `DATABASE_URL` - PostgreSQL connection string
-- `NEXTAUTH_SECRET` - Random string for session encryption
-- `NEXTAUTH_URL` - Application URL (http://localhost:3000 for dev)
+- `POSTGRES_USER` - PostgreSQL username
+- `POSTGRES_PASSWORD` - PostgreSQL password
+- `POSTGRES_DB` - PostgreSQL database name
+
+**Authentication:**
+- `AUTH_SECRET` - Random string for session encryption
+- `AUTH_URL` - Application URL (http://localhost:3000 for dev)
+- `AUTH_TRUST_HOST` - Trust proxy/host headers (true for Docker)
 - `DISCORD_CLIENT_ID` - Discord OAuth app ID (optional)
 - `DISCORD_CLIENT_SECRET` - Discord OAuth secret (optional)
+
+**MinIO Object Storage:**
+- `MINIO_ROOT_USER` - MinIO admin username (default: minioadmin)
+- `MINIO_ROOT_PASSWORD` - MinIO admin password (default: minioadmin)
+- `MINIO_ENDPOINT` - MinIO API endpoint (http://minio:9000 for Docker)
+- `NEXT_PUBLIC_MINIO_ENDPOINT` - Public MinIO endpoint (http://localhost:9000)
+- `MINIO_BROWSER_REDIRECT_URL` - MinIO Console URL (http://localhost:9001)
+- `MINIO_BUCKET_NAME` - Default bucket name (arcraiders-uploads)
+- `MINIO_REGION` - MinIO region (default: us-east-1)
 
 ### Database Seeding
 - Seed script: `lib/seedItems.ts`
@@ -219,6 +271,37 @@ import { Button } from '@/components/ui/button'
 - Tailwind CSS 4 for styling
 - Lucide React for icons
 
+### React-Leaflet Maps
+- Maps are dynamically imported with `ssr: false` to prevent server-side rendering issues
+- Map components in `app/features/maps/components/`
+- Uses Leaflet with `L.CRS.Simple` for game map coordinates (not geographic)
+
+**Critical: Preventing Map View Resets**
+- NEVER use `bounds` prop on `MapContainer` - it forces the map to continuously reset to those bounds
+- Use `center` and `zoom` props for initial positioning only
+- AVOID `maxBounds` prop - it can cause the map to reset position during user interaction
+- Define all constants (bounds, center, tiles) outside components to ensure stability
+- Wrap component with `React.memo()` to prevent unnecessary re-renders
+- Add static `key` prop to `MapContainer` to prevent re-initialization
+- Example pattern:
+  ```typescript
+  // Define outside component
+  const CENTER = L.latLngBounds([0, 0], [1024, 768]).getCenter();
+
+  export const MapClient = memo(function MapClient() {
+    return (
+      <MapContainer
+        key="map-static"
+        center={CENTER}
+        zoom={0}
+        crs={L.CRS.Simple}
+      >
+        {/* map layers */}
+      </MapContainer>
+    );
+  });
+  ```
+
 ## Common Pitfalls
 
 1. **Prisma Client Import**: Always import from `@/lib/generated/prisma/client`, not `@prisma/client`
@@ -228,3 +311,6 @@ import { Button } from '@/components/ui/button'
 5. **Database Resets**: Migrations are tracked - use `migrate reset` carefully
 6. **RTL Margins**: Use logical properties (start/end) or be aware of RTL conversion
 7. **Unique Constraints**: Username and email must be unique - handle duplicate errors gracefully
+8. **Leaflet Map Resets**: Never use `bounds` or `maxBounds` props on `MapContainer` - they cause the map to reset position during user interaction. Use `center` and `zoom` for initial positioning only.
+9. **MinIO Bucket**: Always run `npm run minio:init` after starting MinIO for the first time to create the default bucket
+10. **MinIO Endpoint**: Use correct endpoint based on environment - `minio` for Docker containers, `localhost` for local development

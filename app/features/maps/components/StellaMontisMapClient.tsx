@@ -1,0 +1,536 @@
+'use client';
+
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import { memo, useState, useEffect } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
+import { MapSidebar } from './MapSidebar';
+import { MARKER_CATEGORIES, SUBCATEGORY_ICONS, STELLA_MONTIS_TOP_FLOOR_LABELS, STELLA_MONTIS_BOTTOM_FLOOR_LABELS, type MapMarker, type MarkerCategory, type AreaLabel } from '../types';
+
+// Add custom styles for black background with vignette effect
+const mapStyles = `
+  .leaflet-container {
+    background-color: #000000 !important;
+  }
+  .leaflet-tile-container {
+    background-color: transparent;
+  }
+  .leaflet-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 100px 40px rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+  }
+`;
+
+const TILE_SIZE = 256;
+const MAX_ZOOM = 5;
+const MIN_ZOOM = 0;
+
+// Stella Montis uses same coordinate system as Dam map
+// The game world is 8192x8192 units at max zoom
+const WORLD_SIZE = 8192;
+const SCALE = WORLD_SIZE / TILE_SIZE; // 32
+
+const CustomCRS = L.extend({}, L.CRS.Simple, {
+  // No Y inversion, simple scaling
+  transformation: new L.Transformation(1/SCALE, 0, 1/SCALE, 0)
+});
+
+// Floor-specific center positions (calculated from actual marker data)
+// Bottom floor: 350 markers, lat range: 1165-3441, lng range: 1944-6295
+// Top floor: 149 markers, lat range: 1569-4098, lng range: 2798-5504
+const FLOOR_CENTERS = {
+  bottom: L.latLng(2302.95, 4119.49),
+  top: L.latLng(2833.56, 4150.84),
+};
+
+// Create custom marker icons by category and subcategory
+function createMarkerIcon(category: string, color: string, subcategory: string | null) {
+  const iconPath = subcategory ? SUBCATEGORY_ICONS[subcategory] : null;
+
+  if (iconPath) {
+    // Icon-based marker with actual image
+    return L.divIcon({
+      html: `
+        <div style="
+          position: relative;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="
+            background-color: ${color};
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            position: absolute;
+          "></div>
+          <img
+            src="${iconPath}"
+            alt=""
+            style="
+              width: 20px;
+              height: 20px;
+              position: relative;
+              z-index: 1;
+              filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+              object-fit: contain;
+            "
+          />
+        </div>
+      `,
+      className: 'custom-marker-icon',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -18],
+    });
+  } else {
+    // Fallback to simple colored dot
+    return L.divIcon({
+      html: `
+        <div style="
+          background-color: ${color};
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        "></div>
+      `,
+      className: 'custom-marker',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+      popupAnchor: [0, -9],
+    });
+  }
+}
+
+// Component to log map coordinates when clicking (useful for development)
+function MapCoordinateLogger() {
+  useMapEvents({
+    moveend: (e) => {
+      const map = e.target;
+      const mapCenter = map.getCenter();
+      const zoom = map.getZoom();
+      console.log('📍 Map Center Coordinates:');
+      console.log(`  center = L.latLng(${mapCenter.lat.toFixed(3)}, ${mapCenter.lng.toFixed(3)});`);
+      console.log(`  zoom = ${zoom};`);
+    },
+    click: (e) => {
+      const { lat, lng } = e.latlng;
+      console.log('🎯 Clicked Position:');
+      console.log(`  { lat: ${lat.toFixed(1)}, lng: ${lng.toFixed(1)} }`);
+      console.log(`  Copy this: { id: 'area-name', name: 'Area Name', nameAr: 'اسم المنطقة', lat: ${lat.toFixed(1)}, lng: ${lng.toFixed(1)}, fontSize: 14 },`);
+    },
+  });
+  return null;
+}
+
+// Component to display area labels
+function AreaLabels({ show, labels }: { show: boolean; labels: AreaLabel[] }) {
+  if (!show) return null;
+
+  return (
+    <>
+      {labels.map((area) => {
+        const labelIcon = L.divIcon({
+          html: `
+            <div style="
+              text-align: center;
+              white-space: nowrap;
+              pointer-events: none;
+              font-family: 'Cairo', sans-serif;
+            ">
+              <div style="
+                font-size: ${area.fontSize || 14}px;
+                font-weight: 700;
+                color: ${area.color || '#ffffff'};
+                text-shadow:
+                  0 0 8px rgba(0, 0, 0, 0.9),
+                  0 0 4px rgba(0, 0, 0, 0.9),
+                  2px 2px 4px rgba(0, 0, 0, 0.8),
+                  -1px -1px 2px rgba(0, 0, 0, 0.8);
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+              ">
+                ${area.nameAr}
+              </div>
+            </div>
+          `,
+          className: 'area-label',
+          iconSize: [200, 40],
+          iconAnchor: [100, 20],
+        });
+
+        return (
+          <Marker
+            key={area.id}
+            position={[area.lat, area.lng]}
+            icon={labelIcon}
+            interactive={false}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+// Component to handle marker updates
+function MapMarkers({
+  markers,
+  categories,
+  enabledSubcategories,
+  enabledLootAreas,
+  showLockedOnly,
+  searchQuery,
+}: {
+  markers: MapMarker[];
+  categories: MarkerCategory[];
+  enabledSubcategories: Record<string, Set<string>>;
+  enabledLootAreas: Set<string>;
+  showLockedOnly: boolean;
+  searchQuery: string;
+}) {
+  const enabledCategories = new Set(
+    categories.filter((cat) => cat.enabled).map((cat) => cat.id)
+  );
+
+  const filteredMarkers = markers.filter((marker) => {
+    // Check category
+    if (!enabledCategories.has(marker.category)) return false;
+
+    // Check subcategory
+    if (marker.subcategory) {
+      const enabledSubs = enabledSubcategories[marker.category];
+      if (enabledSubs && enabledSubs.size > 0 && !enabledSubs.has(marker.subcategory)) {
+        return false;
+      }
+    }
+
+    // Check loot areas
+    if (enabledLootAreas.size > 0) {
+      if (!marker.lootAreas || marker.lootAreas.length === 0) {
+        return false;
+      }
+      const hasMatchingLootArea = marker.lootAreas.some((area) =>
+        enabledLootAreas.has(area)
+      );
+      if (!hasMatchingLootArea) return false;
+    }
+
+    // Check locked door filter
+    if (showLockedOnly && !marker.behindLockedDoor) return false;
+
+    // Check search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesInstanceName =
+        marker.instanceName?.toLowerCase().includes(query) || false;
+      const matchesSubcategory =
+        marker.subcategory?.toLowerCase().replace(/_/g, ' ').includes(query) || false;
+      if (!matchesInstanceName && !matchesSubcategory) return false;
+    }
+
+    return true;
+  });
+
+  return (
+    <>
+      {filteredMarkers.map((marker) => {
+        const category = MARKER_CATEGORIES[marker.category];
+        if (!category) return null;
+
+        const subcategoryIconPath = marker.subcategory ? SUBCATEGORY_ICONS[marker.subcategory] : null;
+
+        return (
+          <Marker
+            key={marker.id}
+            position={[marker.lat, marker.lng]}
+            icon={createMarkerIcon(marker.category, category.color, marker.subcategory)}
+          >
+            <Popup>
+              <div className="min-w-[200px]">
+                <div className="font-bold mb-2 flex items-center gap-2" style={{ color: category.color }}>
+                  {subcategoryIconPath && (
+                    <img
+                      src={subcategoryIconPath}
+                      alt=""
+                      className="w-5 h-5 object-contain"
+                    />
+                  )}
+                  <span>{category.label}</span>
+                </div>
+                {marker.subcategory && (
+                  <div className="text-sm mb-1 flex items-center gap-2">
+                    <span className="text-muted-foreground">النوع الفرعي:</span>
+                    <span>{marker.subcategory.replace(/_/g, ' ').replace(/-/g, ' ')}</span>
+                  </div>
+                )}
+                {marker.instanceName && (
+                  <div className="text-sm mb-1 flex items-center gap-2">
+                    <span className="text-muted-foreground">الاسم:</span>
+                    <span className="font-medium">{marker.instanceName}</span>
+                  </div>
+                )}
+                {marker.behindLockedDoor && (
+                  <div className="text-xs text-yellow-600 mt-2 flex items-center gap-1">
+                    🔒 <span>خلف باب مقفل</span>
+                  </div>
+                )}
+                {marker.lootAreas && marker.lootAreas.length > 0 && (
+                  <div className="text-xs text-muted-foreground mt-2">
+                    <span className="font-medium">مناطق النهب:</span> {marker.lootAreas.join(', ')}
+                  </div>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+    </>
+  );
+}
+
+export const StellaMontisMapClient = memo(function StellaMontisMapClient() {
+  const [currentFloor, setCurrentFloor] = useState<'bottom' | 'top'>('bottom');
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<MarkerCategory[]>(
+    Object.entries(MARKER_CATEGORIES).map(([id, data]) => ({
+      id,
+      label: data.label,
+      enabled: false, // Start with all categories hidden
+      color: data.color,
+    }))
+  );
+  const [enabledSubcategories, setEnabledSubcategories] = useState<Record<string, Set<string>>>({});
+  const [enabledLootAreas, setEnabledLootAreas] = useState<Set<string>>(new Set());
+  const [showLockedOnly, setShowLockedOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAreaLabels, setShowAreaLabels] = useState(true);
+
+  const floors = [
+    { id: 'top' as const, label: 'الطابق العلوي', labelEn: 'Top Floor', path: 'stellamontis/top-floor' },
+    { id: 'bottom' as const, label: 'الطابق السفلي', labelEn: 'Bottom Floor', path: 'stellamontis/bottom-floor' },
+  ];
+
+  const selectedFloor = floors.find(f => f.id === currentFloor) || floors[1];
+
+  // Fetch markers from API based on current floor (z-layer detection)
+  useEffect(() => {
+    async function fetchMarkers() {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/maps/stella-montis/markers?floor=${currentFloor}`);
+        const data = await response.json();
+        if (data.success) {
+          setMarkers(data.markers);
+
+          // Initialize all subcategories as empty (all hidden)
+          const initialSubcategories: Record<string, Set<string>> = {};
+          data.markers.forEach((marker: MapMarker) => {
+            if (marker.category && !initialSubcategories[marker.category]) {
+              initialSubcategories[marker.category] = new Set();
+            }
+          });
+          setEnabledSubcategories(initialSubcategories);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Stella Montis markers:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchMarkers();
+  }, [currentFloor]); // Re-fetch when floor changes (z-layer detection)
+
+  const handleCategoryToggle = (categoryId: string) => {
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat.id === categoryId ? { ...cat, enabled: !cat.enabled } : cat
+      )
+    );
+  };
+
+  const handleSubcategoryToggle = (categoryId: string, subcategory: string) => {
+    setEnabledSubcategories((prev) => {
+      const newSubcategories = { ...prev };
+      if (!newSubcategories[categoryId]) {
+        newSubcategories[categoryId] = new Set();
+      }
+      const categorySet = new Set(newSubcategories[categoryId]);
+
+      const isEnabling = !categorySet.has(subcategory);
+
+      if (categorySet.has(subcategory)) {
+        categorySet.delete(subcategory);
+      } else {
+        categorySet.add(subcategory);
+      }
+
+      newSubcategories[categoryId] = categorySet;
+
+      // Auto-enable parent category when enabling a subcategory
+      if (isEnabling) {
+        setCategories((prevCats) =>
+          prevCats.map((cat) =>
+            cat.id === categoryId ? { ...cat, enabled: true } : cat
+          )
+        );
+      }
+
+      return newSubcategories;
+    });
+  };
+
+  const handleLootAreaToggle = (lootArea: string) => {
+    setEnabledLootAreas((prev) => {
+      const newAreas = new Set(prev);
+      if (newAreas.has(lootArea)) {
+        newAreas.delete(lootArea);
+      } else {
+        newAreas.add(lootArea);
+      }
+      return newAreas;
+    });
+  };
+
+  const handleLockedDoorToggle = () => {
+    setShowLockedOnly((prev) => !prev);
+  };
+
+  const handleToggleAll = (enabled: boolean) => {
+    setCategories((prev) => prev.map((cat) => ({ ...cat, enabled })));
+  };
+
+  const handleAreaLabelsToggle = () => {
+    setShowAreaLabels((prev) => !prev);
+  };
+
+  return (
+    <div className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
+      <style dangerouslySetInnerHTML={{ __html: mapStyles }} />
+
+      {/* Sidebar */}
+      <MapSidebar
+        categories={categories}
+        markers={markers}
+        onCategoryToggle={handleCategoryToggle}
+        onSubcategoryToggle={handleSubcategoryToggle}
+        onLootAreaToggle={handleLootAreaToggle}
+        onLockedDoorToggle={handleLockedDoorToggle}
+        onToggleAll={handleToggleAll}
+        enabledSubcategories={enabledSubcategories}
+        enabledLootAreas={enabledLootAreas}
+        showLockedOnly={showLockedOnly}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        showAreaLabels={showAreaLabels}
+        onAreaLabelsToggle={handleAreaLabelsToggle}
+      />
+
+      {/* Loading indicator */}
+      {loading && (
+        <div className="absolute top-4 right-4 z-[1001] bg-gradient-to-r from-primary/20 to-primary/10 backdrop-blur-md px-5 py-3 rounded-xl shadow-2xl border border-primary/30">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-semibold text-primary">جاري تحميل العلامات...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Floor Selector */}
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
+        {floors.map((floor) => (
+          <button
+            key={floor.id}
+            onClick={() => setCurrentFloor(floor.id)}
+            className={`
+              group relative px-4 py-3 rounded-lg border-2 backdrop-blur-md transition-all duration-200
+              ${currentFloor === floor.id
+                ? 'bg-primary/20 border-primary shadow-lg shadow-primary/20'
+                : 'bg-background/50 border-border/50 hover:bg-background/70 hover:border-border'
+              }
+            `}
+            title={floor.labelEn}
+          >
+            <div className="flex items-center gap-2">
+              {floor.id === 'top' ? (
+                <ChevronUp className={`w-4 h-4 ${currentFloor === floor.id ? 'text-primary' : 'text-muted-foreground'}`} />
+              ) : (
+                <ChevronDown className={`w-4 h-4 ${currentFloor === floor.id ? 'text-primary' : 'text-muted-foreground'}`} />
+              )}
+              <span className={`text-sm font-bold ${currentFloor === floor.id ? 'text-primary' : 'text-muted-foreground'}`}>
+                {floor.label}
+              </span>
+            </div>
+
+            {/* Tooltip */}
+            <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md bg-popover border border-border shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
+              <span className="text-xs font-medium">{floor.labelEn}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Map */}
+      <MapContainer
+        key={`stella-montis-${currentFloor}`}
+        center={FLOOR_CENTERS[currentFloor]}
+        zoom={3}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
+        crs={CustomCRS}
+        className="w-full h-full bg-black"
+        zoomControl={true}
+        attributionControl={false}
+        zoomSnap={1}
+        zoomDelta={1}
+        wheelPxPerZoomLevel={60}
+        scrollWheelZoom={true}
+        dragging={true}
+        style={{ backgroundColor: '#000000' }}
+      >
+        <TileLayer
+          key={`floor-${currentFloor}`}
+          url={`/imagesmaps/${selectedFloor.path}/{z}/{x}_{y}.webp`}
+          tileSize={TILE_SIZE}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          minNativeZoom={MIN_ZOOM}
+          maxNativeZoom={MAX_ZOOM}
+          noWrap={true}
+          keepBuffer={2}
+          updateWhenIdle={true}
+          updateWhenZooming={false}
+          errorTileUrl="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Crect width='256' height='256' fill='%23000000'/%3E%3C/svg%3E"
+        />
+        <MapCoordinateLogger />
+        <AreaLabels
+          show={showAreaLabels}
+          labels={currentFloor === 'top' ? STELLA_MONTIS_TOP_FLOOR_LABELS : STELLA_MONTIS_BOTTOM_FLOOR_LABELS}
+        />
+        <MapMarkers
+          markers={markers}
+          categories={categories}
+          enabledSubcategories={enabledSubcategories}
+          enabledLootAreas={enabledLootAreas}
+          showLockedOnly={showLockedOnly}
+          searchQuery={searchQuery}
+        />
+      </MapContainer>
+    </div>
+  );
+});

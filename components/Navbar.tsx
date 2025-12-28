@@ -40,11 +40,6 @@ export function Navbar({ session }: NavbarProps) {
   const activeEventCount = uniqueActiveEvents.length;
   const nextEvent = uniqueActiveEvents[0];
 
-  // Debug logging
-  if (activeEventCount > 0) {
-    console.log('Navbar - Active events:', uniqueActiveEvents.map(e => `${e.event.name} - ${e.event.map}`));
-    console.log('Navbar - Count:', activeEventCount);
-  }
 
   const searchRef = useRef<HTMLDivElement>(null);
 

@@ -60,7 +60,7 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
   const [currentLevel, setCurrentLevel] = useState(module.currentLevel);
   const [plannedLevel, setPlannedLevel] = useState(module.plannedLevel);
   const [activeLevel, setActiveLevel] = useState(module.plannedLevel || 1);
-  const [view, setView] = useState<TabView>('unlocks');
+  const [view, setView] = useState<TabView>('requirements');
 
   // Persist state to localStorage
   useEffect(() => {
@@ -133,13 +133,13 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
           priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <div className="absolute bottom-3 right-3 text-white">
+        <div className="absolute bottom-3 left-3 text-white">
           <div className="flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-3 py-1 text-sm font-semibold">
             <Wrench className="w-4 h-4" />
             <span>{module.nameAr}</span>
           </div>
         </div>
-        <div className="absolute bottom-3 left-3">
+        <div className="absolute bottom-3 right-3">
           <span className="text-xs font-semibold rounded-full bg-primary text-primary-foreground px-3 py-1 shadow">
             المستوى {plannedLevel}/{module.maxLevel}
           </span>
@@ -147,34 +147,32 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
       </div>
 
       <div className="flex flex-col gap-4 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-nowrap items-center gap-1.5">
           <button
             onClick={handleDowngrade}
-            disabled={currentLevel === 0}
-            className="inline-flex min-w-[130px] items-center justify-center gap-2 rounded-full bg-muted/60 px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            <Triangle className="w-4 h-4 rotate-90" />
+            <Triangle className="w-4 h-4 -rotate-90" />
             تخفيض
           </button>
 
-          <div className="flex flex-1 items-center justify-center gap-3 rounded-full border border-border bg-muted/40 px-4 py-2 text-xs font-semibold sm:text-sm">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap">
             <span className="text-muted-foreground">الحالي: {currentLevel}</span>
-            <div className="h-5 w-px bg-border" />
+            <div className="h-4 w-px bg-border" />
             <span className="text-primary">المخطط: {plannedLevel}</span>
           </div>
 
           <button
             onClick={handleUpgrade}
-            disabled={currentLevel >= module.maxLevel}
-            className="inline-flex min-w-[130px] items-center justify-center gap-2 rounded-full bg-primary/90 px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary/90 px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary transition-colors"
           >
             ترقية
-            <Triangle className="w-4 h-4 -rotate-90" />
+            <Triangle className="w-4 h-4 rotate-90" />
           </button>
         </div>
 
         <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-1">
-          {(['unlocks', 'requirements'] as TabView[]).map((tab) => (
+          {(['requirements', 'unlocks'] as TabView[]).map((tab) => (
             <button
               key={tab}
               onClick={() => handleTabChange(tab)}
@@ -185,7 +183,7 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              {tab === 'unlocks' ? 'العناصر المتاحة' : 'المتطلبات'}
+              {tab === 'requirements' ? 'المتطلبات' : 'العناصر المتاحة'}
             </button>
           ))}
         </div>
@@ -211,12 +209,13 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
           <div className="flex items-start justify-between mb-3">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                المستوى {activeLevel} {view === 'unlocks' ? '- العناصر المتاحة' : '- المتطلبات'}
+                المستوى {activeLevel}{' '}
+                {view === 'requirements' ? 'المتطلبات' : 'العناصر المتاحة'}
               </p>
             </div>
           </div>
 
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          <div className="space-y-2">
             {displayItems.length > 0 ? (
               displayItems.map((displayItem, idx) => {
                 const item = displayItem.item;
@@ -229,17 +228,15 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
                       key={`${displayItem.itemName}-${idx}`}
                       className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/40 px-3 py-2"
                     >
-                      <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80 flex-shrink-0 flex items-center justify-center">
+                      <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
                         <span className="text-xs text-muted-foreground">?</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">
-                          {displayItem.itemName}
-                        </p>
-                        {quantity !== undefined && (
-                          <p className="text-xs text-muted-foreground">الكمية: {quantity}</p>
-                        )}
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-foreground">{displayItem.itemName}</p>
                       </div>
+                      {quantity !== undefined && (
+                        <div className="text-sm font-bold text-primary">{quantity}x</div>
+                      )}
                     </div>
                   );
                 }
@@ -251,7 +248,7 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
                     className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 hover:bg-muted/60 transition-colors"
                   >
                     {item.icon && (
-                      <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80 flex-shrink-0">
+                      <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
                         <Image
                           src={item.icon}
                           alt={item.name}
@@ -260,25 +257,17 @@ function WorkshopCard({ module }: { module: WorkshopModule }) {
                         />
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">
-                        {item.name}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {item.rarity && <span>{String(item.rarity)}</span>}
-                        {quantity !== undefined && (
-                          <>
-                            <span>•</span>
-                            <span className="font-semibold">الكمية: {quantity}</span>
-                          </>
-                        )}
-                      </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">{item.name}</p>
                     </div>
+                    {quantity !== undefined && (
+                      <div className="text-sm font-bold text-primary">{quantity}x</div>
+                    )}
                   </Link>
                 );
               })
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-muted-foreground">
                 {view === 'requirements'
                   ? 'لا توجد متطلبات لهذا المستوى'
                   : 'لا توجد عناصر متاحة للصناعة في هذا المستوى'}
@@ -330,7 +319,7 @@ export default function WorkshopPlanner({
 
   return (
     <main className="min-h-screen">
-      <div className="w-full px-4 md:px-8 lg:px-16 xl:px-24 py-8 space-y-8">
+      <div className="w-full px-[100px] py-8 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-3">
@@ -381,7 +370,7 @@ export default function WorkshopPlanner({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {workshopModules.map((module) => (
             <WorkshopCard key={module.slug} module={module} />
           ))}
