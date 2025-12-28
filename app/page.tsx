@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { ExploreRaiders } from './features/explore-raiders';
 import { Maps } from './features/maps';
 import { Items } from './features/items';
-import { NewsGuides } from './features/news-guides';
+import { RecentBlogs } from './features/blog';
 import { StructuredData, getBreadcrumbSchema } from '@/components/StructuredData';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -21,42 +21,55 @@ export default function Home() {
       />
       <div className="container mx-auto px-4 py-8 space-y-12">
         {/* Hero Banner */}
-        <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden bg-card">
+        <div className="relative h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-2xl group">
           <Image
-            src="https://cdn.metaforge.app/backgrounds/banner-arc-2.webp"
+            src="/banner/banner.jpg"
             alt="Arc Raiders"
             fill
-            className="object-cover opacity-60"
+            className="object-cover opacity-50 group-hover:opacity-60 group-hover:scale-105 transition-all duration-700"
             priority
           />
-          <div className="absolute inset-0 bg-background/40" />
-          <div className="relative h-full flex flex-col justify-center px-8">
-            <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground">
-              3RB
-            </h1>
-            <p className="mt-2 text-muted-foreground max-w-lg">
-              Your complete companion for 3RB. Database, guides, maps, and tools all in one place.
-            </p>
-          </div>
-        </div>
+          {/* Gradient Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
 
-        {/* Get the Overlay App */}
-        <section>
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">احصل على تطبيق التراكب</h2>
-          <a
-            href="https://www.overwolf.com/app/metaforge"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block relative h-48 rounded-xl overflow-hidden group"
-          >
-            <Image
-              src="https://cdn.metaforge.app/custom/overlay-cta.webp"
-              alt="MetaForge Overlay"
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-          </a>
-        </section>
+          {/* Animated Glow Effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 via-red-500/20 to-orange-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+          {/* Content */}
+          <div className="relative h-full flex flex-col justify-center px-8 md:px-12">
+            <div className="space-y-4 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/20 border border-orange-500/30 backdrop-blur-sm">
+                <span className="text-xs md:text-sm font-semibold text-orange-400 uppercase tracking-wider">
+                  🎮 دليل ARC Raiders الشامل
+                </span>
+              </div>
+
+              <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-l from-orange-400 via-red-400 to-orange-300 bg-clip-text text-transparent drop-shadow-2xl">
+                3RB
+              </h1>
+
+              <p className="text-lg md:text-xl text-gray-200 max-w-xl leading-relaxed drop-shadow-lg">
+                مركزك الشامل لعالم ARC Raiders - قاعدة بيانات، أدلة، خرائط، وأدوات احترافية
+              </p>
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                <div className="px-3 py-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                  <span className="text-sm text-gray-200">📊 قاعدة البيانات</span>
+                </div>
+                <div className="px-3 py-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                  <span className="text-sm text-gray-200">🗺️ الخرائط</span>
+                </div>
+                <div className="px-3 py-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                  <span className="text-sm text-gray-200">💬 المجتمع</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Fade */}
+          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
+        </div>
 
         {/* Explore Arc Raiders */}
         <section>
@@ -89,34 +102,13 @@ export default function Home() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl md:text-3xl font-bold">الأخبار والأدلة</h2>
             <Link
-              href="/guides"
+              href="/blogs"
               className="text-sm hover:underline transition-colors"
             >
-              عرض جميع الأدلة ←
+              عرض جميع المقالات ←
             </Link>
           </div>
-          <NewsGuides />
-        </section>
-
-        {/* Featured YouTube Videos */}
-        <section>
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">فيديوهات مميزة</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {['9YpJ6qB6Bxw', 'dQw4w9WgXcQ', 'jNQXAC9IVRw', 'M7lc1UVf-VE'].map((videoId, idx) => (
-              <div
-                key={idx}
-                className="aspect-video rounded-lg overflow-hidden bg-card border border-border"
-              >
-                <iframe
-                  src={`https://www.youtube.com/embed/${videoId}`}
-                  title={`Featured Video ${idx + 1}`}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ))}
-          </div>
+          <RecentBlogs limit={8} />
         </section>
       </div>
     </main>

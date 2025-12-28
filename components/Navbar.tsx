@@ -7,6 +7,8 @@ import { useSearch } from '@/hooks/useSearch';
 import { cn } from '@/lib/utils';
 import { useEventTimers, formatTimeRemaining } from '@/app/features/event-timers';
 import { UserButton } from '@/app/features/auth';
+import { NotificationDropdown } from '@/app/features/notifications';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Session } from 'next-auth';
 import {
   DropdownMenu,
@@ -53,6 +55,22 @@ export function Navbar({ session }: NavbarProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [setIsOpen]);
+
+  // Get user initials for avatar fallback
+  const getUserInitials = (user: Session['user']) => {
+    if (user.name) {
+      return user.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (user.email) {
+      return user.email.slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
 
   return (
       <nav className="fixed top-0 left-0 right-0 h-14 bg-background-elevated border-b border-border z-50">
@@ -174,6 +192,9 @@ export function Navbar({ session }: NavbarProps) {
 
           {/* Right section */}
           <div className="flex items-center gap-3">
+            {/* Notifications (Blog Comments) */}
+            <NotificationDropdown />
+
             {/* Active Events */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors outline-none">
@@ -243,7 +264,15 @@ export function Navbar({ session }: NavbarProps) {
             {session?.user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors outline-none">
-                  <User className="w-5 h-5" />
+                  <Avatar className="h-8 w-8 border-2 border-primary/20">
+                    <AvatarImage
+                      src={(session.user as any).image || undefined}
+                      alt={session.user.name || 'User'}
+                    />
+                    <AvatarFallback className="text-xs font-bold bg-gradient-orange text-primary-foreground">
+                      {getUserInitials(session.user)}
+                    </AvatarFallback>
+                  </Avatar>
                   <span className="hidden md:inline">{session.user.name || session.user.email}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-48">

@@ -154,6 +154,9 @@ model User {
   chatsAsParticipant1 Chat[]  @relation("ChatParticipant1")
   chatsAsParticipant2 Chat[]  @relation("ChatParticipant2")
   messages          Message[]
+  blogs             Blog[]         @relation("BlogAuthor")
+  blogComments      BlogComment[]  @relation("BlogCommentAuthor")
+  notifications     Notification[] @relation("UserNotifications")
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
@@ -514,4 +517,124 @@ model MapMarker {
   @@index([mapID])
   @@index([category])
   @@index([subcategory])
+}
+
+// Blog System Models
+model BlogCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
+  icon        String?  // Lucide icon name
+  color       String?  // Hex color for badge
+  blogs       Blog[]
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model Blog {
+  id              String        @id @default(cuid())
+  title           String
+  slug            String        @unique
+  content         String        @db.Text  // HTML content from rich text editor
+  excerpt         String?       @db.Text  // Short description
+  featuredImage   String?                 // MinIO URL for cover image
+  published       Boolean       @default(false)
+  viewCount       Int           @default(0)
+  publishedAt     DateTime?                // When first published
+
+  // Author relationship
+  authorId        String
+  author          User          @relation("BlogAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Category relationship
+  categoryId      String?
+  category        BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // Relations
+  comments        BlogComment[]
+  tags            BlogTag[]
+
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([slug])
+  @@index([published])
+  @@index([created_at])
+  @@index([publishedAt])
+}
+
+model BlogComment {
+  id         String        @id @default(cuid())
+  content    String        @db.Text
+
+  // Blog relationship
+  blogId     String
+  blog       Blog          @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  // Author relationship
+  userId     String
+  user       User          @relation("BlogCommentAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Self-referencing for nested comments
+  parentId   String?
+  parent     BlogComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    BlogComment[] @relation("CommentReplies")
+
+  created_at DateTime      @default(now())
+  updated_at DateTime      @updatedAt
+
+  @@index([blogId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([created_at])
+}
+
+model BlogTag {
+  id      String @id @default(cuid())
+  blogId  String
+  blog    Blog   @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  tag     String
+
+  created_at DateTime @default(now())
+
+  @@unique([blogId, tag])
+  @@index([blogId])
+  @@index([tag])
+}
+
+// Notification System
+enum NotificationType {
+  BLOG_COMMENT          // Someone commented on your blog
+  BLOG_COMMENT_REPLY    // Someone replied to your comment
+  CHAT_MESSAGE          // Someone sent you a chat message
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+
+  // User who receives this notification
+  userId      String
+  user        User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Notification details
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  read        Boolean          @default(false)
+  link        String?          // URL to navigate to when clicked
+
+  // Additional data (blogId, commentId, etc.)
+  metadata    Json?            @default("{}")
+
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([created_at])
 }

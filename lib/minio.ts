@@ -1,14 +1,48 @@
 import { Client } from 'minio'
 
-// MinIO client configuration
-const minioClient = new Client({
-  endPoint: process.env.MINIO_ENDPOINT?.replace('http://', '').replace('https://', '') || 'localhost',
-  port: 9000,
-  useSSL: process.env.MINIO_ENDPOINT?.startsWith('https') || false,
-  accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
-  secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
-  region: process.env.MINIO_REGION || 'us-east-1',
-})
+// Parse MinIO endpoint
+function parseMinioEndpoint(endpoint: string | undefined) {
+  if (!endpoint) {
+    return { endPoint: 'localhost', port: 9000, useSSL: false };
+  }
+
+  const useSSL = endpoint.startsWith('https');
+  const cleanEndpoint = endpoint.replace('http://', '').replace('https://', '');
+
+  // Split host and port
+  const [endPoint, portStr] = cleanEndpoint.split(':');
+  const port = portStr ? parseInt(portStr, 10) : 9000;
+
+  return { endPoint, port, useSSL };
+}
+
+// MinIO client - initialized lazily
+let minioClient: Client | null = null;
+
+function getMinioClient(): Client {
+  if (!minioClient) {
+    const { endPoint, port, useSSL } = parseMinioEndpoint(process.env.MINIO_ENDPOINT);
+
+    console.log('🔧 Initializing MinIO client with:', {
+      endPoint,
+      port,
+      useSSL,
+      accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
+      region: process.env.MINIO_REGION || 'us-east-1',
+    });
+
+    minioClient = new Client({
+      endPoint,
+      port,
+      useSSL,
+      accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
+      secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
+      region: process.env.MINIO_REGION || 'us-east-1',
+    });
+  }
+
+  return minioClient;
+}
 
 // Default bucket name
 export const BUCKET_NAME = process.env.MINIO_BUCKET_NAME || 'arcraiders-uploads'
@@ -18,10 +52,11 @@ export const BUCKET_NAME = process.env.MINIO_BUCKET_NAME || 'arcraiders-uploads'
  */
 export async function initializeMinio() {
   try {
-    const bucketExists = await minioClient.bucketExists(BUCKET_NAME)
+    const client = getMinioClient();
+    const bucketExists = await client.bucketExists(BUCKET_NAME)
 
     if (!bucketExists) {
-      await minioClient.makeBucket(BUCKET_NAME, process.env.MINIO_REGION || 'us-east-1')
+      await client.makeBucket(BUCKET_NAME, process.env.MINIO_REGION || 'us-east-1')
       console.log(`✅ MinIO bucket '${BUCKET_NAME}' created successfully`)
 
       // Set bucket policy to allow public read access (optional)
@@ -37,7 +72,7 @@ export async function initializeMinio() {
       //     },
       //   ],
       // }
-      // await minioClient.setBucketPolicy(BUCKET_NAME, JSON.stringify(policy))
+      // await client.setBucketPolicy(BUCKET_NAME, JSON.stringify(policy))
     } else {
       console.log(`✅ MinIO bucket '${BUCKET_NAME}' already exists`)
     }
@@ -60,7 +95,17 @@ export async function uploadFile(
   metadata?: Record<string, string>
 ) {
   try {
-    await minioClient.putObject(
+    const client = getMinioClient();
+
+    // Ensure bucket exists before uploading
+    const bucketExists = await client.bucketExists(BUCKET_NAME)
+    if (!bucketExists) {
+      console.log(`Creating bucket '${BUCKET_NAME}'...`)
+      await client.makeBucket(BUCKET_NAME, process.env.MINIO_REGION || 'us-east-1')
+      console.log(`✅ MinIO bucket '${BUCKET_NAME}' created successfully`)
+    }
+
+    await client.putObject(
       BUCKET_NAME,
       fileName,
       fileBuffer,
@@ -69,11 +114,16 @@ export async function uploadFile(
     )
 
     // Generate presigned URL for the uploaded file (valid for 7 days)
-    const url = await minioClient.presignedGetObject(BUCKET_NAME, fileName, 24 * 60 * 60 * 7)
+    const url = await client.presignedGetObject(BUCKET_NAME, fileName, 24 * 60 * 60 * 7)
 
     return { success: true, url, fileName }
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error uploading file to MinIO:', error)
+    console.error('MinIO Error Details:', {
+      code: error.code,
+      message: error.message,
+      statusCode: error.statusCode,
+    })
     throw error
   }
 }
@@ -86,7 +136,8 @@ export async function uploadFile(
  */
 export async function getFileUrl(fileName: string, expirySeconds: number = 24 * 60 * 60 * 7) {
   try {
-    const url = await minioClient.presignedGetObject(BUCKET_NAME, fileName, expirySeconds)
+    const client = getMinioClient();
+    const url = await client.presignedGetObject(BUCKET_NAME, fileName, expirySeconds)
     return url
   } catch (error) {
     console.error('❌ Error getting file URL from MinIO:', error)
@@ -100,7 +151,8 @@ export async function getFileUrl(fileName: string, expirySeconds: number = 24 * 
  */
 export async function deleteFile(fileName: string) {
   try {
-    await minioClient.removeObject(BUCKET_NAME, fileName)
+    const client = getMinioClient();
+    await client.removeObject(BUCKET_NAME, fileName)
     return { success: true, fileName }
   } catch (error) {
     console.error('❌ Error deleting file from MinIO:', error)
@@ -114,7 +166,8 @@ export async function deleteFile(fileName: string) {
  */
 export async function listFiles(prefix?: string) {
   try {
-    const objectsStream = minioClient.listObjects(BUCKET_NAME, prefix, true)
+    const client = getMinioClient();
+    const objectsStream = client.listObjects(BUCKET_NAME, prefix, true)
     const files: Array<{ name: string; size: number; lastModified: Date }> = []
 
     return new Promise((resolve, reject) => {
@@ -136,4 +189,29 @@ export async function listFiles(prefix?: string) {
   }
 }
 
-export default minioClient
+/**
+ * Extract MinIO filename from presigned URL
+ * @param url - Presigned URL from MinIO
+ * @returns filename or null
+ * @example
+ * extractFilenameFromUrl('http://localhost:9000/arcraiders-uploads/profiles/user.gif?X-Amz-Algorithm...')
+ * // Returns: 'profiles/user.gif'
+ */
+export function extractFilenameFromUrl(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    // Presigned URLs have filename in pathname
+    // Example: /arcraiders-uploads/profiles/user123.jpg -> profiles/user123.jpg
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      // Skip bucket name (first part), return rest
+      return parts.slice(1).join('/');
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export default getMinioClient

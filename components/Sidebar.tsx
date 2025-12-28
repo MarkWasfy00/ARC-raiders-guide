@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home, AppWindow, Package, Database, Map, Target,
   List, Calendar, MessageCircle, ChevronDown,
-  Crosshair, MessageSquare
+  Crosshair, MessageSquare, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +24,14 @@ const mainItems: SidebarItem[] = [
   { icon: Package, label: 'السوق', href: '/marketplace' },
   { icon: MessageSquare, label: 'المحادثات', href: '/chat' },
   { icon: List, label: 'قوائمي', href: '/listings' },
+  {
+    icon: FileText,
+    label: 'المدونة',
+    children: [
+      { label: 'جميع المقالات', href: '/blogs' },
+      { label: 'مقالاتي', href: '/dashboard/my-blogs' },
+    ]
+  },
 ];
 
 const databaseItems: SidebarItem[] = [
