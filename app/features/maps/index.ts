@@ -5,4 +5,5 @@ export { MapIframe } from './components/MapIframe';
 export { DamMap } from './components/DamMap';
 export { StellaMontisMap } from './components/StellaMontisMap';
 export { SpaceportMapClient } from './components/SpaceportMapClient';
+export { BuriedCityMap } from './components/BuriedCityMap';
 export type { MapData } from './types';
