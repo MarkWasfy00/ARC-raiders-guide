@@ -129,7 +129,7 @@ export function CommentSection({ itemId }: CommentSectionProps) {
       const days = Math.floor(diffInSeconds / 86400);
       return `منذ ${days} يوم${days > 1 ? '' : ''}`;
     } else {
-      return date.toLocaleDateString('ar-SA', {
+      return date.toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',

@@ -37,7 +37,7 @@ export default async function EditBlogPage({ params }: EditBlogPageProps) {
         select: { id: true, username: true, name: true, image: true },
       },
       category: true,
-      tags: { select: { tag: true } },
+      tags: true,
     },
   });
 

@@ -34,6 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               embark_id: true,
               discord_username: true,
               sessionVersion: true,
+              role: true,
             },
           });
 
@@ -59,6 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             (session.user as any).username = dbUser.username;
             (session.user as any).embark_id = dbUser.embark_id;
             (session.user as any).discord_username = dbUser.discord_username;
+            (session.user as any).role = dbUser.role;
           }
         }
       }
@@ -118,6 +120,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           image: user.image,
           sessionVersion: user.sessionVersion,
+          role: user.role,
         };
 
         console.log('Authorize callback - returning user with sessionVersion:', user.sessionVersion);

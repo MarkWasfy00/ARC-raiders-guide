@@ -61,7 +61,7 @@ export default async function BlogPage({ params }: BlogPageProps) {
         select: { id: true, username: true, name: true, image: true },
       },
       category: true,
-      tags: { select: { tag: true } },
+      tags: true,
       _count: { select: { comments: true } },
       comments: {
         where: { parentId: null }, // Top-level comments only

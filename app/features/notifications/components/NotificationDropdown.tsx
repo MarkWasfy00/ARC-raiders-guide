@@ -38,7 +38,7 @@ export function NotificationDropdown() {
     if (diffInSeconds < 3600) return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
     if (diffInSeconds < 86400) return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
     if (diffInSeconds < 604800) return `منذ ${Math.floor(diffInSeconds / 86400)} يوم`;
-    return new Date(date).toLocaleDateString("ar-SA");
+    return new Date(date).toLocaleDateString("en-GB");
   };
 
   // Get notification icon based on type

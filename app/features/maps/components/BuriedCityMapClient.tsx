@@ -206,6 +206,8 @@ function MapMarkers({
   enabledLootAreas,
   showLockedOnly,
   searchQuery,
+  isAdminMode = false,
+  onDeleteMarker,
 }: {
   markers: MapMarker[];
   categories: MarkerCategory[];
@@ -213,6 +215,8 @@ function MapMarkers({
   enabledLootAreas: Set<string>;
   showLockedOnly: boolean;
   searchQuery: string;
+  isAdminMode?: boolean;
+  onDeleteMarker?: (id: string) => void;
 }) {
   const enabledCategories = new Set(
     categories.filter((cat) => cat.enabled).map((cat) => cat.id)
@@ -320,6 +324,14 @@ function MapMarkers({
                     </div>
                   </div>
                 )}
+                {isAdminMode && onDeleteMarker && (
+                  <button
+                    onClick={() => onDeleteMarker(marker.id)}
+                    className="mt-3 w-full px-3 py-2 bg-destructive text-destructive-foreground rounded-md text-sm font-medium hover:bg-destructive/90 transition-colors"
+                  >
+                    🗑️ حذف العلامة
+                  </button>
+                )}
               </div>
             </Popup>
           </Marker>
@@ -329,7 +341,11 @@ function MapMarkers({
   );
 }
 
-export const BuriedCityMapClient = memo(function BuriedCityMapClient() {
+interface BuriedCityMapClientProps {
+  isAdminMode?: boolean;
+}
+
+export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMode = false }: BuriedCityMapClientProps = {}) {
   const { data: session } = useSession();
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -510,6 +526,31 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient() {
     }
   };
 
+  const handleDeleteMarker = async (markerId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه العلامة؟')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/maps/buried-city/markers/${markerId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('فشل في حذف العلامة');
+        return;
+      }
+
+      // Refetch markers
+      handleMarkerAdded();
+    } catch (error) {
+      console.error('Error deleting marker:', error);
+      alert('حدث خطأ أثناء الحذف');
+    }
+  };
+
   return (
     <div className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
       <style dangerouslySetInnerHTML={{ __html: mapStyles }} />
@@ -570,15 +611,19 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient() {
           enabledLootAreas={enabledLootAreas}
           showLockedOnly={showLockedOnly}
           searchQuery={searchQuery}
+          isAdminMode={isAdminMode}
+          onDeleteMarker={handleDeleteMarker}
         />
       </MapContainer>
 
       {/* Add Marker Button */}
-      {session && (
+      {(session || isAdminMode) && (
         <button
           onClick={toggleAddingMarker}
           className={`absolute bottom-6 left-6 z-[1001] px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
             addingMarker
+              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              : isAdminMode
               ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
               : 'bg-primary text-primary-foreground hover:bg-primary/90'
           }`}

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 // Runs in Node.js runtime, so Prisma is supported
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
+  const isAdmin = req.auth?.user?.role === 'ADMIN';
   const { pathname } = req.nextUrl;
 
   // Define protected routes
@@ -13,9 +14,17 @@ export default auth((req) => {
                           pathname.startsWith("/events") ||
                           pathname.startsWith("/profile");
 
+  // Define admin routes
+  const isAdminRoute = pathname.startsWith("/admin");
+
   // Define auth routes
   const isAuthRoute = pathname.startsWith("/login") ||
                      pathname.startsWith("/register");
+
+  // Redirect non-admin users to home page when trying to access /admin routes
+  if (isAdminRoute && !isAdmin) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
 
   // Redirect unauthenticated users to login for protected routes
   if (isProtectedRoute && !isLoggedIn) {
