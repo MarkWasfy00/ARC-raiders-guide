@@ -157,6 +157,7 @@ model User {
   blogs             Blog[]         @relation("BlogAuthor")
   blogComments      BlogComment[]  @relation("BlogCommentAuthor")
   notifications     Notification[] @relation("UserNotifications")
+  mapMarkers        MapMarker[]    @relation("MapMarkerCreator")
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 }
@@ -511,12 +512,15 @@ model MapMarker {
   behindLockedDoor    Boolean  @default(false)
   eventConditionMask  Int      @default(1)
   lootAreas           Json?
+  addedByUserId       String?
+  addedBy             User?    @relation("MapMarkerCreator", fields: [addedByUserId], references: [id], onDelete: SetNull)
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
 
   @@index([mapID])
   @@index([category])
   @@index([subcategory])
+  @@index([addedByUserId])
 }
 
 // Blog System Models

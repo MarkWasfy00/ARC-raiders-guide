@@ -13,6 +13,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:check-buried-city": "npx tsx scripts/check-buried-city-markers.ts",
+    "db:reset-buried-city": "npx tsx scripts/reset-buried-city.ts",
     "minio:init": "npx tsx lib/init-minio.ts"
   },
   "dependencies": {

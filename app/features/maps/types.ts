@@ -14,6 +14,12 @@ export interface MapMarker {
   instanceName: string | null;
   behindLockedDoor: boolean;
   lootAreas: string[] | null;
+  addedBy?: {
+    id: string;
+    username: string | null;
+    image: string | null;
+  } | null;
+  created_at?: Date | string;
 }
 
 export interface MarkerCategory {
@@ -34,13 +40,60 @@ export interface AreaLabel {
   color?: string;
 }
 
-export const MARKER_CATEGORIES: Record<string, { label: string; color: string }> = {
-  arc: { label: 'الأعداء', color: '#ef4444' },
-  containers: { label: 'الحاويات', color: '#3b82f6' },
-  events: { label: 'الأحداث', color: '#a855f7' },
-  locations: { label: 'المواقع', color: '#22c55e' },
-  nature: { label: 'الموارد', color: '#84cc16' },
-  quests: { label: 'المهام', color: '#f59e0b' },
+export const MARKER_CATEGORIES: Record<string, { label: string; color: string; subcategories?: string[] }> = {
+  arc: {
+    label: 'الأعداء',
+    color: '#ef4444',
+    subcategories: ['tick', 'rocketeer', 'rollbot', 'bastion', 'bombardier', 'fireball', 'hornet ', 'matriarch', 'queen', 'sentinel', 'snitch', 'turret', 'wasp', 'bison', 'pop'],
+  },
+  containers: {
+    label: 'الحاويات',
+    color: '#3b82f6',
+    subcategories: ['breachable_container', 'base_container', 'arc_courier', 'arc_probe', 'baron_husk', 'basket', 'ammo_crate', 'med_crate', 'utility_crate', 'weapon_case', 'raider_cache', 'car', 'security_breach', 'locker'],
+  },
+  events: {
+    label: 'الأحداث',
+    color: '#a855f7',
+    subcategories: ['harvester'],
+  },
+  locations: {
+    label: 'المواقع',
+    color: '#22c55e',
+    subcategories: ['supply_station', 'raider_camp', 'extraction', 'breach_room', 'locked_room', 'hatch', 'button', 'player_spawn', 'field_crate', 'field_depot'],
+  },
+  nature: {
+    label: 'الموارد',
+    color: '#84cc16',
+    subcategories: ['agave', 'apricot', 'candleberries', 'great-mullein', 'moss', 'mushroom', 'olive', 'prickly-pear', 'roots', 'snow_pile', 'espresso', 'fertilizer'],
+  },
+  quests: {
+    label: 'المهام',
+    color: '#f59e0b',
+    subcategories: [
+      'a-balanced-harvest',
+      'a-new-type-of-plant',
+      'a-symbol-of-unification',
+      'a-toxic-trail',
+      'back-on-top',
+      'broken-monument',
+      'celestes-journals',
+      'dormant-barons',
+      'echoes-of-victory-ridge',
+      'eyes-in-the-sky',
+      'flickering-threat',
+      'greasing-her-palms',
+      'keeping-the-memory',
+      'medical-merchandise',
+      'our-presence-up-there',
+      'paving-the-way',
+      'source-of-the-contamination',
+      'straight-record',
+      'the-majors-footlocker',
+      'untended-garden',
+      'water-troubles',
+      'what-we-left-behind',
+    ],
+  },
 };
 
 // Subcategory icon mapping to image paths

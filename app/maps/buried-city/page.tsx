@@ -1,11 +1,5 @@
-import { MapIframe } from '@/app/features/maps/components/MapIframe';
+import { BuriedCityClient } from './BuriedCityClient';
 
 export default function BuriedCityPage() {
-  return (
-    <MapIframe
-      src="https://mapgenie.io/arc-raiders/maps/buried-city?embed=light"
-      title="Buried City Interactive Map"
-      mapName="Buried City"
-    />
-  );
+  return <BuriedCityClient />;
 }
