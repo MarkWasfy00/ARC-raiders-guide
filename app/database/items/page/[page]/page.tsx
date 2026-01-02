@@ -73,6 +73,7 @@ const rarityOrder: Record<string, number> = {
 
 const DEFAULT_PAGE_SIZE = 20;
 const WELCOME_STORAGE_KEY = "arc-market-welcome";
+const MARKETPLACE_WARNING_KEY = "arc-marketplace-warning";
 const EMBARK_ID_KEY = "arc-market-embark-id";
 const DISCORD_KEY = "arc-market-discord";
 const inter = Inter({ subsets: ["latin"] });
@@ -554,6 +555,7 @@ export default function DatabaseItemsPage() {
   const [visibleBuy, setVisibleBuy] = useState(4);
 
   const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [marketplaceWarningOpen, setMarketplaceWarningOpen] = useState(false);
   const [embarkId, setEmbarkId] = useState<string | null>(null);
   const [embarkInput, setEmbarkInput] = useState("");
   const [embarkError, setEmbarkError] = useState<string | null>(null);
@@ -602,11 +604,15 @@ export default function DatabaseItemsPage() {
         if (storedEmbark) setEmbarkId(storedEmbark);
         const storedDiscord = localStorage.getItem(DISCORD_KEY);
         if (storedDiscord) setDiscordName(storedDiscord);
+        const storedMarketWarning = localStorage.getItem(MARKETPLACE_WARNING_KEY);
+        if (!storedMarketWarning && isMarketplaceRoute) {
+          setMarketplaceWarningOpen(true);
+        }
       }
     } catch {
       // ignore storage errors
     }
-  }, []);
+  }, [isMarketplaceRoute]);
 
   useEffect(() => {
     setLoading(true);
@@ -1179,6 +1185,75 @@ export default function DatabaseItemsPage() {
                 }}
               >
                 Got it, let&apos;s trade!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {marketplaceWarningOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-2xl space-y-4 rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Marketplace Notice</p>
+                <h2 className="text-2xl font-semibold text-foreground">Trade with care</h2>
+                <p className="text-sm text-muted-foreground">
+                  Listings are community-driven. Always verify details before trading.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-border p-2 text-muted-foreground hover:bg-secondary"
+                aria-label="Close marketplace notice"
+                onClick={() => {
+                  setMarketplaceWarningOpen(false);
+                  try {
+                    if (typeof window !== "undefined") {
+                      localStorage.setItem(MARKETPLACE_WARNING_KEY, "true");
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
+              <div className="rounded-lg border border-border/60 bg-secondary/10 p-4">
+                <p className="font-semibold text-foreground">Verify identities</p>
+                <p>Confirm Embark IDs and Discord tags before any exchange.</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-secondary/10 p-4">
+                <p className="font-semibold text-foreground">Use secure channels</p>
+                <p>Trade only through the agreed Discord message thread.</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-secondary/10 p-4">
+                <p className="font-semibold text-foreground">No guarantees</p>
+                <p>Listings are not moderated. Proceed at your own risk.</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-secondary/10 p-4">
+                <p className="font-semibold text-foreground">Report issues</p>
+                <p>Flag suspicious behavior immediately to moderators.</p>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition hover:bg-primary/90"
+                onClick={() => {
+                  setMarketplaceWarningOpen(false);
+                  try {
+                    if (typeof window !== "undefined") {
+                      localStorage.setItem(MARKETPLACE_WARNING_KEY, "true");
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }}
+              >
+                Got it
               </button>
             </div>
           </div>

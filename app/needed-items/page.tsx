@@ -36,6 +36,17 @@ type ItemList = {
   items: Item[];
 };
 
+type NewSubcategoryBlock = {
+  id: string;
+  name: string;
+  status: 'draft' | 'saved';
+  items: Item[];
+  savedName?: string;
+  savedItems?: Item[];
+  search: string;
+  nameError?: boolean;
+};
+
 type Toast = {
   id: string;
   message: string;
@@ -471,14 +482,20 @@ export default function NeededItemsPage() {
   const [rarityFilter, setRarityFilter] = useState<Rarity | 'All rarities'>('All rarities');
   const [sortOrder, setSortOrder] = useState<(typeof sortOptions)[number]>('Default');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [pendingToast, setPendingToast] = useState<string | null>(null);
+  const [highlightListId, setHighlightListId] = useState<string | null>(null);
   const [newListOpen, setNewListOpen] = useState(false);
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListCategory, setNewListCategory] = useState('');
   const [newListItems, setNewListItems] = useState<Item[]>([]);
   const [searchCatalog, setSearchCatalog] = useState('');
-  const [newSubcategoryName, setNewSubcategoryName] = useState('');
-  const [newListSubcategories, setNewListSubcategories] = useState<string[]>([]);
+  const [newSubcategoryBlocks, setNewSubcategoryBlocks] = useState<NewSubcategoryBlock[]>([]);
+  const [activeNewSubcategoryBlockId, setActiveNewSubcategoryBlockId] = useState<string | null>(null);
+  const [newListSubmitAttempted, setNewListSubmitAttempted] = useState(false);
+  const newListInitializedRef = useRef(false);
+  const newListNameRef = useRef<HTMLInputElement | null>(null);
+  const newListCategoryRef = useRef<HTMLInputElement | null>(null);
   const [editListId, setEditListId] = useState<string | null>(null);
   const [editListType, setEditListType] = useState<ListType | null>(null);
   const [editListName, setEditListName] = useState('');
@@ -493,6 +510,39 @@ export default function NeededItemsPage() {
   const [sortCountdown, setSortCountdown] = useState<number | null>(null);
   const [activeSubcategoryByList, setActiveSubcategoryByList] = useState<Record<string, string>>({});
   const subcategoryRefs = useRef<Record<string, Record<string, HTMLDivElement | null>>>({});
+  const listRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const editSubcategoryOptions = useMemo(
+    () => normalizeSubcategories(editSubcategories),
+    [editSubcategories]
+  );
+  const editItemsBySubcategory = useMemo(() => {
+    const grouped = new Map<string, Item[]>();
+    const fallback = 'Unsorted';
+
+    editListItems.forEach((item) => {
+      const itemSubcategories = getItemSubcategories(item);
+      const primary =
+        editSubcategoryOptions.find((subcategory) => itemSubcategories.includes(subcategory)) ?? fallback;
+      const existing = grouped.get(primary);
+      if (existing) {
+        existing.push(item);
+      } else {
+        grouped.set(primary, [item]);
+      }
+    });
+
+    const ordered = editSubcategoryOptions.filter((subcategory) => grouped.has(subcategory));
+    const result = ordered.map((subcategory) => ({
+      subcategory,
+      items: grouped.get(subcategory) ?? [],
+    }));
+
+    if (grouped.has(fallback)) {
+      result.push({ subcategory: fallback, items: grouped.get(fallback) ?? [] });
+    }
+
+    return result;
+  }, [editListItems, editSubcategoryOptions]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -504,6 +554,8 @@ export default function NeededItemsPage() {
           selectedListId?: string;
           showCollected?: boolean;
           favorited?: boolean;
+          highlightListId?: string;
+          importToast?: string;
         };
         if (parsed.lists) {
           const cleaned = parsed.lists
@@ -532,6 +584,14 @@ export default function NeededItemsPage() {
         }
         if (typeof parsed.favorited === 'boolean') {
           setFavorited(parsed.favorited);
+        }
+        if (parsed.highlightListId) {
+          setHighlightListId(parsed.highlightListId);
+          setActiveType('custom');
+          setSelectedListId(parsed.highlightListId);
+        }
+        if (parsed.importToast) {
+          setPendingToast(parsed.importToast);
         }
       } catch {
         // ignore invalid storage
@@ -587,6 +647,23 @@ export default function NeededItemsPage() {
     }
     return lists.find((list) => list.id === selectedListId) ?? visibleLists[0] ?? null;
   }, [activeType, lists, selectedListId, visibleLists]);
+  const addItemSubcategoryOptions = useMemo(() => {
+    if (!selectedList) {
+      return ['General'];
+    }
+    return normalizeSubcategories(selectedList.subcategoryOrder ?? []);
+  }, [selectedList]);
+  const hasNewListBlocks = newSubcategoryBlocks.length > 0;
+  const activeNewSubcategoryBlock = useMemo(
+    () => newSubcategoryBlocks.find((block) => block.id === activeNewSubcategoryBlockId) ?? null,
+    [newSubcategoryBlocks, activeNewSubcategoryBlockId]
+  );
+  const hasNewListUnsavedChanges = useMemo(() => {
+    if (!newListOpen) return false;
+    if (newListName.trim() || newListCategory.trim()) return true;
+    if (newListItems.length > 0) return true;
+    return newSubcategoryBlocks.length > 0;
+  }, [newListOpen, newListName, newListCategory, newListItems, newSubcategoryBlocks]);
 
   useEffect(() => {
     if (!expandedLists.length) return;
@@ -623,6 +700,42 @@ export default function NeededItemsPage() {
 
     return () => observers.forEach((observer) => observer.disconnect());
   }, [expandedLists, visibleLists, activeSubcategoryByList]);
+
+  useEffect(() => {
+    if (!newListOpen) return;
+    if (newSubcategoryBlocks.length === 0) {
+      setActiveNewSubcategoryBlockId(null);
+      return;
+    }
+    const exists = newSubcategoryBlocks.some((block) => block.id === activeNewSubcategoryBlockId);
+    if (!exists) {
+      setActiveNewSubcategoryBlockId(newSubcategoryBlocks[0]?.id ?? null);
+    }
+  }, [newListOpen, newSubcategoryBlocks, activeNewSubcategoryBlockId]);
+
+  useEffect(() => {
+    if (!newListOpen) {
+      newListInitializedRef.current = false;
+      return;
+    }
+    if (newListInitializedRef.current) return;
+    if (newSubcategoryBlocks.length === 0) {
+      const id = `sub-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      setNewSubcategoryBlocks([
+        {
+          id,
+          name: 'General',
+          status: 'saved',
+          items: [],
+          savedName: 'General',
+          savedItems: [],
+          search: '',
+        },
+      ]);
+      setActiveNewSubcategoryBlockId(id);
+    }
+    newListInitializedRef.current = true;
+  }, [newListOpen, newSubcategoryBlocks.length]);
 
   const getSortedIds = (items: Item[]) =>
     [...items]
@@ -722,6 +835,36 @@ export default function NeededItemsPage() {
       setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, 2600);
   };
+
+  useEffect(() => {
+    if (!pendingToast) return;
+    addToast(pendingToast);
+    setPendingToast(null);
+  }, [pendingToast]);
+
+  useEffect(() => {
+    if (!highlightListId) return;
+    const node = listRefs.current[highlightListId];
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const timer = setTimeout(() => setHighlightListId(null), 2200);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightListId, visibleLists]);
+
+  useEffect(() => {
+    if (!highlightListId && !pendingToast) return;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as Record<string, unknown>;
+      delete parsed.highlightListId;
+      delete parsed.importToast;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    } catch {
+      // ignore storage failures
+    }
+  }, [highlightListId, pendingToast]);
 
   const scheduleListSort = (listId: string, items: Item[]) => {
     const existing = sortTimersRef.current[listId];
@@ -825,19 +968,62 @@ export default function NeededItemsPage() {
   };
 
   const handleCreateList = () => {
-    if (!newListName.trim()) return;
+    setNewListSubmitAttempted(true);
+    if (!newListName.trim()) {
+      newListNameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      newListNameRef.current?.focus();
+      return;
+    }
+    if (!newListCategory.trim()) {
+      newListCategoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      newListCategoryRef.current?.focus();
+      return;
+    }
     const id = `custom-${Date.now()}`;
-    const subcategories = normalizeSubcategories(newListSubcategories);
-    const listItems = newListItems.map((item) => ({
-      ...item,
-      subcategories: item.subcategories && item.subcategories.length > 0 ? item.subcategories : [subcategories[0]],
-    }));
+    const hasDraftBlocks = newSubcategoryBlocks.some((block) => block.status === 'draft');
+    if (hasDraftBlocks) {
+      setNewSubcategoryBlocks((prev) =>
+        prev.map((block) =>
+          block.status === 'draft' && !block.name.trim()
+            ? { ...block, nameError: true }
+            : block
+        )
+      );
+      addToast('Save or remove all subcategories before creating the list.');
+      return;
+    }
+    const savedBlocks = newSubcategoryBlocks.filter((block) => block.status === 'saved');
+    let listItems: Item[] = [];
+    let subcategoryOrder: string[] | undefined;
+
+    if (savedBlocks.length > 0) {
+      const map = new Map<string, Item>();
+      subcategoryOrder = savedBlocks
+        .map((block) => (block.savedName ?? block.name).trim())
+        .filter(Boolean);
+      savedBlocks.forEach((block) => {
+        const subcategoryName = (block.savedName ?? block.name).trim();
+        block.items.forEach((item) => {
+          const existing = map.get(item.id);
+          if (existing) {
+            const nextSubs = new Set(getItemSubcategories(existing));
+            nextSubs.add(subcategoryName);
+            existing.subcategories = Array.from(nextSubs);
+          } else {
+            map.set(item.id, { ...item, subcategories: [subcategoryName] });
+          }
+        });
+      });
+      listItems = Array.from(map.values());
+    } else {
+      listItems = newListItems.map((item) => ({ ...item }));
+    }
     const nextList: ItemList = {
       id,
       name: newListName.trim(),
       type: 'custom',
       category: newListCategory.trim() || undefined,
-      subcategoryOrder: subcategories,
+      subcategoryOrder,
       items: listItems,
     };
     setLists((prev) => [nextList, ...prev]);
@@ -847,8 +1033,9 @@ export default function NeededItemsPage() {
     setNewListCategory('');
     setNewListItems([]);
     setSearchCatalog('');
-    setNewListSubcategories([]);
-    setNewSubcategoryName('');
+    setNewSubcategoryBlocks([]);
+    setActiveNewSubcategoryBlockId(null);
+    setNewListSubmitAttempted(false);
     setNewListOpen(false);
     addToast('List created.');
   };
@@ -874,6 +1061,9 @@ export default function NeededItemsPage() {
     );
     setNewListItems([]);
     setSearchCatalog('');
+    setNewSubcategoryBlocks([]);
+    setActiveNewSubcategoryBlockId(null);
+    setNewListSubmitAttempted(false);
     setAddItemOpen(false);
     addToast('Items added.');
   };
@@ -883,8 +1073,147 @@ export default function NeededItemsPage() {
     setNewListCategory('');
     setNewListItems([]);
     setSearchCatalog('');
-    setNewListSubcategories([]);
-    setNewSubcategoryName('');
+    setNewSubcategoryBlocks([]);
+    setActiveNewSubcategoryBlockId(null);
+    setNewListSubmitAttempted(false);
+  };
+
+  const updateSubcategoryBlock = (
+    blockId: string,
+    updater: (block: NewSubcategoryBlock) => NewSubcategoryBlock
+  ) => {
+    setNewSubcategoryBlocks((prev) =>
+      prev.map((block) => (block.id === blockId ? updater(block) : block))
+    );
+  };
+
+  const addNewSubcategoryBlock = () => {
+    const id = `sub-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const itemsToMove = newListItems.map((item) => ({ ...item }));
+    setNewSubcategoryBlocks((prev) => [
+      ...prev,
+      {
+        id,
+        name: '',
+        status: 'draft',
+        items: itemsToMove,
+        search: '',
+        nameError: false,
+      },
+    ]);
+    setActiveNewSubcategoryBlockId(id);
+    if (itemsToMove.length > 0) {
+      setNewListItems([]);
+      setSearchCatalog('');
+    }
+  };
+
+  const handleSubcategoryNameChange = (blockId: string, value: string) => {
+    updateSubcategoryBlock(blockId, (block) => {
+      const savedName = (block.savedName ?? block.name).trim();
+      const nextStatus = block.status === 'saved' && value.trim() !== savedName ? 'draft' : block.status;
+      return { ...block, name: value, status: nextStatus, nameError: value.trim().length === 0 ? block.nameError : false };
+    });
+  };
+
+  const saveNewSubcategoryBlock = (blockId: string) => {
+    let shouldToast = false;
+    setNewSubcategoryBlocks((prev) => {
+      const target = prev.find((block) => block.id === blockId);
+      if (!target || !target.name.trim()) {
+        shouldToast = true;
+        return prev.map((block) =>
+          block.id === blockId ? { ...block, nameError: true } : block
+        );
+      }
+      const trimmed = target.name.trim();
+      return prev.map((block) =>
+        block.id === blockId
+          ? {
+              ...block,
+              name: trimmed,
+              status: 'saved',
+              savedName: trimmed,
+              savedItems: block.items.map((item) => ({ ...item })),
+              nameError: false,
+            }
+          : block
+      );
+    });
+    if (shouldToast) {
+      addToast('Subcategory name is required.');
+    }
+  };
+
+  const cancelNewSubcategoryBlock = (blockId: string) => {
+    setNewSubcategoryBlocks((prev) =>
+      prev.flatMap((block) => {
+        if (block.id !== blockId) return [block];
+        const hasSavedState = Boolean(block.savedName || block.savedItems);
+        if (!hasSavedState) {
+          return [];
+        }
+        return [
+          {
+            ...block,
+            name: block.savedName ?? '',
+            items: (block.savedItems ?? []).map((item) => ({ ...item })),
+            status: 'saved',
+          },
+        ];
+      })
+    );
+  };
+
+  const deleteNewSubcategoryBlock = (blockId: string) => {
+    setNewSubcategoryBlocks((prev) => prev.filter((block) => block.id !== blockId));
+  };
+
+  const setSubcategoryBlockSearch = (blockId: string, value: string) => {
+    updateSubcategoryBlock(blockId, (block) => ({ ...block, search: value }));
+  };
+
+  const addItemToSubcategoryBlock = (blockId: string, item: Omit<Item, 'have' | 'need'>) => {
+    updateSubcategoryBlock(blockId, (block) => {
+      if (block.items.some((entry) => entry.id === item.id)) {
+        return block;
+      }
+      const nextItem: Item = { ...item, have: 0, need: 1 };
+      const nextStatus = block.status === 'saved' ? 'draft' : block.status;
+      return { ...block, status: nextStatus, items: [...block.items, nextItem] };
+    });
+  };
+
+  const removeItemFromSubcategoryBlock = (blockId: string, itemId: string) => {
+    updateSubcategoryBlock(blockId, (block) => {
+      const nextItems = block.items.filter((item) => item.id !== itemId);
+      const nextStatus = block.status === 'saved' ? 'draft' : block.status;
+      return { ...block, status: nextStatus, items: nextItems };
+    });
+  };
+
+  const updateSubcategoryBlockItemNeed = (blockId: string, itemId: string, delta: number) => {
+    updateSubcategoryBlock(blockId, (block) => {
+      const nextItems = block.items.map((item) => {
+        if (item.id !== itemId) return item;
+        const nextNeed = Math.max(1, item.need + delta);
+        const nextHave = Math.min(item.have, nextNeed);
+        return { ...item, need: nextNeed, have: nextHave };
+      });
+      const nextStatus = block.status === 'saved' ? 'draft' : block.status;
+      return { ...block, status: nextStatus, items: nextItems };
+    });
+  };
+
+  const closeNewListOverlay = () => {
+    if (newListOpen && hasNewListUnsavedChanges) {
+      const confirmClose = window.confirm('Discard your new list changes?');
+      if (!confirmClose) return;
+    }
+    resetNewListState();
+    newListInitializedRef.current = false;
+    setNewListOpen(false);
+    setAddItemOpen(false);
   };
 
   const openEditOverlay = (list: ItemList) => {
@@ -935,8 +1264,7 @@ export default function NeededItemsPage() {
     addToast('List updated.');
   };
 
-  const toggleNewItemSubcategory = (itemId: string, subcategory: string) => {
-    const available = normalizeSubcategories(newListSubcategories);
+  const toggleNewItemSubcategory = (itemId: string, subcategory: string, available: string[]) => {
     setNewListItems((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
@@ -1005,8 +1333,9 @@ export default function NeededItemsPage() {
       }
       const defaultSubcategory = addItemOpen && selectedList
         ? normalizeSubcategories(selectedList.subcategoryOrder ?? [])[0]
-        : normalizeSubcategories(newListSubcategories)[0];
-      return [...prev, { ...item, have: 0, need: 1, subcategories: [defaultSubcategory] }];
+        : undefined;
+      const subcategories = defaultSubcategory ? [defaultSubcategory] : [];
+      return [...prev, { ...item, have: 0, need: 1, subcategories }];
     });
   };
 
@@ -1518,7 +1847,15 @@ export default function NeededItemsPage() {
               return (
                 <div
                   key={list.id}
-                  className="rounded-3xl border border-border bg-card/70 p-6"
+                  ref={(node) => {
+                    listRefs.current[list.id] = node;
+                  }}
+                  className={cn(
+                    'rounded-3xl border border-border bg-card/70 p-6 transition',
+                    highlightListId === list.id
+                      ? 'ring-2 ring-primary/60 shadow-[0_0_30px_rgba(59,130,246,0.35)] animate-pulse'
+                      : ''
+                  )}
                 >
                   <button
                     onClick={() => toggleListExpanded(list.id)}
@@ -1678,10 +2015,7 @@ export default function NeededItemsPage() {
                 </p>
               </div>
               <button
-                onClick={() => {
-                  setNewListOpen(false);
-                  setAddItemOpen(false);
-                }}
+                onClick={closeNewListOverlay}
                 className="rounded-full border border-border p-2 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-4 h-4" />
@@ -1694,15 +2028,27 @@ export default function NeededItemsPage() {
                   <div>
                     <label className="text-sm font-semibold">List Name</label>
                     <input
+                      ref={newListNameRef}
                       value={newListName}
-                      onChange={(event) => setNewListName(event.target.value)}
+                      onChange={(event) => {
+                        setNewListName(event.target.value);
+                      }}
                       placeholder="Required"
-                      className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      className={cn(
+                        'mt-2 w-full rounded-md border bg-background px-3 py-2 text-sm',
+                        newListSubmitAttempted && !newListName.trim()
+                          ? 'border-destructive'
+                          : 'border-border'
+                      )}
                     />
+                    {newListSubmitAttempted && !newListName.trim() && (
+                      <div className="mt-1 text-xs text-destructive">List name is required.</div>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-semibold">Category</label>
                     <input
+                      ref={newListCategoryRef}
                       value={newListCategory}
                       onChange={(event) => setNewListCategory(event.target.value)}
                       placeholder="Optional"
@@ -1712,176 +2058,362 @@ export default function NeededItemsPage() {
                       Choose any label that helps you organise this list (optional).
                     </p>
                   </div>
-                  <div>
-                    <label className="text-sm font-semibold">Subcategories</label>
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        value={newSubcategoryName}
-                        onChange={(event) => setNewSubcategoryName(event.target.value)}
-                        placeholder="Add subcategory"
-                        className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                      />
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <label className="text-sm font-semibold">Subcategories</label>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Use subcategories to group items inside this list. This is optional.
+                        </p>
+                      </div>
                       <button
-                        onClick={() => {
-                          const next = newSubcategoryName.trim();
-                          if (!next) return;
-                          setNewListSubcategories((prev) =>
-                            prev.includes(next) ? prev : [...prev, next]
-                          );
-                          setNewSubcategoryName('');
-                        }}
+                        type="button"
+                        onClick={addNewSubcategoryBlock}
                         className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold"
                       >
-                        Add
+                        Add Subcategory
                       </button>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {newListSubcategories.map((subcategory) => (
-                        <div
-                          key={subcategory}
-                          className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted-foreground"
-                        >
-                          {subcategory}
-                          <button
-                            onClick={() =>
-                              setNewListSubcategories((prev) => prev.filter((item) => item !== subcategory))
-                            }
-                            className="text-muted-foreground hover:text-foreground"
-                            aria-label={`Remove ${subcategory}`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                      {newListSubcategories.length === 0 && (
-                        <div className="text-xs text-muted-foreground">Default: General</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              <div className="rounded-2xl border border-border bg-background/70 p-4">
-                <div className="text-sm font-semibold">Selected Items</div>
-                {newListItems.length === 0 ? (
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    No items selected yet. Search below to add some.
-                  </div>
-                ) : (
-                  <div className="mt-3 grid gap-3">
-                    {newListItems.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-border bg-muted/40 px-3 py-3 space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
-                            <Image src={item.image} alt={item.name} fill className="object-cover" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-semibold">{item.name}</div>
-                            <div className="text-xs text-muted-foreground">{item.rarity}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() =>
-                                setNewListItems((prev) =>
-                                  prev.map((entry) =>
-                                    entry.id === item.id
-                                      ? { ...entry, need: Math.max(1, entry.need - 1) }
-                                      : entry
-                                  )
-                                )
-                              }
-                              className="h-6 w-6 rounded-full border border-border text-xs font-semibold"
-                            >
-                              -
-                            </button>
-                            <div className="w-6 text-center text-xs font-semibold">{item.need}</div>
-                            <button
-                              onClick={() =>
-                                setNewListItems((prev) =>
-                                  prev.map((entry) =>
-                                    entry.id === item.id ? { ...entry, need: entry.need + 1 } : entry
-                                  )
-                                )
-                              }
-                              className="h-6 w-6 rounded-full border border-border text-xs font-semibold"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground">Subcategories</div>
+                    {newSubcategoryBlocks.length === 0 ? (
+                      <div className="text-xs text-muted-foreground">
+                        No subcategories yet. This list will be flat.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
                         <div className="flex flex-wrap gap-2">
-                          {normalizeSubcategories(newListSubcategories).map((subcategory) => {
-                            const selected = getItemSubcategories(item).includes(subcategory);
+                          {newSubcategoryBlocks.map((block, index) => {
+                            const label = block.name.trim() || `Subcategory ${index + 1}`;
+                            const isActive = block.id === activeNewSubcategoryBlockId;
                             return (
-                              <button
-                                key={`${item.id}-${subcategory}`}
-                                onClick={() => toggleNewItemSubcategory(item.id, subcategory)}
+                              <div
+                                key={block.id}
                                 className={cn(
-                                  'rounded-full border px-3 py-1 text-xs font-semibold',
-                                  selected
+                                  'inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold',
+                                  isActive
                                     ? 'border-primary/70 bg-primary/10 text-primary'
                                     : 'border-border text-muted-foreground hover:text-foreground'
                                 )}
                               >
-                                {subcategory}
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveNewSubcategoryBlockId(block.id)}
+                                  className="text-left"
+                                >
+                                  {label}
+                                </button>
+                                {block.status === 'saved' && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      deleteNewSubcategoryBlock(block.id);
+                                      if (activeNewSubcategoryBlockId === block.id) {
+                                        const remaining = newSubcategoryBlocks.filter((item) => item.id !== block.id);
+                                        setActiveNewSubcategoryBlockId(remaining[0]?.id ?? null);
+                                      }
+                                    }}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    aria-label={`Delete ${label}`}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              <div className="space-y-3">
-                <div className="text-sm font-semibold">Add Items</div>
-                <input
-                  value={searchCatalog}
-                  onChange={(event) => setSearchCatalog(event.target.value)}
-                  placeholder="Search items..."
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                />
-                <div className="text-xs text-muted-foreground">Hint: Type at least 2 characters to search.</div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {catalogResults.map((item) => {
-                    const selected = newListItems.some((selectedItem) => selectedItem.id === item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => toggleCatalogItem(item)}
-                        className={cn(
-                          'flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
-                          selected
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border bg-muted/40 hover:border-primary/60'
-                        )}
-                      >
-                        <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
-                          <Image src={item.image} alt={item.name} fill className="object-cover" />
+                        {activeNewSubcategoryBlock && (() => {
+                          const block = activeNewSubcategoryBlock;
+                          const isDraft = block.status === 'draft';
+                          const blockQuery = block.search.trim().toLowerCase();
+                          const blockResults =
+                            blockQuery.length < 2
+                              ? []
+                              : searchSource.filter((item) =>
+                                  item.name.toLowerCase().includes(blockQuery)
+                                );
+                          return (
+                            <div className="rounded-2xl border border-border bg-background/70 p-4 space-y-4">
+                              <div className="flex flex-wrap items-start gap-3">
+                                <div className="flex-1 min-w-[220px]">
+                                  {isDraft ? (
+                                    <>
+                                      <input
+                                        value={block.name}
+                                        onChange={(event) => handleSubcategoryNameChange(block.id, event.target.value)}
+                                        placeholder="Subcategory name (e.g. Workbench, Weapons)"
+                                        className={cn(
+                                          'w-full rounded-md border bg-background px-3 py-2 text-sm',
+                                          block.nameError ? 'border-destructive' : 'border-border'
+                                        )}
+                                      />
+                                      {block.nameError && (
+                                        <div className="mt-1 text-xs text-destructive">
+                                          Subcategory name is required.
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <div className="text-sm font-semibold text-foreground">
+                                      {block.name.trim() || 'Subcategory'}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {isDraft && (
+                                    <button
+                                      type="button"
+                                      onClick={() => saveNewSubcategoryBlock(block.id)}
+                                      className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-semibold"
+                                    >
+                                      Save
+                                    </button>
+                                  )}
+                                  {isDraft && (
+                                    <button
+                                      type="button"
+                                      onClick={() => cancelNewSubcategoryBlock(block.id)}
+                                      className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-semibold"
+                                    >
+                                      Cancel
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="text-xs font-semibold">Selected Items</div>
+                                {block.items.length === 0 ? (
+                                  <div className="mt-2 text-sm text-muted-foreground">
+                                    No items selected yet. Search below to add some.
+                                  </div>
+                                ) : (
+                                  <div className="mt-3 grid gap-3">
+                                    {block.items.map((item) => (
+                                      <div
+                                        key={`${block.id}-${item.id}`}
+                                        className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2"
+                                      >
+                                        <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
+                                          <Image src={item.image} alt={item.name} fill className="object-cover" />
+                                        </div>
+                                        <div className="flex-1">
+                                          <div className="text-sm font-semibold">{item.name}</div>
+                                          <div className="text-xs text-muted-foreground">{item.rarity}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSubcategoryBlockItemNeed(block.id, item.id, -1)}
+                                            className="h-7 w-7 rounded-full border border-border text-xs font-semibold"
+                                          >
+                                            -
+                                          </button>
+                                          <div className="w-6 text-center text-xs font-semibold">{item.need}</div>
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSubcategoryBlockItemNeed(block.id, item.id, 1)}
+                                            className="h-7 w-7 rounded-full border border-border text-xs font-semibold"
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeItemFromSubcategoryBlock(block.id, item.id)}
+                                          className="rounded-full border border-border p-2 text-muted-foreground hover:text-foreground"
+                                          aria-label={`Remove ${item.name}`}
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="text-sm font-semibold">Add Items</div>
+                                <input
+                                  value={block.search}
+                                  onChange={(event) => setSubcategoryBlockSearch(block.id, event.target.value)}
+                                  placeholder="Search items..."
+                                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                />
+                                <div className="text-xs text-muted-foreground">
+                                  Hint: Type at least 2 characters to search.
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {blockResults.map((item) => {
+                                    const selected = block.items.some((entry) => entry.id === item.id);
+                                    return (
+                                      <button
+                                        key={`${block.id}-${item.id}`}
+                                        type="button"
+                                        onClick={() => addItemToSubcategoryBlock(block.id, item)}
+                                        disabled={selected}
+                                        className={cn(
+                                          'flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
+                                          selected
+                                            ? 'border-primary/60 bg-primary/10 text-primary'
+                                            : 'border-border bg-muted/40 hover:border-primary/60'
+                                        )}
+                                      >
+                                        <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
+                                          <Image src={item.image} alt={item.name} fill className="object-cover" />
+                                        </div>
+                                        <div>
+                                          <div className="text-sm font-semibold">{item.name}</div>
+                                          <div className="text-xs text-muted-foreground">{item.rarity}</div>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                  {blockQuery.length >= 2 && blockResults.length === 0 && (
+                                    <div className="text-sm text-muted-foreground">No items found.</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(addItemOpen || (newListOpen && !hasNewListBlocks)) && (
+                <div className="rounded-2xl border border-border bg-background/70 p-4">
+                  <div className="text-sm font-semibold">Selected Items</div>
+                  {newListItems.length === 0 ? (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      No items selected yet. Search below to add some.
+                    </div>
+                  ) : (
+                    <div className="mt-3 grid gap-3">
+                      {newListItems.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-border bg-muted/40 px-3 py-3 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
+                              <Image src={item.image} alt={item.name} fill className="object-cover" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-semibold">{item.name}</div>
+                              <div className="text-xs text-muted-foreground">{item.rarity}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() =>
+                                  setNewListItems((prev) =>
+                                    prev.map((entry) =>
+                                      entry.id === item.id
+                                        ? { ...entry, need: Math.max(1, entry.need - 1) }
+                                        : entry
+                                    )
+                                  )
+                                }
+                                className="h-6 w-6 rounded-full border border-border text-xs font-semibold"
+                              >
+                                -
+                              </button>
+                              <div className="w-6 text-center text-xs font-semibold">{item.need}</div>
+                              <button
+                                onClick={() =>
+                                  setNewListItems((prev) =>
+                                    prev.map((entry) =>
+                                      entry.id === item.id ? { ...entry, need: entry.need + 1 } : entry
+                                    )
+                                  )
+                                }
+                                className="h-6 w-6 rounded-full border border-border text-xs font-semibold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                          {addItemOpen ? (
+                            <>
+                              <div className="text-xs text-muted-foreground">Subcategories</div>
+                              <div className="flex flex-wrap gap-2">
+                                {addItemSubcategoryOptions.map((subcategory) => {
+                                  const selected = getItemSubcategories(item).includes(subcategory);
+                                  return (
+                                    <button
+                                      key={`${item.id}-${subcategory}`}
+                                      onClick={() => toggleNewItemSubcategory(item.id, subcategory, addItemSubcategoryOptions)}
+                                      className={cn(
+                                        'rounded-full border px-3 py-1 text-xs font-semibold',
+                                        selected
+                                          ? 'border-primary/70 bg-primary/10 text-primary'
+                                          : 'border-border text-muted-foreground hover:text-foreground'
+                                      )}
+                                    >
+                                      {subcategory}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-xs text-muted-foreground">
+                              This list has no subcategories.
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <div className="text-sm font-semibold">{item.name}</div>
-                          <div className="text-xs text-muted-foreground">{item.rarity}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {catalogResults.length === 0 && (
-                    <div className="text-sm text-muted-foreground">No items found.</div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              </div>
+              )}
+
+              {(addItemOpen || (newListOpen && !hasNewListBlocks)) && (
+                <div className="space-y-3">
+                  <div className="text-sm font-semibold">Add Items</div>
+                  <input
+                    value={searchCatalog}
+                    onChange={(event) => setSearchCatalog(event.target.value)}
+                    placeholder="Search items..."
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <div className="text-xs text-muted-foreground">Hint: Type at least 2 characters to search.</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {catalogResults.map((item) => {
+                      const selected = newListItems.some((selectedItem) => selectedItem.id === item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => toggleCatalogItem(item)}
+                          className={cn(
+                            'flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
+                            selected
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border bg-muted/40 hover:border-primary/60'
+                          )}
+                        >
+                          <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
+                            <Image src={item.image} alt={item.name} fill className="object-cover" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold">{item.name}</div>
+                            <div className="text-xs text-muted-foreground">{item.rarity}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {catalogResults.length === 0 && (
+                      <div className="text-sm text-muted-foreground">No items found.</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
               <button
-                onClick={() => {
-                  resetNewListState();
-                  setNewListOpen(false);
-                  setAddItemOpen(false);
-                }}
+                onClick={closeNewListOverlay}
                 className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold"
               >
                 Cancel
@@ -2006,39 +2538,60 @@ export default function NeededItemsPage() {
                 {editListItems.length === 0 ? (
                   <div className="mt-2 text-sm text-muted-foreground">No items in this list.</div>
                 ) : (
-                  <div className="mt-3 space-y-3">
-                    {editListItems.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-border bg-muted/40 px-3 py-3 space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
-                            <Image src={item.image} alt={item.name} fill className="object-cover" />
+                  <div className="mt-3 space-y-0">
+                    {editItemsBySubcategory.map((group) => (
+                      <details
+                        key={group.subcategory}
+                        className="group mb-2 space-y-3 last:mb-0 [&[open]]:mb-5"
+                      >
+                        <summary className="cursor-pointer list-none rounded-lg border border-border bg-background/70 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <div className="flex items-center justify-between">
+                            <span>{group.subcategory}</span>
+                            <div className="flex items-center gap-2 text-[11px] font-semibold">
+                              <span>{group.items.length} items</span>
+                              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-semibold">{item.name}</div>
-                            <div className="text-xs text-muted-foreground">{item.rarity}</div>
-                          </div>
+                        </summary>
+                        <div className="space-y-3 pt-1">
+                          {group.items.map((item) => (
+                            <div
+                              key={`${group.subcategory}-${item.id}`}
+                              className="rounded-xl border border-border bg-muted/40 px-3 py-3 space-y-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="relative h-10 w-10 overflow-hidden rounded-lg border border-border/60 bg-background/80">
+                                  <Image src={item.image} alt={item.name} fill className="object-cover" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-sm font-semibold">{item.name}</div>
+                                  <div className="text-xs text-muted-foreground">{item.rarity}</div>
+                                </div>
+                              </div>
+                              <div className="text-xs text-muted-foreground">Subcategories</div>
+                              <div className="flex flex-wrap gap-2">
+                                {editSubcategoryOptions.map((subcategory) => {
+                                  const selected = getItemSubcategories(item).includes(subcategory);
+                                  return (
+                                    <button
+                                      key={`${item.id}-${subcategory}`}
+                                      onClick={() => toggleEditItemSubcategory(item.id, subcategory)}
+                                      className={cn(
+                                        'rounded-full border px-3 py-1 text-xs font-semibold',
+                                        selected
+                                          ? 'border-primary/70 bg-primary/10 text-primary'
+                                          : 'border-border text-muted-foreground hover:text-foreground'
+                                      )}
+                                    >
+                                      {subcategory}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-xs text-muted-foreground">Subcategories</div>
-                        <div className="flex flex-wrap gap-2">
-                          {normalizeSubcategories(editSubcategories).map((subcategory) => {
-                            const selected = getItemSubcategories(item).includes(subcategory);
-                            return (
-                              <button
-                                key={`${item.id}-${subcategory}`}
-                                onClick={() => toggleEditItemSubcategory(item.id, subcategory)}
-                                className={cn(
-                                  'rounded-full border px-3 py-1 text-xs font-semibold',
-                                  selected
-                                    ? 'border-primary/70 bg-primary/10 text-primary'
-                                    : 'border-border text-muted-foreground hover:text-foreground'
-                                )}
-                              >
-                                {subcategory}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      </details>
                     ))}
                   </div>
                 )}
