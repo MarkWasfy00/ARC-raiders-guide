@@ -511,8 +511,9 @@ export default function EventTimersPage() {
                         >
                           <div className="space-y-0.5">
                             <div>{formatTimeRange(instance.start, instance.end)}</div>
-                            <div className="text-[#A0A0A0]">{formatDateTime(instance.start)}</div>
-                            <div className="text-[#A0A0A0]">{instance.map}</div>
+                            <div className="text-[#A0A0A0]">
+                              {formatDateTime(instance.start)} · {instance.map}
+                            </div>
                           </div>
                           <div className="flex items-center gap-3 md:justify-end">
                             <div className="text-[12px] md:text-[13px] font-semibold">
