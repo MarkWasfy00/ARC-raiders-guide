@@ -1,8 +1,17 @@
-import { memo } from "react";
-import { Skill, CATEGORY_COLORS, SKILL_TREE_CENTER, mapSkillPosition } from "@/lib/skillTreeData";
-import { cn } from "@/lib/utils";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Shield, Zap, Leaf } from "lucide-react";
+import { memo } from 'react';
+import { Skill, CATEGORY_COLORS, TIER_REQUIREMENTS } from '@/data/skillTreeData';
+import { cn } from '@/lib/utils';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+import { 
+  Shield, Zap, Footprints, Heart, Lock, Weight, Bomb, Volume2, Timer, Sword,
+  Mountain, Wind, Gauge, Move, Dumbbell, Eye, Package, Wrench, Search, Crosshair,
+  ArrowRight, Leaf, Waves, AlertTriangle, Target, Backpack, Compass, UserCheck,
+  Anchor, RefreshCw
+} from 'lucide-react';
 
 interface SkillNodeProps {
   skill: Skill;
@@ -10,21 +19,61 @@ interface SkillNodeProps {
   canLearn: boolean;
   onAddPoint: () => void;
   onRemovePoint: () => void;
-  onHover?: () => void;
-  onBlur?: () => void;
+  categoryPoints: number;
 }
 
-const CategoryIcon = ({ category }: { category: string }) => {
-  switch (category) {
-    case "conditioning":
-      return <Shield className="w-6 h-6" />;
-    case "mobility":
-      return <Zap className="w-6 h-6" />;
-    case "survival":
-      return <Leaf className="w-6 h-6" />;
-    default:
-      return null;
-  }
+const getSkillIcon = (skillId: string) => {
+  const iconMap: Record<string, React.ElementType> = {
+    // Conditioning
+    'used-to-the-weight': Weight,
+    'blast-born': Bomb,
+    'gentle-pressure': Volume2,
+    'proficient-pryer': Timer,
+    'fight-or-flight': Zap,
+    'survivors-stamina': Heart,
+    'unburdened-roll': Move,
+    'a-little-extra': Package,
+    'effortless-swing': Sword,
+    'downed-but-determined': Shield,
+    'turtle-crawl': Shield,
+    'loaded-arms': Dumbbell,
+    'sky-clearing-swing': Sword,
+    'back-on-your-feet': RefreshCw,
+    'flyswatter': Crosshair,
+    // Mobility
+    'nimble-climber': Mountain,
+    'marathon-runner': Footprints,
+    'slip-and-slide': Waves,
+    'youthful-lungs': Gauge,
+    'sturdy-ankles': Anchor,
+    'carry-the-momentum': ArrowRight,
+    'calming-stroll': Leaf,
+    'effortless-roll': Move,
+    'heroic-leap': Move,
+    'crawl-before-you-walk': Footprints,
+    'vigorous-vaulter': Mountain,
+    'off-the-wall': Mountain,
+    'ready-to-roll': Move,
+    'vaults-on-vaults': Mountain,
+    'vault-spring': Move,
+    // Survival
+    'agile-croucher': UserCheck,
+    'looters-instincts': Eye,
+    'revitalizing-squat': Heart,
+    'silent-scavenger': Volume2,
+    'broad-shoulders': Backpack,
+    'suffer-in-silence': Volume2,
+    'good-as-new': Heart,
+    'in-round-crafting': Wrench,
+    'stubborn-mule': Dumbbell,
+    'looters-luck': Search,
+    'one-raiders-scraps': Package,
+    'three-deep-breaths': Target,
+    'traveling-tinkerer': Compass,
+    'security-breach': Lock,
+    'minesweeper': AlertTriangle,
+  };
+  return iconMap[skillId] || Shield;
 };
 
 export const SkillNode = memo(function SkillNode({
@@ -33,129 +82,160 @@ export const SkillNode = memo(function SkillNode({
   canLearn,
   onAddPoint,
   onRemovePoint,
-  onHover,
-  onBlur,
+  categoryPoints,
 }: SkillNodeProps) {
   const isLearned = currentLevel > 0;
   const isMaxed = currentLevel >= skill.maxLevel;
-  const isUnlocked = canLearn && !isLearned;
-  const isLocked = !canLearn && !isLearned;
-  const isGate = skill.maxLevel === 1;
   const colors = CATEGORY_COLORS[skill.category];
-  const position = mapSkillPosition(skill);
+  
+  const tierRequirement = skill.requiredPoints || 
+                          (skill.tier === 2 ? TIER_REQUIREMENTS.tier2 : 
+                          skill.tier === 3 ? TIER_REQUIREMENTS.tier3 : 0);
+  const meetsPointRequirement = categoryPoints >= tierRequirement;
+  const isTierLocked = !meetsPointRequirement && skill.tier > 1 && skill.requiredPoints;
+  const isLocked = (!canLearn && !isLearned) || isTierLocked;
 
-  const handleClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (canLearn && !isMaxed) {
+  const IconComponent = getSkillIcon(skill.id);
+
+  // Big skills are 2x size, small skills are 0.5x (relative to big)
+  // Big = 56px, Small = 28px
+  const isBigSkill = skill.size === 'big';
+  const nodeSize = isBigSkill ? 56 : 28;
+  const iconSize = isBigSkill ? 24 : 12;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (canLearn && !isMaxed && !isTierLocked) {
       onAddPoint();
     }
   };
 
-  const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (currentLevel > 0) {
       onRemovePoint();
     }
   };
 
   return (
-    <HoverCard openDelay={100} closeDelay={50}>
+    <HoverCard openDelay={0} closeDelay={0}>
       <HoverCardTrigger asChild>
         <div
           className={cn(
-            "flex flex-col items-center gap-2 cursor-pointer select-none transition-all duration-300",
-            isLocked && "opacity-60 grayscale cursor-not-allowed"
+            'flex flex-col items-center gap-1 cursor-pointer select-none transition-all duration-200',
+            isLocked && !isLearned && 'opacity-40 cursor-not-allowed'
           )}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
-          onMouseEnter={onHover}
-          onMouseLeave={onBlur}
           style={{
-            position: "absolute",
-            left: position.x + SKILL_TREE_CENTER.x,
-            top: position.y + SKILL_TREE_CENTER.y,
-            transform: "translate(-50%, -50%)",
+            position: 'absolute',
+            left: skill.position.x,
+            top: skill.position.y,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10, // Ensure nodes are above connection lines
           }}
         >
-          <div className="relative flex items-center justify-center">
-            <div
-              className={cn(
-                "flex items-center justify-center rounded-full transition-all duration-300",
-                "w-16 h-16 border-[3px]",
-                isLearned && "scale-105",
-                isMaxed && "skill-node-maxed",
-                isGate && isLearned && "skill-node-gate"
-              )}
-              style={{
-                borderColor: isLearned
-                  ? colors.primary
-                  : isUnlocked
-                  ? "hsl(var(--muted-foreground) / 0.55)"
-                  : "hsl(var(--muted-foreground) / 0.25)",
-                color: colors.primary,
-                boxShadow: isLearned
-                  ? `0 0 22px ${colors.primary}60`
-                  : "0 0 0 transparent",
-              }}
-            >
-              <div
-                className="flex items-center justify-center rounded-full w-10 h-10"
-                style={{
-                  backgroundColor: "hsl(var(--background))",
-                  boxShadow: "inset 0 0 12px hsl(var(--muted) / 0.6)",
-                }}
-              >
-                <div
-                  style={{
-                    color: isLearned || isUnlocked
-                      ? colors.primary
-                      : "hsl(var(--muted-foreground) / 0.7)",
-                  }}
-                >
-                  <CategoryIcon category={skill.category} />
-                </div>
-              </div>
-            </div>
-          </div>
-
+          {/* Skill Node Circle */}
           <div
-            className="text-[11px] font-bold px-2 py-0.5 rounded-full tracking-wide transition-colors duration-300"
+            className="relative rounded-full flex items-center justify-center transition-all duration-300"
             style={{
-              color: isLearned || isUnlocked ? colors.primary : "hsl(var(--muted-foreground))",
-              backgroundColor: isLearned ? `${colors.primary}12` : "hsl(var(--muted) / 0.08)",
-              border: `1px solid ${isLearned ? colors.primary : "hsl(var(--border))"}`,
+              width: nodeSize,
+              height: nodeSize,
+              borderWidth: isBigSkill ? 3 : 2,
+              borderStyle: 'solid',
+              borderColor: isLearned ? colors.primary : '#3a3f4a',
+              backgroundColor: isLearned 
+                ? colors.bg 
+                : '#13161b',
+              boxShadow: isLearned 
+                ? `0 0 20px ${colors.glow}, 0 0 40px ${colors.glow}` 
+                : 'none',
             }}
           >
-            {currentLevel} / {skill.maxLevel}
+            <IconComponent 
+              style={{
+                width: iconSize,
+                height: iconSize,
+                color: isLearned ? colors.primary : '#6b7280',
+                transition: 'color 0.3s ease',
+              }}
+            />
+            
+            {/* Lock overlay removed */}
+          </div>
+
+          {/* Level Counter below node */}
+          <div
+            className="font-bold tabular-nums"
+            style={{
+              fontSize: isBigSkill ? '10px' : '8px',
+              color: isLearned ? colors.primary : '#6b7280',
+              transform:
+                skill.id === 'survivors-stamina' ||
+                skill.id === 'unburdened-roll' ||
+                skill.id === 'downed-but-determined' ||
+                skill.id === 'a-little-extra' ||
+                skill.id === 'back-on-your-feet' ||
+                skill.id === 'flyswatter'
+                  ? 'translateX(0px)'
+                  : skill.category === 'conditioning'
+                    ? 'translateX(-10px)'
+                    : undefined,
+            }}
+          >
+            {currentLevel}/{skill.maxLevel}
           </div>
         </div>
       </HoverCardTrigger>
 
-      <HoverCardContent
-        side="right"
-        className="w-64 bg-card/95 backdrop-blur-sm border-border/50"
-        sideOffset={10}
+      {/* Always show hover card with info regardless of learned state */}
+      <HoverCardContent 
+        side="right" 
+        className="w-72 border-white/10 shadow-2xl"
+        style={{ 
+          backgroundColor: 'rgba(13, 15, 18, 0.95)', 
+          backdropFilter: 'blur(12px)',
+          zIndex: 50,
+        }}
+        sideOffset={15}
       >
         <div className="space-y-2">
-          <h4
-            className="font-bold uppercase tracking-wide text-sm"
-            style={{ color: colors.primary }}
-          >
-            {skill.name}
-          </h4>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <div className="flex items-start justify-between gap-2">
+            <h4 
+              className="font-bold uppercase tracking-wide text-sm"
+              style={{ color: colors.primary }}
+            >
+              {skill.name}
+            </h4>
+            <span
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+              style={{ 
+                backgroundColor: `${colors.primary}20`,
+                color: colors.primary 
+              }}
+            >
+              T{skill.tier}
+            </span>
+          </div>
+          
+          <p className="text-xs text-white/60 leading-relaxed">
             {skill.description}
           </p>
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <span className="text-xs text-muted-foreground">
-              Level: {currentLevel} / {skill.maxLevel}
+          
+          <div className="flex items-center justify-between pt-1.5 border-t border-white/10">
+            <span className="text-[10px] text-white/40">
+              Level: {currentLevel}/{skill.maxLevel}
             </span>
-            {isLocked && <span className="text-xs text-destructive">Locked</span>}
+            {isTierLocked && skill.requiredPoints && (
+              <span className="text-[10px] text-red-400">
+                Requires {skill.requiredPoints} pts
+              </span>
+            )}
             {isMaxed && (
-              <span className="text-xs" style={{ color: colors.primary }}>
-                Maxed
+              <span className="text-[10px] font-semibold" style={{ color: colors.primary }}>
+                MAXED
               </span>
             )}
           </div>
