@@ -5,7 +5,6 @@ import { Star } from "lucide-react";
 import { SkillTreeCanvas } from "@/components/skill-tree/SkillTreeCanvas";
 import { SelectedSkillsSection } from "@/components/skill-tree/SelectedSkillsSection";
 import { AllSkillsSection } from "@/components/skill-tree/AllSkillsSection";
-import { InfoSection } from "@/components/skill-tree/InfoSection";
 import { Button } from "@/components/ui/button";
 import { useSkillTree } from "@/hooks/useSkillTree";
 import { cn } from "@/lib/utils";
@@ -73,9 +72,6 @@ export default function SkillTreePage() {
         getSkillLevel={getSkillLevel}
         totalLevel={totalLevel}
       />
-
-      {/* Info Section */}
-      <InfoSection />
 
       {/* All Available Skills Section */}
       <AllSkillsSection />
