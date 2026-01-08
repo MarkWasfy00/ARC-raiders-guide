@@ -1,135 +1,137 @@
-"use client";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { MOCK_SKILLS, SkillCategory, MAX_TOTAL_POINTS, SMALL_SKILLS_2_INPUTS_1_OUTPUT } from '@/data/skillTreeData';
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { MOCK_SKILLS, SkillCategory, MAX_TOTAL_POINTS } from "@/lib/skillTreeData";
-
-const STORAGE_KEY = "arc-raiders-skill-tree";
+const STORAGE_KEY = 'arc-raiders-skill-tree';
 
 interface SkillTreeState {
   skillLevels: Record<string, number>;
   expeditionPoints: number;
 }
 
-const DEFAULT_STATE: SkillTreeState = {
-  skillLevels: {},
-  expeditionPoints: 0,
+const getInitialState = (): SkillTreeState => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Failed to load skill tree state:', e);
+  }
+  return {
+    skillLevels: {},
+    expeditionPoints: 0,
+  };
 };
 
 export function useSkillTree() {
-  const [state, setState] = useState<SkillTreeState>(DEFAULT_STATE);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [state, setState] = useState<SkillTreeState>(getInitialState);
 
+  // Persist to localStorage
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
     try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setState(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.error("Failed to load skill tree state:", error);
-    } finally {
-      setHasLoaded(true);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error('Failed to save skill tree state:', e);
     }
-  }, []);
+  }, [state]);
 
-  useEffect(() => {
-    if (!hasLoaded) return;
-
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (error) {
-      console.error("Failed to save skill tree state:", error);
-    }
-  }, [hasLoaded, state]);
-
-  const getSkillLevel = useCallback(
-    (skillId: string) => {
-      return state.skillLevels[skillId] || 0;
-    },
-    [state.skillLevels]
-  );
-
-  const totalPointsUsed = useMemo(() => {
-    return Object.values(state.skillLevels).reduce((sum, level) => sum + level, 0);
+  const getSkillLevel = useCallback((skillId: string) => {
+    return state.skillLevels[skillId] || 0;
   }, [state.skillLevels]);
 
-  const totalPointsLimit = useMemo(() => {
-    return MAX_TOTAL_POINTS + state.expeditionPoints;
-  }, [state.expeditionPoints]);
+  const canLearnSkill = useCallback((skillId: string) => {
+    const skill = MOCK_SKILLS.find(s => s.id === skillId);
+    if (!skill) return false;
 
-  const canLearnSkill = useCallback(
-    (skillId: string) => {
-      const skill = MOCK_SKILLS.find((s) => s.id === skillId);
-      if (!skill) return false;
+    const currentLevel = getSkillLevel(skillId);
+    if (currentLevel >= skill.maxLevel) return false;
 
-      const currentLevel = getSkillLevel(skillId);
-      if (currentLevel >= skill.maxLevel) return false;
-      if (totalPointsUsed >= totalPointsLimit) return false;
-
+    // Check prerequisites
+    if (skill.tier === 3 && skill.requiredPoints === 36) {
+      const hasPath = skill.prerequisites.some(prereqId => getSkillLevel(prereqId) > 0);
+      if (!hasPath) return false;
+    } else if (SMALL_SKILLS_2_INPUTS_1_OUTPUT.includes(skill.id)) {
+      const hasPath = skill.prerequisites.some(prereqId => getSkillLevel(prereqId) > 0);
+      if (!hasPath) return false;
+    } else {
       for (const prereqId of skill.prerequisites) {
-        const prereqSkill = MOCK_SKILLS.find((s) => s.id === prereqId);
+        const prereqSkill = MOCK_SKILLS.find(s => s.id === prereqId);
         if (!prereqSkill) return false;
         const prereqLevel = getSkillLevel(prereqId);
         if (prereqLevel === 0) return false;
       }
+    }
 
-      return true;
-    },
-    [getSkillLevel, totalPointsLimit, totalPointsUsed]
-  );
+    if (skill.requiredPoints) {
+      const categoryPoints = MOCK_SKILLS.reduce((sum, s) => {
+        return s.category === skill.category ? sum + getSkillLevel(s.id) : sum;
+      }, 0);
+      if (categoryPoints < skill.requiredPoints) return false;
+    }
 
-  const addPoint = useCallback(
-    (skillId: string) => {
-      if (!canLearnSkill(skillId)) return;
+    return true;
+  }, [getSkillLevel]);
 
-      setState((prev) => ({
+  const addPoint = useCallback((skillId: string) => {
+    if (!canLearnSkill(skillId)) return;
+
+    setState(prev => {
+      const totalUsed = Object.values(prev.skillLevels).reduce((sum, level) => sum + level, 0);
+      const availablePoints = MAX_TOTAL_POINTS + prev.expeditionPoints;
+      if (totalUsed >= availablePoints) return prev;
+
+      return {
         ...prev,
         skillLevels: {
           ...prev.skillLevels,
           [skillId]: (prev.skillLevels[skillId] || 0) + 1,
         },
-      }));
-    },
-    [canLearnSkill]
-  );
+      };
+    });
+  }, [canLearnSkill]);
 
-  const removePoint = useCallback(
-    (skillId: string) => {
-      const currentLevel = getSkillLevel(skillId);
-      if (currentLevel === 0) return;
+  const removePoint = useCallback((skillId: string) => {
+    const currentLevel = getSkillLevel(skillId);
+    if (currentLevel === 0) return;
 
-      const dependentSkills = MOCK_SKILLS.filter(
-        (skill) => skill.prerequisites.includes(skillId) && getSkillLevel(skill.id) > 0
-      );
+    // Check if any skill depends on this one
+    const dependentSkills = MOCK_SKILLS.filter(s => 
+      s.prerequisites.includes(skillId) && getSkillLevel(s.id) > 0
+    );
 
-      if (currentLevel === 1 && dependentSkills.length > 0) return;
+    // Only allow removal if no dependent skills have points, or if we have more than 1 point
+    if (currentLevel === 1 && dependentSkills.length > 0) return;
 
-      setState((prev) => ({
-        ...prev,
-        skillLevels: {
-          ...prev.skillLevels,
-          [skillId]: Math.max(0, (prev.skillLevels[skillId] || 0) - 1),
-        },
-      }));
-    },
-    [getSkillLevel]
-  );
+    setState(prev => ({
+      ...prev,
+      skillLevels: {
+        ...prev.skillLevels,
+        [skillId]: Math.max(0, (prev.skillLevels[skillId] || 0) - 1),
+      },
+    }));
+  }, [getSkillLevel]);
 
   const resetTree = useCallback(() => {
-    setState((prev) => ({
+    setState(prev => ({
       ...prev,
       skillLevels: {},
+      expeditionPoints: 0,
     }));
   }, []);
 
   const setExpeditionPoints = useCallback((points: number) => {
-    setState((prev) => ({
+    setState(prev => ({
       ...prev,
       expeditionPoints: Math.max(0, points),
     }));
   }, []);
+
+  const totalPointsUsed = useMemo(() => {
+    return Object.values(state.skillLevels).reduce((sum, level) => sum + level, 0);
+  }, [state.skillLevels]);
+  const availablePoints = useMemo(() => {
+    return MAX_TOTAL_POINTS + state.expeditionPoints;
+  }, [state.expeditionPoints]);
 
   const pointsByCategory = useMemo(() => {
     const result: Record<SkillCategory, number> = {
@@ -147,16 +149,17 @@ export function useSkillTree() {
   }, [state.skillLevels]);
 
   const selectedSkills = useMemo(() => {
-    return MOCK_SKILLS.filter((skill) => (state.skillLevels[skill.id] || 0) > 0);
+    return MOCK_SKILLS.filter(skill => (state.skillLevels[skill.id] || 0) > 0);
   }, [state.skillLevels]);
 
   const totalLevel = useMemo(() => {
-    return Math.min(15 + totalPointsUsed, totalPointsLimit);
-  }, [totalPointsLimit, totalPointsUsed]);
+    return Math.min(15 + totalPointsUsed, MAX_TOTAL_POINTS);
+  }, [totalPointsUsed]);
 
   return {
     skillLevels: state.skillLevels,
     expeditionPoints: state.expeditionPoints,
+    availablePoints,
     getSkillLevel,
     canLearnSkill,
     addPoint,
@@ -164,7 +167,6 @@ export function useSkillTree() {
     resetTree,
     setExpeditionPoints,
     totalPointsUsed,
-    totalPointsLimit,
     pointsByCategory,
     selectedSkills,
     totalLevel,

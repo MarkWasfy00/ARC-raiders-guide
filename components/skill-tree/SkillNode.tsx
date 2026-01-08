@@ -1,163 +1,287 @@
-import { memo } from "react";
-import { Skill, CATEGORY_COLORS, SKILL_TREE_CENTER, mapSkillPosition } from "@/lib/skillTreeData";
-import { cn } from "@/lib/utils";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Shield, Zap, Leaf } from "lucide-react";
+import { memo, useEffect, useRef, useState } from 'react';
+import { Skill, CATEGORY_COLORS, TIER_REQUIREMENTS } from '@/data/skillTreeData';
+import { cn } from '@/lib/utils';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 
 interface SkillNodeProps {
   skill: Skill;
   currentLevel: number;
   canLearn: boolean;
+  hasPointsLeft: boolean;
   onAddPoint: () => void;
   onRemovePoint: () => void;
-  onHover?: () => void;
-  onBlur?: () => void;
+  categoryPoints: number;
 }
 
-const CategoryIcon = ({ category }: { category: string }) => {
-  switch (category) {
-    case "conditioning":
-      return <Shield className="w-6 h-6" />;
-    case "mobility":
-      return <Zap className="w-6 h-6" />;
-    case "survival":
-      return <Leaf className="w-6 h-6" />;
-    default:
-      return null;
-  }
-};
+const SKILL_ICON_BASE = '/skilltree%20ICONS';
+
+const getSkillIconSrc = (skillName: string) =>
+  `${SKILL_ICON_BASE}/${encodeURIComponent(skillName)}.png`;
 
 export const SkillNode = memo(function SkillNode({
   skill,
   currentLevel,
   canLearn,
+  hasPointsLeft,
   onAddPoint,
   onRemovePoint,
-  onHover,
-  onBlur,
+  categoryPoints,
 }: SkillNodeProps) {
+  const [noPointsNotice, setNoPointsNotice] = useState({ visible: false, x: 0, y: 0 });
+  const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLearned = currentLevel > 0;
   const isMaxed = currentLevel >= skill.maxLevel;
-  const isUnlocked = canLearn && !isLearned;
-  const isLocked = !canLearn && !isLearned;
-  const isGate = skill.maxLevel === 1;
   const colors = CATEGORY_COLORS[skill.category];
-  const position = mapSkillPosition(skill);
+  
+  const tierRequirement = skill.requiredPoints || 
+                          (skill.tier === 2 ? TIER_REQUIREMENTS.tier2 : 
+                          skill.tier === 3 ? TIER_REQUIREMENTS.tier3 : 0);
+  const meetsPointRequirement = categoryPoints >= tierRequirement;
+  const isTierLocked = !meetsPointRequirement && skill.tier > 1 && skill.requiredPoints;
+  const isLocked = (!canLearn && !isLearned) || isTierLocked;
+  const isDimmed = isLocked && !isLearned;
 
-  const handleClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (canLearn && !isMaxed) {
+  const iconSrc = getSkillIconSrc(skill.name);
+  const iconColor = isLearned ? colors.primary : canLearn ? '#ffffff' : '#b4b4b4';
+
+  // Big skills are 2x size, small skills are 0.5x (relative to big)
+  // Big = 56px, Small = 28px
+  const isBigSkill = skill.size === 'big';
+  const bigScale = 1.5;
+  const smallScale = 1.7;
+  const nodeSize = (isBigSkill ? 56 : 28) * (isBigSkill ? bigScale : smallScale);
+  const iconSize = (isBigSkill ? 24 : 12) * (isBigSkill ? bigScale : smallScale);
+  const iconRenderSize = iconSize * 1.2;
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimeoutRef.current) {
+        clearTimeout(noticeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showNoPointsNotice = () => {
+    if (noticeTimeoutRef.current) {
+      clearTimeout(noticeTimeoutRef.current);
+    }
+    setNoPointsNotice(prev => ({ ...prev, visible: true }));
+    noticeTimeoutRef.current = setTimeout(() => {
+      setNoPointsNotice(prev => ({ ...prev, visible: false }));
+    }, 1000);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (canLearn && !isMaxed && !isTierLocked) {
+      if (!hasPointsLeft) {
+        showNoPointsNotice();
+        return;
+      }
       onAddPoint();
     }
   };
 
-  const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (currentLevel > 0) {
       onRemovePoint();
     }
   };
 
-  const hoverSide = skill.category === "conditioning" ? "left" : "right";
-
   return (
-    <HoverCard openDelay={100} closeDelay={50}>
+    <HoverCard openDelay={0} closeDelay={0}>
       <HoverCardTrigger asChild>
         <div
           className={cn(
-            "flex flex-col items-center gap-2 cursor-pointer select-none transition-all duration-300",
-            isLocked && "opacity-60 grayscale cursor-not-allowed"
+            'relative flex flex-col items-center gap-1 cursor-pointer select-none transition-all duration-200',
+            isDimmed && 'cursor-not-allowed'
           )}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
-          onMouseEnter={onHover}
-          onMouseLeave={onBlur}
           style={{
-            position: "absolute",
-            left: position.x + SKILL_TREE_CENTER.x,
-            top: position.y + SKILL_TREE_CENTER.y,
-            transform: "translate(-50%, -50%)",
+            position: 'absolute',
+            left: skill.position.x,
+            top: skill.position.y,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10, // Ensure nodes are above connection lines
           }}
         >
-          <div className="relative flex items-center justify-center">
+          {noPointsNotice.visible && (
             <div
-              className={cn(
-                "flex items-center justify-center rounded-full transition-all duration-300",
-                "w-16 h-16 border-[3px]",
-                isLearned && "scale-105",
-                isMaxed && "skill-node-maxed",
-                isGate && isLearned && "skill-node-gate"
-              )}
+              className="absolute z-50 pointer-events-none whitespace-nowrap rounded-md border border-white/10 bg-black/90 px-2.5 py-1 text-[11px] uppercase tracking-widest shadow-lg"
               style={{
-                borderColor: isLearned
-                  ? colors.primary
-                  : isUnlocked
-                  ? "hsl(var(--muted-foreground) / 0.55)"
-                  : "hsl(var(--muted-foreground) / 0.25)",
+                left: '50%',
+                top: 0,
+                transform: 'translate(-50%, -115%)',
                 color: colors.primary,
-                boxShadow: isLearned
-                  ? `0 0 22px ${colors.primary}60`
-                  : "0 0 0 transparent",
               }}
             >
-              <div
-                className="flex items-center justify-center rounded-full w-10 h-10"
-                style={{
-                  backgroundColor: "hsl(var(--background))",
-                  boxShadow: "inset 0 0 12px hsl(var(--muted) / 0.6)",
-                }}
-              >
-                <div
-                  style={{
-                    color: isLearned || isUnlocked
-                      ? colors.primary
-                      : "hsl(var(--muted-foreground) / 0.7)",
-                  }}
-                >
-                  <CategoryIcon category={skill.category} />
-                </div>
-              </div>
+              No points left
             </div>
-          </div>
-
+          )}
+          {/* Opaque background masks to hide connection lines under dimmed nodes */}
           <div
-            className="text-[11px] font-bold px-2 py-0.5 rounded-full tracking-wide transition-colors duration-300"
+            aria-hidden
             style={{
-              color: isLearned || isUnlocked ? colors.primary : "hsl(var(--muted-foreground))",
-              backgroundColor: isLearned ? `${colors.primary}12` : "hsl(var(--muted) / 0.08)",
-              border: `1px solid ${isLearned ? colors.primary : "hsl(var(--border))"}`,
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: nodeSize,
+              height: nodeSize,
+              borderRadius: '9999px',
+              backgroundColor: 'var(--background)',
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            aria-hidden
+            className="font-bold tabular-nums"
+            style={{
+              position: 'absolute',
+              left: '50%',
+              bottom: '-6px',
+              transform: 'translateX(-50%)',
+              fontSize: isBigSkill ? '13px' : '10.4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: isBigSkill ? '18px' : '16px',
+              color: 'transparent',
+              backgroundColor: 'var(--background)',
+              border: '1px solid var(--background)',
+              borderRadius: '999px',
+              padding: '0 6px',
+              lineHeight: 1,
+              zIndex: 0,
+              pointerEvents: 'none',
             }}
           >
-            {currentLevel} / {skill.maxLevel}
+            <span style={{ position: 'relative', top: isBigSkill ? (skill.tier === 2 ? '0px' : '-1px') : '1px' }}>
+              {currentLevel}/{skill.maxLevel}
+            </span>
+          </div>
+          {/* Skill Node Circle */}
+          <div
+            className={cn(
+              'relative rounded-full flex items-center justify-center transition-all duration-300',
+              isDimmed && 'opacity-40'
+            )}
+            style={{
+              width: nodeSize,
+              height: nodeSize,
+              borderWidth: isBigSkill ? 3 : 2,
+              borderStyle: 'solid',
+              borderColor: isLearned ? colors.primary : canLearn ? colors.primary : '#666666',
+              backgroundColor: isLearned ? '#0c0e11' : 'var(--background)',
+              backgroundImage: 'none',
+              boxShadow: 'none',
+            }}
+          >
+            <span
+              role="img"
+              aria-label={`${skill.name} icon`}
+              style={{
+                width: iconRenderSize,
+                height: iconRenderSize,
+                backgroundColor: iconColor,
+                WebkitMaskImage: `url("${iconSrc}")`,
+                maskImage: `url("${iconSrc}")`,
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+                WebkitMaskSize: 'contain',
+                maskSize: 'contain',
+                WebkitMaskPosition: 'center',
+                maskPosition: 'center',
+                opacity: isDimmed ? 0.45 : 1,
+                transition: 'background-color 0.3s ease, opacity 0.3s ease',
+              }}
+            />
+
+            {/* Level Counter badge */}
+            <div
+              className="font-bold tabular-nums"
+              style={{
+                position: 'absolute',
+                left: '50%',
+                bottom: '-6px',
+                transform: 'translateX(-50%)',
+                fontSize: isBigSkill ? '13px' : '10.4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: isBigSkill ? '18px' : '16px',
+                color: isLearned ? colors.primary : '#b4b4b4',
+                backgroundColor: 'var(--background)',
+                border: `1px solid ${isLearned ? colors.primary : '#666666'}`,
+                borderRadius: '999px',
+                padding: '0 6px',
+                lineHeight: 1,
+              }}
+            >
+              <span style={{ position: 'relative', top: isBigSkill ? (skill.tier === 2 ? '0px' : '-1px') : '1px' }}>
+                {currentLevel}/{skill.maxLevel}
+              </span>
+            </div>
           </div>
         </div>
       </HoverCardTrigger>
 
-      <HoverCardContent
-        side={hoverSide}
-        className="w-64 bg-card/95 backdrop-blur-sm border-border/50"
-        sideOffset={10}
+      {/* Always show hover card with info regardless of learned state */}
+      <HoverCardContent 
+        side="right" 
+        className="w-[346px] border-white/10 shadow-2xl"
+        style={{ 
+          backgroundColor: 'rgba(13, 15, 18, 0.95)', 
+          backdropFilter: 'blur(12px)',
+          zIndex: 50,
+        }}
+        sideOffset={15}
       >
         <div className="space-y-2">
-          <h4
-            className="font-bold uppercase tracking-wide text-sm"
-            style={{ color: colors.primary }}
-          >
-            {skill.name}
-          </h4>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <div className="flex items-start justify-between gap-2">
+            <h4 
+              className="font-bold uppercase tracking-wide"
+              style={{ color: colors.primary, fontSize: '21px' }}
+            >
+              {skill.name}
+            </h4>
+            <span
+              className="font-semibold px-1.5 py-0.5 rounded"
+              style={{ 
+                backgroundColor: `${colors.primary}20`,
+                color: colors.primary,
+                fontSize: '15px',
+              }}
+            >
+              T{skill.tier}
+            </span>
+          </div>
+          
+          <p className="text-white/60 leading-relaxed" style={{ fontSize: '18px' }}>
             {skill.description}
           </p>
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <span className="text-xs text-muted-foreground">
-              Level: {currentLevel} / {skill.maxLevel}
+          
+          <div className="flex items-center justify-between pt-1.5 border-t border-white/10">
+            <span className="text-white/40" style={{ fontSize: '15px' }}>
+              Level: {currentLevel}/{skill.maxLevel}
             </span>
-            {isLocked && <span className="text-xs text-destructive">Locked</span>}
+            {isTierLocked && skill.requiredPoints && (
+              <span className="text-red-400" style={{ fontSize: '15px' }}>
+                Requires {skill.requiredPoints} pts
+              </span>
+            )}
             {isMaxed && (
-              <span className="text-xs" style={{ color: colors.primary }}>
-                Maxed
+              <span className="font-semibold" style={{ color: colors.primary, fontSize: '15px' }}>
+                MAXED
               </span>
             )}
           </div>
@@ -166,3 +290,10 @@ export const SkillNode = memo(function SkillNode({
     </HoverCard>
   );
 });
+
+
+
+
+
+
+

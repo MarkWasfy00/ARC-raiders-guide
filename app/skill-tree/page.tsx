@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Star } from "lucide-react";
 import { SkillTreeCanvas } from "@/components/skill-tree/SkillTreeCanvas";
 import { SelectedSkillsSection } from "@/components/skill-tree/SelectedSkillsSection";
 import { AllSkillsSection } from "@/components/skill-tree/AllSkillsSection";
-import { InfoSection } from "@/components/skill-tree/InfoSection";
 import { Button } from "@/components/ui/button";
 import { useSkillTree } from "@/hooks/useSkillTree";
 import { cn } from "@/lib/utils";
@@ -16,8 +14,8 @@ export default function SkillTreePage() {
   const {
     skillLevels,
     expeditionPoints,
+    availablePoints,
     totalPointsUsed,
-    totalPointsLimit,
     pointsByCategory,
     getSkillLevel,
     canLearnSkill,
@@ -30,36 +28,33 @@ export default function SkillTreePage() {
   } = useSkillTree();
 
   return (
-    <div className="w-full px-[100px] py-8 space-y-8">
-      <div className="flex items-center gap-2 text-sm">
-        <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
-          Arc Raiders
-        </Link>
-        <span className="text-muted-foreground">/</span>
-        <span className="text-foreground">Skill Tree</span>
-      </div>
-
+    <div className="w-full px-8 py-10 space-y-8">
+      {/* Page Header */}
       <div className="flex items-start justify-between">
-        <div className="space-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-3xl font-bold text-foreground">Skill Tree Builder</h1>
-          <p className="text-sm text-muted-foreground">Plan your build and optimize your raid stats.</p>
+          <p className="text-sm text-muted-foreground">Arc Raiders {" > "} Skill Builder</p>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className={cn("gap-2 transition-colors", isFavorite && "text-yellow-500")}
-          onClick={() => setIsFavorite((prev) => !prev)}
+          className={cn(
+            "gap-2 transition-colors",
+            isFavorite && "text-yellow-500"
+          )}
+          onClick={() => setIsFavorite(!isFavorite)}
         >
           <Star className={cn("h-4 w-4", isFavorite && "fill-current")} />
-          Add to Favorites
+          Add to Favourite
         </Button>
       </div>
 
+      {/* Skill Tree Canvas */}
       <SkillTreeCanvas
         skillLevels={skillLevels}
         expeditionPoints={expeditionPoints}
+        availablePoints={availablePoints}
         totalPointsUsed={totalPointsUsed}
-        totalPointsLimit={totalPointsLimit}
         pointsByCategory={pointsByCategory}
         getSkillLevel={getSkillLevel}
         canLearnSkill={canLearnSkill}
@@ -69,15 +64,14 @@ export default function SkillTreePage() {
         setExpeditionPoints={setExpeditionPoints}
       />
 
+      {/* Selected Skills Section */}
       <SelectedSkillsSection
         selectedSkills={selectedSkills}
         getSkillLevel={getSkillLevel}
         totalLevel={totalLevel}
-        totalPointsLimit={totalPointsLimit}
       />
 
-      <InfoSection />
-
+      {/* All Available Skills Section */}
       <AllSkillsSection />
     </div>
   );
