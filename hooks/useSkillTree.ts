@@ -115,6 +115,7 @@ export function useSkillTree() {
     setState(prev => ({
       ...prev,
       skillLevels: {},
+      expeditionPoints: 0,
     }));
   }, []);
 

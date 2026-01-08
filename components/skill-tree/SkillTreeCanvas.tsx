@@ -3,7 +3,7 @@ import { MOCK_SKILLS, CATEGORY_COLORS, CATEGORY_LABELS, MAX_TOTAL_POINTS, SkillC
 import { SkillNode } from './SkillNode';
 import { SkillConnections } from './SkillConnections';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Plus, Minus, Share2 } from 'lucide-react';
+import { RotateCcw, Plus, Minus, Share2, Hand, MousePointer2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SkillTreeCanvasProps {
@@ -38,6 +38,7 @@ export function SkillTreeCanvas({
   const [position, setPosition] = useState({ x: 0, y: 110 });
   const [scale, setScale] = useState(0.7);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.target === containerRef.current || (e.target as HTMLElement).closest('.canvas-background')) {
@@ -111,9 +112,41 @@ export function SkillTreeCanvas({
 
   return (
     <div className="relative w-full flex flex-col rounded-lg overflow-hidden border border-white/10" style={{ backgroundColor: '#0c0e11' }}>
-      {/* Top Control Bar - Expedition Points & Instructions */}
+      {showResetConfirm && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60">
+          <div className="w-[360px] rounded-lg border border-white/10 bg-[#0c0e11] p-5 shadow-2xl">
+            <div className="text-sm font-semibold uppercase tracking-wider text-white/80">
+              Reset Skill Tree?
+            </div>
+            <div className="mt-2 text-xs text-white/50">
+              This will remove all allocated points.
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-[11px] text-white/60 hover:text-white"
+                onClick={() => setShowResetConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 border-red-500/50 bg-red-500/10 text-[11px] text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  resetTree();
+                }}
+              >
+                Reset
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Top Control Bar - Expedition Points & Actions */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-white/10" style={{ backgroundColor: '#080a0d' }}>
-        {/* Left - Expedition Points */}
         <div className="flex items-center gap-3 px-4 py-2 rounded-lg" style={{ backgroundColor: '#13161b' }}>
           <span className="text-[11px] font-medium text-white/50 uppercase tracking-widest">
             Expedition Points
@@ -136,25 +169,24 @@ export function SkillTreeCanvas({
             </button>
           </div>
         </div>
-
-        {/* Right - Instructions */}
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-500/70 text-sm">🖐</span>
-            <span className="text-[11px] text-white/40 uppercase tracking-widest">Drag to navigate</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-white/30 text-sm">⊙</span>
-            <span className="text-[11px] text-white/40 uppercase tracking-widest">Scroll-wheel to zoom</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400/70 text-sm">✦</span>
-            <span className="text-[11px] text-white/40 uppercase tracking-widest">Left-click to learn skill</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-rose-400/70 text-sm">✦</span>
-            <span className="text-[11px] text-white/40 uppercase tracking-widest">Right-click to remove points</span>
-          </div>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-[11px] h-8 text-white/50 hover:text-white hover:bg-white/10 uppercase tracking-wider"
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Share
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowResetConfirm(true)}
+            className="gap-2 text-[11px] h-8 border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 uppercase tracking-wider"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </Button>
         </div>
       </div>
 
@@ -171,24 +203,26 @@ export function SkillTreeCanvas({
           </div>
         </div>
 
-        <div className="absolute right-5 top-4 z-20 flex gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-[11px] h-8 text-white/50 hover:text-white hover:bg-white/10 uppercase tracking-wider"
-          >
-            <Share2 className="h-3.5 w-3.5" />
-            Share
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={resetTree}
-            className="gap-2 text-[11px] h-8 border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 uppercase tracking-wider"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Reset
-          </Button>
+        <div
+          className="absolute right-5 top-4 z-20 flex flex-col gap-2 rounded-lg border border-white/10 px-4 py-3"
+          style={{ backgroundColor: 'rgba(12, 14, 17, 0.7)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Hand className="h-4 w-4 text-white/40" style={{ position: 'relative', top: '-1px' }} />
+            <span className="text-[11px] text-white/40 uppercase tracking-widest">Drag to navigate</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MousePointer2 className="h-4 w-4 text-white/40" style={{ position: 'relative', top: '-1px' }} />
+            <span className="text-[11px] text-white/40 uppercase tracking-widest">SCROLL TO ZOOM</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full border border-emerald-500/50 bg-emerald-500/10" style={{ marginLeft: '1px' }} />
+            <span className="text-[11px] text-white/40 uppercase tracking-widest">Left-click to learn skill</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full border border-red-500/50 bg-red-500/10" style={{ marginLeft: '1px' }} />
+            <span className="text-[11px] text-white/40 uppercase tracking-widest">Right-click to remove points</span>
+          </div>
         </div>
 
         {/* Draggable Canvas */}
