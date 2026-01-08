@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Skill, CATEGORY_COLORS, TIER_REQUIREMENTS } from '@/data/skillTreeData';
 import { cn } from '@/lib/utils';
 import {
@@ -11,6 +11,7 @@ interface SkillNodeProps {
   skill: Skill;
   currentLevel: number;
   canLearn: boolean;
+  hasPointsLeft: boolean;
   onAddPoint: () => void;
   onRemovePoint: () => void;
   categoryPoints: number;
@@ -25,10 +26,13 @@ export const SkillNode = memo(function SkillNode({
   skill,
   currentLevel,
   canLearn,
+  hasPointsLeft,
   onAddPoint,
   onRemovePoint,
   categoryPoints,
 }: SkillNodeProps) {
+  const [noPointsNotice, setNoPointsNotice] = useState({ visible: false, x: 0, y: 0 });
+  const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLearned = currentLevel > 0;
   const isMaxed = currentLevel >= skill.maxLevel;
   const colors = CATEGORY_COLORS[skill.category];
@@ -53,10 +57,32 @@ export const SkillNode = memo(function SkillNode({
   const iconSize = (isBigSkill ? 24 : 12) * (isBigSkill ? bigScale : smallScale);
   const iconRenderSize = iconSize * 1.2;
 
+  useEffect(() => {
+    return () => {
+      if (noticeTimeoutRef.current) {
+        clearTimeout(noticeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showNoPointsNotice = () => {
+    if (noticeTimeoutRef.current) {
+      clearTimeout(noticeTimeoutRef.current);
+    }
+    setNoPointsNotice(prev => ({ ...prev, visible: true }));
+    noticeTimeoutRef.current = setTimeout(() => {
+      setNoPointsNotice(prev => ({ ...prev, visible: false }));
+    }, 1000);
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (canLearn && !isMaxed && !isTierLocked) {
+      if (!hasPointsLeft) {
+        showNoPointsNotice();
+        return;
+      }
       onAddPoint();
     }
   };
@@ -87,6 +113,19 @@ export const SkillNode = memo(function SkillNode({
             zIndex: 10, // Ensure nodes are above connection lines
           }}
         >
+          {noPointsNotice.visible && (
+            <div
+              className="absolute z-50 pointer-events-none whitespace-nowrap rounded-md border border-white/10 bg-black/90 px-2.5 py-1 text-[11px] uppercase tracking-widest shadow-lg"
+              style={{
+                left: '50%',
+                top: 0,
+                transform: 'translate(-50%, -115%)',
+                color: colors.primary,
+              }}
+            >
+              No points left
+            </div>
+          )}
           {/* Opaque background masks to hide connection lines under dimmed nodes */}
           <div
             aria-hidden
@@ -141,7 +180,7 @@ export const SkillNode = memo(function SkillNode({
               height: nodeSize,
               borderWidth: isBigSkill ? 3 : 2,
               borderStyle: 'solid',
-              borderColor: isLearned ? colors.primary : '#666666',
+              borderColor: isLearned ? colors.primary : canLearn ? colors.primary : '#666666',
               backgroundColor: isLearned ? '#0c0e11' : 'var(--background)',
               backgroundImage: 'none',
               boxShadow: 'none',

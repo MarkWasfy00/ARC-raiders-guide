@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 interface SkillTreeCanvasProps {
   skillLevels: Record<string, number>;
   expeditionPoints: number;
+  availablePoints: number;
   totalPointsUsed: number;
   pointsByCategory: Record<SkillCategory, number>;
   getSkillLevel: (skillId: string) => number;
@@ -22,6 +23,7 @@ interface SkillTreeCanvasProps {
 export function SkillTreeCanvas({
   skillLevels,
   expeditionPoints,
+  availablePoints,
   totalPointsUsed,
   pointsByCategory,
   getSkillLevel,
@@ -162,7 +164,7 @@ export function SkillTreeCanvas({
         <div className="absolute left-5 top-4 z-20">
           <div className="text-sm font-medium text-white/70 uppercase tracking-wider">
             Points Used <span className="text-amber-400 font-bold">{totalPointsUsed}</span>
-            <span className="text-white/40"> / {MAX_TOTAL_POINTS}</span>
+            <span className="text-white/40"> / {availablePoints}</span>
           </div>
           <div className="text-xs text-amber-400/60 uppercase tracking-wider mt-0.5">
             Expedition Points <span className="font-semibold">{expeditionPoints}</span>
@@ -340,6 +342,7 @@ export function SkillTreeCanvas({
                   skill={skill}
                   currentLevel={getSkillLevel(skill.id)}
                   canLearn={canLearnSkill(skill.id)}
+                  hasPointsLeft={totalPointsUsed < availablePoints}
                   onAddPoint={() => addPoint(skill.id)}
                   onRemovePoint={() => removePoint(skill.id)}
                   categoryPoints={pointsByCategory[skill.category]}

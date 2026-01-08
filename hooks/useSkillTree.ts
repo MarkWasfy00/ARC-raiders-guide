@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { MOCK_SKILLS, SkillCategory, MAX_TOTAL_POINTS } from '@/data/skillTreeData';
+import { MOCK_SKILLS, SkillCategory, MAX_TOTAL_POINTS, SMALL_SKILLS_2_INPUTS_1_OUTPUT } from '@/data/skillTreeData';
 
 const STORAGE_KEY = 'arc-raiders-skill-tree';
 
@@ -47,11 +47,26 @@ export function useSkillTree() {
     if (currentLevel >= skill.maxLevel) return false;
 
     // Check prerequisites
-    for (const prereqId of skill.prerequisites) {
-      const prereqSkill = MOCK_SKILLS.find(s => s.id === prereqId);
-      if (!prereqSkill) return false;
-      const prereqLevel = getSkillLevel(prereqId);
-      if (prereqLevel === 0) return false;
+    if (skill.tier === 3 && skill.requiredPoints === 36) {
+      const hasPath = skill.prerequisites.some(prereqId => getSkillLevel(prereqId) > 0);
+      if (!hasPath) return false;
+    } else if (SMALL_SKILLS_2_INPUTS_1_OUTPUT.includes(skill.id)) {
+      const hasPath = skill.prerequisites.some(prereqId => getSkillLevel(prereqId) > 0);
+      if (!hasPath) return false;
+    } else {
+      for (const prereqId of skill.prerequisites) {
+        const prereqSkill = MOCK_SKILLS.find(s => s.id === prereqId);
+        if (!prereqSkill) return false;
+        const prereqLevel = getSkillLevel(prereqId);
+        if (prereqLevel === 0) return false;
+      }
+    }
+
+    if (skill.requiredPoints) {
+      const categoryPoints = MOCK_SKILLS.reduce((sum, s) => {
+        return s.category === skill.category ? sum + getSkillLevel(s.id) : sum;
+      }, 0);
+      if (categoryPoints < skill.requiredPoints) return false;
     }
 
     return true;
@@ -60,13 +75,19 @@ export function useSkillTree() {
   const addPoint = useCallback((skillId: string) => {
     if (!canLearnSkill(skillId)) return;
 
-    setState(prev => ({
-      ...prev,
-      skillLevels: {
-        ...prev.skillLevels,
-        [skillId]: (prev.skillLevels[skillId] || 0) + 1,
-      },
-    }));
+    setState(prev => {
+      const totalUsed = Object.values(prev.skillLevels).reduce((sum, level) => sum + level, 0);
+      const availablePoints = MAX_TOTAL_POINTS + prev.expeditionPoints;
+      if (totalUsed >= availablePoints) return prev;
+
+      return {
+        ...prev,
+        skillLevels: {
+          ...prev.skillLevels,
+          [skillId]: (prev.skillLevels[skillId] || 0) + 1,
+        },
+      };
+    });
   }, [canLearnSkill]);
 
   const removePoint = useCallback((skillId: string) => {
@@ -107,6 +128,9 @@ export function useSkillTree() {
   const totalPointsUsed = useMemo(() => {
     return Object.values(state.skillLevels).reduce((sum, level) => sum + level, 0);
   }, [state.skillLevels]);
+  const availablePoints = useMemo(() => {
+    return MAX_TOTAL_POINTS + state.expeditionPoints;
+  }, [state.expeditionPoints]);
 
   const pointsByCategory = useMemo(() => {
     const result: Record<SkillCategory, number> = {
@@ -134,6 +158,7 @@ export function useSkillTree() {
   return {
     skillLevels: state.skillLevels,
     expeditionPoints: state.expeditionPoints,
+    availablePoints,
     getSkillLevel,
     canLearnSkill,
     addPoint,

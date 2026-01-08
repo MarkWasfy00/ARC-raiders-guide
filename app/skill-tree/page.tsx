@@ -15,6 +15,7 @@ export default function SkillTreePage() {
   const {
     skillLevels,
     expeditionPoints,
+    availablePoints,
     totalPointsUsed,
     pointsByCategory,
     getSkillLevel,
@@ -55,6 +56,7 @@ export default function SkillTreePage() {
       <SkillTreeCanvas
         skillLevels={skillLevels}
         expeditionPoints={expeditionPoints}
+        availablePoints={availablePoints}
         totalPointsUsed={totalPointsUsed}
         pointsByCategory={pointsByCategory}
         getSkillLevel={getSkillLevel}
