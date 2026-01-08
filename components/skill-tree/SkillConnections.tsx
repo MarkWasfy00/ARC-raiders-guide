@@ -10,6 +10,14 @@ export const SkillConnections = memo(function SkillConnections({
 }: SkillConnectionsProps) {
   const connections: JSX.Element[] = [];
   const rootNodeIds = new Set(['nimble-climber', 'agile-croucher']);
+  const rootBranchConnectionKeys = new Set([
+    'used-to-the-weight->blast-born',
+    'used-to-the-weight->gentle-pressure',
+    'nimble-climber->marathon-runner',
+    'nimble-climber->slip-and-slide',
+    'agile-croucher->looters-instincts',
+    'agile-croucher->revitalizing-squat',
+  ]);
   const connectionFudge: Record<string, number> = {
     'used-to-the-weight->blast-born': -1.5,
     'used-to-the-weight->gentle-pressure': 2,
@@ -171,6 +179,13 @@ export const SkillConnections = memo(function SkillConnections({
       const endFudge = connectionEndFudge[connectionKey] ?? 0;
       const endX = x2 - ux * (endRadius + endFudge);
       const endY = y2 - uy * (endRadius + endFudge);
+      const baseStrokeWidth = isConnected ? 14 : 1.5;
+      const lockedWidthBoost = !isActive ? 3 : 0;
+      const strokeWidth = isConnected
+        ? baseStrokeWidth
+        : baseStrokeWidth +
+          lockedWidthBoost +
+          (rootBranchConnectionKeys.has(connectionKey) ? 2 : 0);
 
       connections.push(
         <line
@@ -180,11 +195,11 @@ export const SkillConnections = memo(function SkillConnections({
           x2={endX}
           y2={endY}
           stroke={isConnected ? colors.primary : isPrereqActive ? colors.muted : '#2a2e36'}
-          strokeWidth={isConnected ? 2 : 1.5}
+          strokeWidth={strokeWidth}
           strokeOpacity={isConnected ? 0.7 : isPrereqActive ? 0.4 : 0.3}
           strokeLinecap="round"
           style={{
-            filter: isConnected ? `drop-shadow(0 0 6px ${colors.glow})` : 'none',
+            filter: 'none',
             transition: 'all 0.3s ease',
           }}
         />

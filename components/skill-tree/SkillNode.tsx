@@ -6,12 +6,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
-import { 
-  Shield, Zap, Footprints, Heart, Lock, Weight, Bomb, Volume2, Timer, Sword,
-  Mountain, Wind, Gauge, Move, Dumbbell, Eye, Package, Wrench, Search, Crosshair,
-  ArrowRight, Leaf, Waves, AlertTriangle, Target, Backpack, Compass, UserCheck,
-  Anchor, RefreshCw
-} from 'lucide-react';
 
 interface SkillNodeProps {
   skill: Skill;
@@ -22,59 +16,10 @@ interface SkillNodeProps {
   categoryPoints: number;
 }
 
-const getSkillIcon = (skillId: string) => {
-  const iconMap: Record<string, React.ElementType> = {
-    // Conditioning
-    'used-to-the-weight': Weight,
-    'blast-born': Bomb,
-    'gentle-pressure': Volume2,
-    'proficient-pryer': Timer,
-    'fight-or-flight': Zap,
-    'survivors-stamina': Heart,
-    'unburdened-roll': Move,
-    'a-little-extra': Package,
-    'effortless-swing': Sword,
-    'downed-but-determined': Shield,
-    'turtle-crawl': Shield,
-    'loaded-arms': Dumbbell,
-    'sky-clearing-swing': Sword,
-    'back-on-your-feet': RefreshCw,
-    'flyswatter': Crosshair,
-    // Mobility
-    'nimble-climber': Mountain,
-    'marathon-runner': Footprints,
-    'slip-and-slide': Waves,
-    'youthful-lungs': Gauge,
-    'sturdy-ankles': Anchor,
-    'carry-the-momentum': ArrowRight,
-    'calming-stroll': Leaf,
-    'effortless-roll': Move,
-    'heroic-leap': Move,
-    'crawl-before-you-walk': Footprints,
-    'vigorous-vaulter': Mountain,
-    'off-the-wall': Mountain,
-    'ready-to-roll': Move,
-    'vaults-on-vaults': Mountain,
-    'vault-spring': Move,
-    // Survival
-    'agile-croucher': UserCheck,
-    'looters-instincts': Eye,
-    'revitalizing-squat': Heart,
-    'silent-scavenger': Volume2,
-    'broad-shoulders': Backpack,
-    'suffer-in-silence': Volume2,
-    'good-as-new': Heart,
-    'in-round-crafting': Wrench,
-    'stubborn-mule': Dumbbell,
-    'looters-luck': Search,
-    'one-raiders-scraps': Package,
-    'three-deep-breaths': Target,
-    'traveling-tinkerer': Compass,
-    'security-breach': Lock,
-    'minesweeper': AlertTriangle,
-  };
-  return iconMap[skillId] || Shield;
-};
+const SKILL_ICON_BASE = '/skilltree%20ICONS';
+
+const getSkillIconSrc = (skillName: string) =>
+  `${SKILL_ICON_BASE}/${encodeURIComponent(skillName)}.png`;
 
 export const SkillNode = memo(function SkillNode({
   skill,
@@ -94,14 +39,19 @@ export const SkillNode = memo(function SkillNode({
   const meetsPointRequirement = categoryPoints >= tierRequirement;
   const isTierLocked = !meetsPointRequirement && skill.tier > 1 && skill.requiredPoints;
   const isLocked = (!canLearn && !isLearned) || isTierLocked;
+  const isDimmed = isLocked && !isLearned;
 
-  const IconComponent = getSkillIcon(skill.id);
+  const iconSrc = getSkillIconSrc(skill.name);
+  const iconColor = isLearned ? colors.primary : canLearn ? '#ffffff' : '#b4b4b4';
 
   // Big skills are 2x size, small skills are 0.5x (relative to big)
   // Big = 56px, Small = 28px
   const isBigSkill = skill.size === 'big';
-  const nodeSize = isBigSkill ? 56 : 28;
-  const iconSize = isBigSkill ? 24 : 12;
+  const bigScale = 1.5;
+  const smallScale = 1.7;
+  const nodeSize = (isBigSkill ? 56 : 28) * (isBigSkill ? bigScale : smallScale);
+  const iconSize = (isBigSkill ? 24 : 12) * (isBigSkill ? bigScale : smallScale);
+  const iconRenderSize = iconSize * 1.2;
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -124,8 +74,8 @@ export const SkillNode = memo(function SkillNode({
       <HoverCardTrigger asChild>
         <div
           className={cn(
-            'flex flex-col items-center gap-1 cursor-pointer select-none transition-all duration-200',
-            isLocked && !isLearned && 'opacity-40 cursor-not-allowed'
+            'relative flex flex-col items-center gap-1 cursor-pointer select-none transition-all duration-200',
+            isDimmed && 'cursor-not-allowed'
           )}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
@@ -137,55 +87,111 @@ export const SkillNode = memo(function SkillNode({
             zIndex: 10, // Ensure nodes are above connection lines
           }}
         >
+          {/* Opaque background masks to hide connection lines under dimmed nodes */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: nodeSize,
+              height: nodeSize,
+              borderRadius: '9999px',
+              backgroundColor: 'var(--background)',
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            aria-hidden
+            className="font-bold tabular-nums"
+            style={{
+              position: 'absolute',
+              left: '50%',
+              bottom: '-6px',
+              transform: 'translateX(-50%)',
+              fontSize: isBigSkill ? '13px' : '10.4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: isBigSkill ? '18px' : '16px',
+              color: 'transparent',
+              backgroundColor: 'var(--background)',
+              border: '1px solid var(--background)',
+              borderRadius: '999px',
+              padding: '0 6px',
+              lineHeight: 1,
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          >
+            <span style={{ position: 'relative', top: isBigSkill ? (skill.tier === 2 ? '0px' : '-1px') : '1px' }}>
+              {currentLevel}/{skill.maxLevel}
+            </span>
+          </div>
           {/* Skill Node Circle */}
           <div
-            className="relative rounded-full flex items-center justify-center transition-all duration-300"
+            className={cn(
+              'relative rounded-full flex items-center justify-center transition-all duration-300',
+              isDimmed && 'opacity-40'
+            )}
             style={{
               width: nodeSize,
               height: nodeSize,
               borderWidth: isBigSkill ? 3 : 2,
               borderStyle: 'solid',
-              borderColor: isLearned ? colors.primary : '#3a3f4a',
-              backgroundColor: isLearned 
-                ? colors.bg 
-                : '#13161b',
-              boxShadow: isLearned 
-                ? `0 0 20px ${colors.glow}, 0 0 40px ${colors.glow}` 
-                : 'none',
+              borderColor: isLearned ? colors.primary : '#666666',
+              backgroundColor: isLearned ? '#0c0e11' : 'var(--background)',
+              backgroundImage: 'none',
+              boxShadow: 'none',
             }}
           >
-            <IconComponent 
+            <span
+              role="img"
+              aria-label={`${skill.name} icon`}
               style={{
-                width: iconSize,
-                height: iconSize,
-                color: isLearned ? colors.primary : '#6b7280',
-                transition: 'color 0.3s ease',
+                width: iconRenderSize,
+                height: iconRenderSize,
+                backgroundColor: iconColor,
+                WebkitMaskImage: `url("${iconSrc}")`,
+                maskImage: `url("${iconSrc}")`,
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+                WebkitMaskSize: 'contain',
+                maskSize: 'contain',
+                WebkitMaskPosition: 'center',
+                maskPosition: 'center',
+                opacity: isDimmed ? 0.45 : 1,
+                transition: 'background-color 0.3s ease, opacity 0.3s ease',
               }}
             />
-            
-            {/* Lock overlay removed */}
-          </div>
 
-          {/* Level Counter below node */}
-          <div
-            className="font-bold tabular-nums"
-            style={{
-              fontSize: isBigSkill ? '10px' : '8px',
-              color: isLearned ? colors.primary : '#6b7280',
-              transform:
-                skill.id === 'survivors-stamina' ||
-                skill.id === 'unburdened-roll' ||
-                skill.id === 'downed-but-determined' ||
-                skill.id === 'a-little-extra' ||
-                skill.id === 'back-on-your-feet' ||
-                skill.id === 'flyswatter'
-                  ? 'translateX(0px)'
-                  : skill.category === 'conditioning'
-                    ? 'translateX(-10px)'
-                    : undefined,
-            }}
-          >
-            {currentLevel}/{skill.maxLevel}
+            {/* Level Counter badge */}
+            <div
+              className="font-bold tabular-nums"
+              style={{
+                position: 'absolute',
+                left: '50%',
+                bottom: '-6px',
+                transform: 'translateX(-50%)',
+                fontSize: isBigSkill ? '13px' : '10.4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: isBigSkill ? '18px' : '16px',
+                color: isLearned ? colors.primary : '#b4b4b4',
+                backgroundColor: 'var(--background)',
+                border: `1px solid ${isLearned ? colors.primary : '#666666'}`,
+                borderRadius: '999px',
+                padding: '0 6px',
+                lineHeight: 1,
+              }}
+            >
+              <span style={{ position: 'relative', top: isBigSkill ? (skill.tier === 2 ? '0px' : '-1px') : '1px' }}>
+                {currentLevel}/{skill.maxLevel}
+              </span>
+            </div>
           </div>
         </div>
       </HoverCardTrigger>
@@ -193,7 +199,7 @@ export const SkillNode = memo(function SkillNode({
       {/* Always show hover card with info regardless of learned state */}
       <HoverCardContent 
         side="right" 
-        className="w-72 border-white/10 shadow-2xl"
+        className="w-[346px] border-white/10 shadow-2xl"
         style={{ 
           backgroundColor: 'rgba(13, 15, 18, 0.95)', 
           backdropFilter: 'blur(12px)',
@@ -204,37 +210,38 @@ export const SkillNode = memo(function SkillNode({
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
             <h4 
-              className="font-bold uppercase tracking-wide text-sm"
-              style={{ color: colors.primary }}
+              className="font-bold uppercase tracking-wide"
+              style={{ color: colors.primary, fontSize: '21px' }}
             >
               {skill.name}
             </h4>
             <span
-              className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+              className="font-semibold px-1.5 py-0.5 rounded"
               style={{ 
                 backgroundColor: `${colors.primary}20`,
-                color: colors.primary 
+                color: colors.primary,
+                fontSize: '15px',
               }}
             >
               T{skill.tier}
             </span>
           </div>
           
-          <p className="text-xs text-white/60 leading-relaxed">
+          <p className="text-white/60 leading-relaxed" style={{ fontSize: '18px' }}>
             {skill.description}
           </p>
           
           <div className="flex items-center justify-between pt-1.5 border-t border-white/10">
-            <span className="text-[10px] text-white/40">
+            <span className="text-white/40" style={{ fontSize: '15px' }}>
               Level: {currentLevel}/{skill.maxLevel}
             </span>
             {isTierLocked && skill.requiredPoints && (
-              <span className="text-[10px] text-red-400">
+              <span className="text-red-400" style={{ fontSize: '15px' }}>
                 Requires {skill.requiredPoints} pts
               </span>
             )}
             {isMaxed && (
-              <span className="text-[10px] font-semibold" style={{ color: colors.primary }}>
+              <span className="font-semibold" style={{ color: colors.primary, fontSize: '15px' }}>
                 MAXED
               </span>
             )}
@@ -244,3 +251,10 @@ export const SkillNode = memo(function SkillNode({
     </HoverCard>
   );
 });
+
+
+
+
+
+
+

@@ -33,8 +33,8 @@ export function SkillTreeCanvas({
 }: SkillTreeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 20 });
-  const [scale, setScale] = useState(1.01);
+  const [position, setPosition] = useState({ x: 0, y: 110 });
+  const [scale, setScale] = useState(0.7);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -72,6 +72,13 @@ export function SkillTreeCanvas({
   const rootSkills = getRootSkills();
   const rootSkillRadius = 28;
   const rootAnchor = { x: 700, y: 760 };
+  const mobilityRoot = MOCK_SKILLS.find(skill => skill.id === 'nimble-climber');
+  const mobilityMid = MOCK_SKILLS.find(skill => skill.id === 'carry-the-momentum');
+  const mobilityUpper = MOCK_SKILLS.find(skill => skill.id === 'slip-and-slide');
+  const mobilityLabelY =
+    mobilityUpper && mobilityMid
+      ? (mobilityUpper.position.y + mobilityMid.position.y) / 2
+      : null;
   const getEdgePoint = (
     target?: { position: { x: number; y: number } },
     radius = 0,
@@ -241,7 +248,7 @@ export function SkillTreeCanvas({
                     C ${rootAnchor.x} ${rootAnchor.y - 20}, 600 720, ${conditioningEnd.x} ${conditioningEnd.y}`}
                 fill="none"
                 stroke="url(#conditioningTrunk)"
-                strokeWidth="4"
+                strokeWidth="14"
                 strokeLinecap="round"
               />
               
@@ -251,7 +258,7 @@ export function SkillTreeCanvas({
                     L ${mobilityEnd.x} ${mobilityEnd.y}`}
                 fill="none"
                 stroke="url(#mobilityTrunk)"
-                strokeWidth="4"
+                strokeWidth="14"
                 strokeLinecap="round"
               />
               {/* Explicit root-to-nimble line */}
@@ -261,7 +268,7 @@ export function SkillTreeCanvas({
                 x2={mobilityEnd.x}
                 y2={mobilityEnd.y}
                 stroke={CATEGORY_COLORS.mobility.primary}
-                strokeWidth="3"
+                strokeWidth="13"
                 strokeLinecap="round"
                 opacity="0.9"
               />
@@ -272,7 +279,7 @@ export function SkillTreeCanvas({
                     C ${rootAnchor.x} ${rootAnchor.y - 20}, 800 720, ${survivalEnd.x} ${survivalEnd.y}`}
                 fill="none"
                 stroke="url(#survivalTrunk)"
-                strokeWidth="4"
+                strokeWidth="14"
                 strokeLinecap="round"
               />
             </svg>
@@ -290,25 +297,31 @@ export function SkillTreeCanvas({
                     : 0;
               const labelYOffset =
                 category === 'mobility'
-                  ? -180
+                  ? 0
                   : category === 'conditioning' || category === 'survival'
                     ? 10
                     : 0;
+              const labelTop =
+                category === 'mobility' && mobilityLabelY !== null
+                  ? mobilityLabelY + labelYOffset
+                  : skill.position.y + 60 + labelYOffset;
               return (
                 <div
                   key={category}
                   className="absolute pointer-events-none"
                   style={{
                     left: skill.position.x + labelXOffset,
-                    top: skill.position.y + 60 + labelYOffset,
+                    top: labelTop,
                     transform: 'translateX(-50%)',
                   }}
                 >
                   <span
-                    className="text-sm font-bold uppercase tracking-[0.15em]"
-                    style={{ color: colors.primary }}
+                    className="block text-sm font-bold uppercase tracking-[0.15em] leading-tight"
+                    style={{ color: colors.primary, fontSize: '21px', textAlign: 'center' }}
                   >
                     {CATEGORY_LABELS[category as SkillCategory]}
+                    <br />
+                    {pointsByCategory[category as SkillCategory]}
                   </span>
                 </div>
               );

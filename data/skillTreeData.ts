@@ -18,22 +18,22 @@ export interface Skill {
 // Colors match MetaForge: Conditioning=Green, Mobility=Yellow, Survival=Red
 export const CATEGORY_COLORS: Record<SkillCategory, { primary: string; muted: string; bg: string; glow: string }> = {
   conditioning: {
-    primary: '#22c55e',
-    muted: '#16a34a',
-    bg: 'rgba(34, 197, 94, 0.1)',
-    glow: 'rgba(34, 197, 94, 0.4)',
+    primary: '#1BFF7B',
+    muted: '#12cc62',
+    bg: 'rgba(27, 255, 123, 0.12)',
+    glow: 'rgba(27, 255, 123, 0.45)',
   },
   mobility: {
-    primary: '#eab308',
-    muted: '#ca8a04',
-    bg: 'rgba(234, 179, 8, 0.1)',
-    glow: 'rgba(234, 179, 8, 0.4)',
+    primary: '#FFD008',
+    muted: '#cfa906',
+    bg: 'rgba(255, 208, 8, 0.12)',
+    glow: 'rgba(255, 208, 8, 0.45)',
   },
   survival: {
-    primary: '#ef4444',
-    muted: '#dc2626',
-    bg: 'rgba(239, 68, 68, 0.1)',
-    glow: 'rgba(239, 68, 68, 0.4)',
+    primary: '#F60110',
+    muted: '#c4000d',
+    bg: 'rgba(246, 1, 16, 0.12)',
+    glow: 'rgba(246, 1, 16, 0.45)',
   },
 };
 
@@ -79,74 +79,76 @@ export const SMALL_SKILLS_1_INPUT_2_OUTPUTS = ['one-raiders-scraps', 'vigorous-v
 // Canvas layout - widened mobility branch for label space
 const CANVAS_CENTER_X = 700;
 const ROOT_Y = 620; // Moved up to create space
-const V_STEP = 55; // Vertical spacing between skill rows
+const V_STEP = 99; // Vertical spacing between skill rows
 const H_STEP = 60; // Horizontal spacing
+const H_SCALE = 1.5;
+const scaleX = (x: number) => CANVAS_CENTER_X + (x - CANVAS_CENTER_X) * H_SCALE;
 
 // CONDITIONING (LEFT / GREEN) - fans out to the upper-left
 const CONDITIONING_X_OFFSET = 100;
 const conditioningPositions: Record<string, { x: number; y: number }> = {
   // Root - big skill
-  'used-to-the-weight': { x: 420 + CONDITIONING_X_OFFSET, y: ROOT_Y },
+  'used-to-the-weight': { x: scaleX(420 + CONDITIONING_X_OFFSET), y: ROOT_Y },
   
   // Tier 1 path - left branch
-  'blast-born': { x: 350 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 1.2 },
-  'fight-or-flight': { x: 280 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 2.4 },
+  'blast-born': { x: scaleX(350 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 1.2 },
+  'fight-or-flight': { x: scaleX(280 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 2.4 },
   
   // Tier 1 path - right branch  
-  'gentle-pressure': { x: 420 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 1.2 },
-  'proficient-pryer': { x: 420 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 2.4 },
+  'gentle-pressure': { x: scaleX(420 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 1.2 },
+  'proficient-pryer': { x: scaleX(420 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 2.4 },
   
   // Tier 2 - milestone skills (big, require 15 pts)
-  'survivors-stamina': { x: 220 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 3.6 },
-  'unburdened-roll': { x: 350 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 3.6 },
+  'survivors-stamina': { x: scaleX(220 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 3.6 },
+  'unburdened-roll': { x: scaleX(350 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 3.6 },
   
   // Tier 2 - branches from survivors-stamina
-  'downed-but-determined': { x: 150 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 4.8 },
-  'a-little-extra': { x: 260 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 4.8 }, // 2 inputs 1 output
+  'downed-but-determined': { x: scaleX(150 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 4.8 },
+  'a-little-extra': { x: scaleX(260 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 4.8 }, // 2 inputs 1 output
   
   // Tier 2 - branches from unburdened-roll
-  'effortless-swing': { x: 350 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 4.8 },
+  'effortless-swing': { x: scaleX(350 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 4.8 },
   
   // Tier 2 - next level
-  'turtle-crawl': { x: 150 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 6 },
-  'loaded-arms': { x: 260 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 6 }, // 1 input 2 outputs
-  'sky-clearing-swing': { x: 350 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 6 },
+  'turtle-crawl': { x: scaleX(150 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 6 },
+  'loaded-arms': { x: scaleX(260 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 6 }, // 1 input 2 outputs
+  'sky-clearing-swing': { x: scaleX(350 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 6 },
   
   // Tier 3 - capstones (big, require 36 pts)
-  'back-on-your-feet': { x: 200 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 7.2 },
-  'flyswatter': { x: 320 + CONDITIONING_X_OFFSET, y: ROOT_Y - V_STEP * 7.2 },
+  'back-on-your-feet': { x: scaleX(200 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 7.2 },
+  'flyswatter': { x: scaleX(320 + CONDITIONING_X_OFFSET), y: ROOT_Y - V_STEP * 7.2 },
 };
 
 // MOBILITY (CENTER / YELLOW) - widened for label space
 const mobilityPositions: Record<string, { x: number; y: number }> = {
   // Root - big skill
-  'nimble-climber': { x: CANVAS_CENTER_X, y: ROOT_Y },
+  'nimble-climber': { x: scaleX(CANVAS_CENTER_X), y: ROOT_Y },
   
   // Tier 1 - left branch
-  'marathon-runner': { x: CANVAS_CENTER_X - 80, y: ROOT_Y - V_STEP * 1.2 },
-  'youthful-lungs': { x: CANVAS_CENTER_X - 80, y: ROOT_Y - V_STEP * 2.4 },
+  'marathon-runner': { x: scaleX(CANVAS_CENTER_X - 80), y: ROOT_Y - V_STEP * 1.2 },
+  'youthful-lungs': { x: scaleX(CANVAS_CENTER_X - 80), y: ROOT_Y - V_STEP * 2.4 },
   
   // Tier 1 - right branch
-  'slip-and-slide': { x: CANVAS_CENTER_X + 80, y: ROOT_Y - V_STEP * 1.2 },
-  'sturdy-ankles': { x: CANVAS_CENTER_X + 80, y: ROOT_Y - V_STEP * 2.4 },
+  'slip-and-slide': { x: scaleX(CANVAS_CENTER_X + 80), y: ROOT_Y - V_STEP * 1.2 },
+  'sturdy-ankles': { x: scaleX(CANVAS_CENTER_X + 80), y: ROOT_Y - V_STEP * 2.4 },
   
   // Tier 2 - milestone skills (big, require 15 pts)
-  'carry-the-momentum': { x: CANVAS_CENTER_X - 80, y: ROOT_Y - V_STEP * 3.6 },
-  'calming-stroll': { x: CANVAS_CENTER_X + 80, y: ROOT_Y - V_STEP * 3.6 },
+  'carry-the-momentum': { x: scaleX(CANVAS_CENTER_X - 80), y: ROOT_Y - V_STEP * 3.6 },
+  'calming-stroll': { x: scaleX(CANVAS_CENTER_X + 80), y: ROOT_Y - V_STEP * 3.6 },
   
   // Tier 2 - branches
-  'effortless-roll': { x: CANVAS_CENTER_X - 140, y: ROOT_Y - V_STEP * 4.8 },
-  'crawl-before-you-walk': { x: CANVAS_CENTER_X, y: ROOT_Y - V_STEP * 4.8 }, // 2 inputs 1 output
-  'off-the-wall': { x: CANVAS_CENTER_X + 140, y: ROOT_Y - V_STEP * 4.8 },
+  'effortless-roll': { x: scaleX(CANVAS_CENTER_X - 140), y: ROOT_Y - V_STEP * 4.8 },
+  'crawl-before-you-walk': { x: scaleX(CANVAS_CENTER_X), y: ROOT_Y - V_STEP * 4.8 }, // 2 inputs 1 output
+  'off-the-wall': { x: scaleX(CANVAS_CENTER_X + 140), y: ROOT_Y - V_STEP * 4.8 },
   
   // Tier 2 - next level
-  'heroic-leap': { x: CANVAS_CENTER_X - 140, y: ROOT_Y - V_STEP * 6 },
-  'vigorous-vaulter': { x: CANVAS_CENTER_X, y: ROOT_Y - V_STEP * 6 }, // 1 input 2 outputs
-  'ready-to-roll': { x: CANVAS_CENTER_X + 140, y: ROOT_Y - V_STEP * 6 },
+  'heroic-leap': { x: scaleX(CANVAS_CENTER_X - 140), y: ROOT_Y - V_STEP * 6 },
+  'vigorous-vaulter': { x: scaleX(CANVAS_CENTER_X), y: ROOT_Y - V_STEP * 6 }, // 1 input 2 outputs
+  'ready-to-roll': { x: scaleX(CANVAS_CENTER_X + 140), y: ROOT_Y - V_STEP * 6 },
   
   // Tier 3 - capstones (big, require 36 pts)
-  'vaults-on-vaults': { x: CANVAS_CENTER_X - 70, y: ROOT_Y - V_STEP * 7.2 },
-  'vault-spring': { x: CANVAS_CENTER_X + 70, y: ROOT_Y - V_STEP * 7.2 },
+  'vaults-on-vaults': { x: scaleX(CANVAS_CENTER_X - 70), y: ROOT_Y - V_STEP * 7.2 },
+  'vault-spring': { x: scaleX(CANVAS_CENTER_X + 70), y: ROOT_Y - V_STEP * 7.2 },
 };
 
 // SURVIVAL (RIGHT / RED) - mirrored from conditioning around mobility center
@@ -294,3 +296,4 @@ export function getRootSkills() {
     survival: MOCK_SKILLS.find(s => s.id === 'agile-croucher'),
   };
 }
+
