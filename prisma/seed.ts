@@ -17,16 +17,16 @@ async function main() {
 
   try {
     // Seed items first (ARCs and Quests depend on items for loot/rewards)
-    // await seedItems()
+    await seedItems()
 
     // Seed ARCs
-    // await seedArcs()
+    await seedArcs()
 
     // Seed Quests (depends on items for rewards)
-    // await seedQuests()
+    await seedQuests()
 
     // Seed Workbenches (references items by name)
-    // await seedWorkbenches()
+    await seedWorkbenches()
 
     // Seed Dam map markers
     await seedDamMap()

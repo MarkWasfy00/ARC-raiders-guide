@@ -101,6 +101,11 @@ enum AmmoType {
   MEDIUM
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 // Auth.js required models
 model Account {
   id                String  @id @default(cuid())
@@ -134,6 +139,7 @@ model Session {
 
 model User {
   id                String    @id @default(cuid())
+  role              UserRole  @default(USER)
   username          String?   @unique
   name              String?
   email             String?   @unique
@@ -156,6 +162,7 @@ model User {
   messages          Message[]
   blogs             Blog[]         @relation("BlogAuthor")
   blogComments      BlogComment[]  @relation("BlogCommentAuthor")
+  guides            Guide[]        @relation("GuideAuthor")
   notifications     Notification[] @relation("UserNotifications")
   mapMarkers        MapMarker[]    @relation("MapMarkerCreator")
   createdAt         DateTime  @default(now())
@@ -339,7 +346,11 @@ model Chat {
   participant2Id        String
   participant2          User       @relation("ChatParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
 
-  // Trade approval tracking
+  // Lock-in tracking (must lock in before seeing embark IDs)
+  participant1LockedIn  Boolean    @default(false)
+  participant2LockedIn  Boolean    @default(false)
+
+  // Trade approval tracking (happens after lock-in)
   participant1Approved  Boolean    @default(false)
   participant2Approved  Boolean    @default(false)
   status                ChatStatus @default(ACTIVE)
@@ -641,4 +652,65 @@ model Notification {
   @@index([userId])
   @@index([userId, read])
   @@index([created_at])
+}
+
+// Guide System Models
+model GuideCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
+  icon        String?  // Lucide icon name
+  color       String?  // Hex color for badge
+  guides      Guide[]
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model Guide {
+  id              String         @id @default(cuid())
+  title           String
+  slug            String         @unique
+  content         String         @db.Text  // HTML content from rich text editor
+  description     String?        @db.Text  // Short description
+  featuredImage   String?                  // MinIO URL for cover image
+  published       Boolean        @default(false)
+  viewCount       Int            @default(0)
+  publishedAt     DateTime?                 // When first published
+
+  // Author relationship
+  authorId        String
+  author          User           @relation("GuideAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Category relationship
+  categoryId      String?
+  category        GuideCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // Relations
+  tags            GuideTag[]
+
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([slug])
+  @@index([published])
+  @@index([created_at])
+  @@index([publishedAt])
+}
+
+model GuideTag {
+  id      String @id @default(cuid())
+  guideId String
+  guide   Guide  @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  tag     String
+
+  created_at DateTime @default(now())
+
+  @@unique([guideId, tag])
+  @@index([guideId])
+  @@index([tag])
 }

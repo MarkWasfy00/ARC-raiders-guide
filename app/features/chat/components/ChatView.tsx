@@ -53,6 +53,8 @@ interface Chat {
   listing: Listing;
   participant1: User;
   participant2: User;
+  participant1LockedIn: boolean;
+  participant2LockedIn: boolean;
   participant1Approved: boolean;
   participant2Approved: boolean;
   status: "ACTIVE" | "COMPLETED" | "CANCELLED";
@@ -70,6 +72,7 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [lockingIn, setLockingIn] = useState(false);
   const [approving, setApproving] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [showRatingDialog, setShowRatingDialog] = useState(false);
@@ -187,6 +190,46 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
     }
   };
 
+  const handleLockIn = async () => {
+    if (!chat) return;
+
+    setLockingIn(true);
+    try {
+      const res = await fetch(`/api/chat/${chat.id}/lock-in`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setChat((prev) =>
+          prev
+            ? {
+                ...prev,
+                participant1LockedIn: data.chat.participant1LockedIn,
+                participant2LockedIn: data.chat.participant2LockedIn,
+                participant1: {
+                  ...prev.participant1,
+                  embark_id: data.chat.participant1.embark_id,
+                },
+                participant2: {
+                  ...prev.participant2,
+                  embark_id: data.chat.participant2.embark_id,
+                },
+              }
+            : null
+        );
+      } else {
+        const error = await res.json();
+        alert(error.error || "فشل في تأكيد الدخول");
+      }
+    } catch (error) {
+      console.error("Error locking in:", error);
+      alert("فشل في تأكيد الدخول");
+    } finally {
+      setLockingIn(false);
+    }
+  };
+
   const handleApprove = async () => {
     if (!chat) return;
 
@@ -215,10 +258,12 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
           setShowRatingDialog(true);
         }
       } else {
-        console.error("Failed to approve trade:", await res.text());
+        const error = await res.json();
+        alert(error.error || "فشل في تأكيد الصفقة");
       }
     } catch (error) {
       console.error("Error approving trade:", error);
+      alert("فشل في تأكيد الصفقة");
     } finally {
       setApproving(false);
     }
@@ -382,13 +427,14 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
               ) : (
                 <span>لا تقييمات</span>
               )}
-              {otherUser.embark_id && (
+              {/* Only show embark_id if both users have locked in */}
+              {chat.participant1LockedIn && chat.participant2LockedIn && otherUser.embark_id && (
                 <div className="flex items-center gap-1">
                   <Gamepad2 className="h-3 w-3" />
                   <span>{otherUser.embark_id}</span>
                 </div>
               )}
-              {otherUser.discord_username && (
+              {chat.participant1LockedIn && chat.participant2LockedIn && otherUser.discord_username && (
                 <div className="flex items-center gap-1">
                   <DiscordIcon className="h-3 w-3" />
                   <span>{otherUser.discord_username}</span>
@@ -433,88 +479,165 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
       )}
 
       {chat.status === "ACTIVE" && (
-        <div className="p-4 bg-card/30 border-y border-border/50">
-          <div className="flex items-center gap-3">
-            {/* Approval Status */}
-            <div className="flex-1 grid grid-cols-2 gap-2 text-sm">
-              <div className={`flex items-center gap-2 ${
-                chat.participant1.id === currentUserId
-                  ? chat.participant1Approved
-                    ? "text-green-400"
-                    : "text-muted-foreground"
-                  : chat.participant1Approved
-                    ? "text-green-400"
-                    : "text-muted-foreground"
-              }`}>
-                {chat.participant1Approved ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <AlertCircle className="h-4 w-4" />
-                )}
-                <span className="truncate">
-                  {chat.participant1.username || "مستخدم 1"}
-                  {chat.participant1.id === currentUserId && " (أنت)"}
-                </span>
-              </div>
-              <div className={`flex items-center gap-2 ${
-                chat.participant2.id === currentUserId
-                  ? chat.participant2Approved
-                    ? "text-green-400"
-                    : "text-muted-foreground"
-                  : chat.participant2Approved
-                    ? "text-green-400"
-                    : "text-muted-foreground"
-              }`}>
-                {chat.participant2Approved ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <AlertCircle className="h-4 w-4" />
-                )}
-                <span className="truncate">
-                  {chat.participant2.username || "مستخدم 2"}
-                  {chat.participant2.id === currentUserId && " (أنت)"}
-                </span>
-              </div>
-            </div>
+        <>
+          {/* Lock-In Status Section */}
+          {!chat.participant1LockedIn || !chat.participant2LockedIn ? (
+            <div className="p-4 bg-blue-600/10 border-y border-blue-600/30">
+              <div className="flex items-center gap-3">
+                {/* Lock-In Status */}
+                <div className="flex-1">
+                  <p className="font-semibold text-blue-400 mb-2">تأكيد الدخول للصفقة</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className={`flex items-center gap-2 ${
+                      chat.participant1LockedIn ? "text-green-400" : "text-muted-foreground"
+                    }`}>
+                      {chat.participant1LockedIn ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4" />
+                      )}
+                      <span className="truncate">
+                        {chat.participant1.username || "مستخدم 1"}
+                        {chat.participant1.id === currentUserId && " (أنت)"}
+                      </span>
+                    </div>
+                    <div className={`flex items-center gap-2 ${
+                      chat.participant2LockedIn ? "text-green-400" : "text-muted-foreground"
+                    }`}>
+                      {chat.participant2LockedIn ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4" />
+                      )}
+                      <span className="truncate">
+                        {chat.participant2.username || "مستخدم 2"}
+                        {chat.participant2.id === currentUserId && " (أنت)"}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-300/80 mt-2">
+                    سيتم إظهار معرفات Embark بعد تأكيد الطرفين
+                  </p>
+                </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              {!((chat.participant1.id === currentUserId && chat.participant1Approved) ||
-                  (chat.participant2.id === currentUserId && chat.participant2Approved)) && (
-                <Button
-                  onClick={handleApprove}
-                  disabled={approving}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {approving ? (
-                    "جاري التأكيد..."
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-1" />
-                      تأكيد الصفقة
-                    </>
+                {/* Lock-In Button */}
+                <div className="flex gap-2">
+                  {!((chat.participant1.id === currentUserId && chat.participant1LockedIn) ||
+                      (chat.participant2.id === currentUserId && chat.participant2LockedIn)) && (
+                    <Button
+                      onClick={handleLockIn}
+                      disabled={lockingIn}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {lockingIn ? (
+                        "جاري التأكيد..."
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          تأكيد الدخول
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
-              )}
-              <Button
-                onClick={handleLeave}
-                disabled={leaving}
-                size="sm"
-                variant="destructive"
-              >
-                {leaving ? (
-                  "جاري المغادرة..."
-                ) : (
-                  <>
-                    <XCircle className="h-4 w-4 mr-1" />
-                    إلغاء
-                  </>
-                )}
-              </Button>
+                  <Button
+                    onClick={handleLeave}
+                    disabled={leaving}
+                    size="sm"
+                    variant="destructive"
+                  >
+                    {leaving ? (
+                      "جاري المغادرة..."
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 mr-1" />
+                        إلغاء
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          ) : (
+            /* Approval Status Section - Only shown after both locked in */
+            <div className="p-4 bg-card/30 border-y border-border/50">
+              <div className="flex items-center gap-3">
+                {/* Approval Status */}
+                <div className="flex-1">
+                  <p className="font-semibold text-green-400 mb-2">تأكيد إتمام الصفقة</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className={`flex items-center gap-2 ${
+                      chat.participant1Approved ? "text-green-400" : "text-muted-foreground"
+                    }`}>
+                      {chat.participant1Approved ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4" />
+                      )}
+                      <span className="truncate">
+                        {chat.participant1.username || "مستخدم 1"}
+                        {chat.participant1.id === currentUserId && " (أنت)"}
+                      </span>
+                    </div>
+                    <div className={`flex items-center gap-2 ${
+                      chat.participant2Approved ? "text-green-400" : "text-muted-foreground"
+                    }`}>
+                      {chat.participant2Approved ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4" />
+                      )}
+                      <span className="truncate">
+                        {chat.participant2.username || "مستخدم 2"}
+                        {chat.participant2.id === currentUserId && " (أنت)"}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-300/80 mt-2">
+                    يمكنكما الآن رؤية معرفات Embark والتواصل
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  {!((chat.participant1.id === currentUserId && chat.participant1Approved) ||
+                      (chat.participant2.id === currentUserId && chat.participant2Approved)) && (
+                    <Button
+                      onClick={handleApprove}
+                      disabled={approving}
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {approving ? (
+                        "جاري التأكيد..."
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          تأكيد الصفقة
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleLeave}
+                    disabled={leaving}
+                    size="sm"
+                    variant="destructive"
+                  >
+                    {leaving ? (
+                      "جاري المغادرة..."
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 mr-1" />
+                        إلغاء
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Messages */}

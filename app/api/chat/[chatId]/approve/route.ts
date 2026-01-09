@@ -33,6 +33,14 @@ export async function POST(
       );
     }
 
+    // Check if both participants have locked in before allowing approval
+    if (!chat.participant1LockedIn || !chat.participant2LockedIn) {
+      return NextResponse.json(
+        { error: "Both participants must lock in before approving the trade" },
+        { status: 400 }
+      );
+    }
+
     // Determine which participant is approving
     const isParticipant1 = chat.participant1Id === session.user.id;
     const updateData = isParticipant1

@@ -11,11 +11,19 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      const isAdmin = auth?.user?.role === 'ADMIN';
+
       const isOnProtected = nextUrl.pathname.startsWith("/dashboard") ||
                            nextUrl.pathname.startsWith("/events");
+      const isOnAdmin = nextUrl.pathname.startsWith("/admin");
 
       if (isOnProtected && !isLoggedIn) {
         return false; // Redirect to login page
+      }
+
+      // Redirect non-admin users to home page when trying to access /admin routes
+      if (isOnAdmin && !isAdmin) {
+        return Response.redirect(new URL('/', nextUrl.origin));
       }
 
       return true;

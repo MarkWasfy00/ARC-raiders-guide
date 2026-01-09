@@ -194,6 +194,8 @@ function MapMarkers({
   enabledLootAreas,
   showLockedOnly,
   searchQuery,
+  isAdminMode = false,
+  onDeleteMarker,
 }: {
   markers: MapMarker[];
   categories: MarkerCategory[];
@@ -201,6 +203,8 @@ function MapMarkers({
   enabledLootAreas: Set<string>;
   showLockedOnly: boolean;
   searchQuery: string;
+  isAdminMode?: boolean;
+  onDeleteMarker?: (id: string) => void;
 }) {
   const enabledCategories = new Set(
     categories.filter((cat) => cat.enabled).map((cat) => cat.id)
@@ -293,6 +297,22 @@ function MapMarkers({
                     <span className="font-medium">مناطق النهب:</span> {marker.lootAreas.join(', ')}
                   </div>
                 )}
+                {isAdminMode && onDeleteMarker && (
+
+                  <button
+
+                    onClick={() => onDeleteMarker(marker.id)}
+
+                    className="mt-3 w-full px-3 py-2 bg-destructive text-destructive-foreground rounded-md text-sm font-medium hover:bg-destructive/90 transition-colors"
+
+                  >
+
+                    🗑️ حذف العلامة
+
+                  </button>
+
+                )}
+
               </div>
             </Popup>
           </Marker>
@@ -302,7 +322,11 @@ function MapMarkers({
   );
 }
 
-export const StellaMontisMapClient = memo(function StellaMontisMapClient() {
+interface StellaMontisMapClientProps {
+  isAdminMode?: boolean;
+}
+
+export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdminMode = false }: StellaMontisMapClientProps = {}) {
   const [currentFloor, setCurrentFloor] = useState<'bottom' | 'top'>('bottom');
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -419,6 +443,35 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient() {
     setShowAreaLabels((prev) => !prev);
   };
 
+  const handleDeleteMarker = async (markerId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه العلامة؟')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/maps/stella-montis/markers/${markerId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('فشل في حذف العلامة');
+        return;
+      }
+
+      // Refetch markers for the current floor
+      const markersResponse = await fetch(`/api/maps/stella-montis/markers?floor=${currentFloor}`);
+      const markersData = await markersResponse.json();
+      if (markersData.success) {
+        setMarkers(markersData.markers);
+      }
+    } catch (error) {
+      console.error('Error deleting marker:', error);
+      alert('حدث خطأ أثناء الحذف');
+    }
+  };
+
   return (
     <div className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
       <style dangerouslySetInnerHTML={{ __html: mapStyles }} />
@@ -529,6 +582,8 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient() {
           enabledLootAreas={enabledLootAreas}
           showLockedOnly={showLockedOnly}
           searchQuery={searchQuery}
+          isAdminMode={isAdminMode}
+          onDeleteMarker={handleDeleteMarker}
         />
       </MapContainer>
     </div>

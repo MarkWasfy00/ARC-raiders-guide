@@ -68,7 +68,7 @@ export async function createBlog(data: CreateBlogInput): Promise<BlogResponse> {
           select: { id: true, username: true, name: true, image: true },
         },
         category: true,
-        tags: { select: { tag: true } },
+        tags: true,
       },
     });
 
@@ -179,7 +179,7 @@ export async function updateBlog(
           select: { id: true, username: true, name: true, image: true },
         },
         category: true,
-        tags: { select: { tag: true } },
+        tags: true,
       },
     });
 
@@ -340,6 +340,7 @@ export async function togglePublishBlog(blogId: string): Promise<BlogResponse> {
           select: { id: true, username: true, name: true, image: true },
         },
         category: true,
+        tags: true,
       },
     });
 

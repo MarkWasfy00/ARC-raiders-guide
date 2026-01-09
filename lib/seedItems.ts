@@ -92,14 +92,16 @@ export async function seedItems() {
   for (const item of itemsData.data) {
     await prisma.item.upsert({
       where: { id: item.id },
-      update: {},
+      update: {
+        icon: item.icon ?? null,
+      },
       create: {
         id: item.id,
         name: item.name,
         description: item.description ?? '',
         item_type: item.item_type ? ITEM_TYPE_MAP[item.item_type] : null,
         loadout_slots: [],
-        icon: item.icon?.includes('cdn.metaforge.app') ? null : item.icon,
+        icon: item.icon ?? null,
         rarity: item.rarity ? RARITY_MAP[item.rarity] : null,
         value: item.value ?? 0,
         workbench: item.workbench ? WORKBENCH_MAP[item.workbench] : null,

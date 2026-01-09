@@ -91,16 +91,22 @@ export async function GET(
       }),
     ]);
 
+    // Check if both participants have locked in
+    const bothLockedIn = chat.participant1LockedIn && chat.participant2LockedIn;
+
     // Add rating data to participants
+    // Only show embark_id if both participants have locked in
     const enhancedChat = {
       ...chat,
       participant1: {
         ...chat.participant1,
+        embark_id: bothLockedIn ? chat.participant1.embark_id : null,
         averageRating: participant1Ratings._avg.score || 0,
         totalRatings: participant1Ratings._count || 0,
       },
       participant2: {
         ...chat.participant2,
+        embark_id: bothLockedIn ? chat.participant2.embark_id : null,
         averageRating: participant2Ratings._avg.score || 0,
         totalRatings: participant2Ratings._count || 0,
       },

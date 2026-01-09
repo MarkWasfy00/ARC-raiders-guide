@@ -22,6 +22,8 @@ export async function GET(req: Request) {
         listingId: true,
         participant1Id: true,
         participant2Id: true,
+        participant1LockedIn: true,
+        participant2LockedIn: true,
         participant1Approved: true,
         participant2Approved: true,
         status: true,
@@ -131,6 +133,8 @@ export async function POST(req: Request) {
         listingId: true,
         participant1Id: true,
         participant2Id: true,
+        participant1LockedIn: true,
+        participant2LockedIn: true,
         participant1Approved: true,
         participant2Approved: true,
         status: true,
@@ -210,6 +214,8 @@ export async function POST(req: Request) {
           listingId: true,
           participant1Id: true,
           participant2Id: true,
+          participant1LockedIn: true,
+          participant2LockedIn: true,
           participant1Approved: true,
           participant2Approved: true,
           status: true,
@@ -287,16 +293,21 @@ export async function POST(req: Request) {
       return sum / ratings.length;
     };
 
+    // Check if both participants have locked in
+    const bothLockedIn = chat.participant1LockedIn && chat.participant2LockedIn;
+
     const chatWithRatings = {
       ...chat,
       participant1: {
         ...chat.participant1,
+        embark_id: bothLockedIn ? chat.participant1.embark_id : null,
         averageRating: calculateAverage(participant1Ratings),
         totalRatings: participant1Ratings.length,
         ratingsReceived: undefined,
       },
       participant2: {
         ...chat.participant2,
+        embark_id: bothLockedIn ? chat.participant2.embark_id : null,
         averageRating: calculateAverage(participant2Ratings),
         totalRatings: participant2Ratings.length,
         ratingsReceived: undefined,

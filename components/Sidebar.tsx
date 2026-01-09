@@ -20,18 +20,11 @@ interface SidebarItem {
 
 const mainItems: SidebarItem[] = [
   { icon: Home, label: 'الرئيسية', href: '/' },
+  { icon: FileText, label: 'الأدلة', href: '/guides' },
   { icon: AppWindow, label: 'تطبيق التراكب', href: 'https://www.overwolf.com/app/3rb', external: true },
   { icon: Package, label: 'السوق', href: '/marketplace' },
   { icon: MessageSquare, label: 'المحادثات', href: '/chat' },
   { icon: List, label: 'قوائمي', href: '/listings' },
-  {
-    icon: FileText,
-    label: 'المدونة',
-    children: [
-      { label: 'جميع المقالات', href: '/blogs' },
-      { label: 'مقالاتي', href: '/dashboard/my-blogs' },
-    ]
-  },
 ];
 
 const databaseItems: SidebarItem[] = [

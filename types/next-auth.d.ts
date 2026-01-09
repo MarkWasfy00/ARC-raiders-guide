@@ -11,6 +11,7 @@ declare module "next-auth" {
       username?: string | null;
       embark_id?: string | null;
       discord_username?: string | null;
+      role?: 'USER' | 'ADMIN';
     };
   }
 
@@ -22,6 +23,7 @@ declare module "next-auth" {
     username?: string | null;
     embark_id?: string | null;
     discord_username?: string | null;
+    role?: 'USER' | 'ADMIN';
   }
 }
 

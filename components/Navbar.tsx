@@ -246,17 +246,30 @@ export function Navbar({ session }: NavbarProps) {
 
             {/* Favorites */}
             <DropdownMenu>
-              <DropdownMenuTrigger className="w-9 h-9 rounded-full bg-primary flex items-center justify-center hover:bg-primary-glow transition-colors outline-none">
+              <DropdownMenuTrigger className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center hover:bg-primary-glow transition-colors outline-none",
+                session?.user?.role === 'ADMIN' ? "bg-green-500 hover:bg-green-600" : "bg-primary"
+              )}>
                 <Star className="w-4 h-4 text-primary-foreground" fill="currentColor" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase">
-                  المفضلة
+                  {session?.user?.role === 'ADMIN' ? 'لوحة الإدارة' : 'المفضلة'}
                 </DropdownMenuLabel>
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  <p>لا توجد مفضلة بعد</p>
-                  <p className="text-xs mt-1">ضع نجمة على الصفحات لحفظها هنا</p>
-                </div>
+                {session?.user?.role === 'ADMIN' ? (
+                  <div className="p-2">
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="w-full text-right cursor-pointer justify-end">
+                        لوحة التحكم
+                      </Link>
+                    </DropdownMenuItem>
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    <p>لا توجد مفضلة بعد</p>
+                    <p className="text-xs mt-1">ضع نجمة على الصفحات لحفظها هنا</p>
+                  </div>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
