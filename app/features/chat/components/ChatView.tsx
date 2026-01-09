@@ -44,7 +44,7 @@ interface Listing {
     name: string;
     icon: string | null;
     rarity: string | null;
-  };
+  } | null;
   user: User;
 }
 
@@ -65,9 +65,10 @@ interface ChatViewProps {
   chatId: string;
   currentUserId: string;
   onBack?: () => void;
+  onChatListUpdate?: () => void;
 }
 
-export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
+export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: ChatViewProps) {
   const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -116,9 +117,20 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
       });
     };
 
-    // Listen for chat status updates (approvals, completion, cancellation)
-    const handleChatUpdate = (updatedChat: Chat) => {
-      setChat(updatedChat);
+    // Listen for chat status updates (approvals, completion, cancellation, lock-in)
+    const handleChatUpdate = (updatedChat: Partial<Chat>) => {
+      setChat((prev) => {
+        if (!prev) return prev;
+
+        // Merge the update, ensuring we properly update participant data
+        return {
+          ...prev,
+          ...updatedChat,
+          // Preserve participant data with updates if provided
+          participant1: updatedChat.participant1 ? { ...prev.participant1, ...updatedChat.participant1 } : prev.participant1,
+          participant2: updatedChat.participant2 ? { ...prev.participant2, ...updatedChat.participant2 } : prev.participant2,
+        };
+      });
     };
 
     socket.on("new-message", handleNewMessage);
@@ -210,10 +222,12 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
                 participant1: {
                   ...prev.participant1,
                   embark_id: data.chat.participant1.embark_id,
+                  discord_username: data.chat.participant1.discord_username,
                 },
                 participant2: {
                   ...prev.participant2,
                   embark_id: data.chat.participant2.embark_id,
+                  discord_username: data.chat.participant2.discord_username,
                 },
               }
             : null
@@ -318,6 +332,18 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
       if (res.ok) {
         setHasRated(true);
         alert("شكراً لتقييمك!"); // Thank you for your rating!
+
+        // Trigger chat list refresh to remove completed chat
+        if (onChatListUpdate) {
+          onChatListUpdate();
+        }
+
+        // Navigate back to chat list after a brief delay
+        setTimeout(() => {
+          if (onBack) {
+            onBack();
+          }
+        }, 1000);
       } else {
         const error = await res.json();
         alert(error.error || "فشل إرسال التقييم"); // Failed to submit rating
@@ -377,7 +403,7 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
 
           {/* Item Icon */}
           <div className="w-12 h-12 shrink-0 bg-muted/30 rounded border border-border/50 flex items-center justify-center">
-            {chat.listing.item.icon ? (
+            {chat.listing.item?.icon ? (
               <img
                 src={chat.listing.item.icon}
                 alt={chat.listing.item.name}
@@ -390,8 +416,8 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
 
           {/* Listing Info */}
           <div className="flex-1 min-w-0">
-            <h2 className={`text-base font-semibold ${getRarityColor(chat.listing.item.rarity)}`}>
-              {chat.listing.item.name} x{chat.listing.quantity}
+            <h2 className={`text-base font-semibold ${getRarityColor(chat.listing.item?.rarity ?? null)}`}>
+              {chat.listing.item?.name || "عنصر محذوف"} x{chat.listing.quantity}
             </h2>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline" className="text-xs">
@@ -516,7 +542,7 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
                     </div>
                   </div>
                   <p className="text-xs text-blue-300/80 mt-2">
-                    سيتم إظهار معرفات Embark بعد تأكيد الطرفين
+                    سيتم إظهار معرفات Embark و Discord بعد تأكيد الطرفين
                   </p>
                 </div>
 
@@ -560,10 +586,29 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
             </div>
           ) : (
             /* Approval Status Section - Only shown after both locked in */
-            <div className="p-4 bg-card/30 border-y border-border/50">
+            <div className="p-4 bg-green-600/10 border-y border-green-600/30">
               <div className="flex items-center gap-3">
                 {/* Approval Status */}
                 <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-400" />
+                    <p className="font-semibold text-green-400">تم تأكيد الدخول من الطرفين!</p>
+                  </div>
+                  <div className="bg-green-950/30 border border-green-600/20 rounded-lg p-3 mb-3">
+                    <p className="text-sm text-green-200 mb-2 font-semibold">معلومات الاتصال:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-green-100">
+                        <Gamepad2 className="h-4 w-4" />
+                        <span className="font-medium">Embark ID:</span>
+                        <span className="text-green-300">{otherUser.embark_id || "غير متوفر"}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-green-100">
+                        <DiscordIcon className="h-4 w-4" />
+                        <span className="font-medium">Discord:</span>
+                        <span className="text-green-300">{otherUser.discord_username || "غير متوفر"}</span>
+                      </div>
+                    </div>
+                  </div>
                   <p className="font-semibold text-green-400 mb-2">تأكيد إتمام الصفقة</p>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className={`flex items-center gap-2 ${
@@ -594,7 +639,7 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
                     </div>
                   </div>
                   <p className="text-xs text-green-300/80 mt-2">
-                    يمكنكما الآن رؤية معرفات Embark والتواصل
+                    بعد إتمام الصفقة، اضغط على "تأكيد الصفقة" لإغلاق المحادثة
                   </p>
                 </div>
 
@@ -731,6 +776,18 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
           tradeId={tradeId}
           otherUser={otherUser}
           onSubmit={handleSubmitRating}
+          onSkip={() => {
+            // Trigger chat list refresh even when skipped
+            if (onChatListUpdate) {
+              onChatListUpdate();
+            }
+            // Navigate back to chat list after a brief delay
+            setTimeout(() => {
+              if (onBack) {
+                onBack();
+              }
+            }, 500);
+          }}
         />
       )}
 
@@ -740,7 +797,7 @@ export function ChatView({ chatId, currentUserId, onBack }: ChatViewProps) {
           open={showDiscordDialog}
           onOpenChange={setShowDiscordDialog}
           discordUsername={otherUser?.discord_username || null}
-          itemName={chat.listing.item.name}
+          itemName={chat.listing.item?.name || "عنصر محذوف"}
         />
       )}
     </div>

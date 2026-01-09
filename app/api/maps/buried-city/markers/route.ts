@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { logMapMarkerAdded } from '@/lib/services/activity-logger';
 
 export async function GET(request: Request) {
   try {
@@ -159,6 +160,13 @@ export async function POST(request: Request) {
     });
 
     console.log(`✅ Marker created by ${session.user.username || session.user.email} at (${lat}, ${lng})`);
+
+    // Log marker addition
+    await logMapMarkerAdded(
+      session.user.id,
+      marker.id,
+      'buried-city'
+    );
 
     return NextResponse.json({
       success: true,

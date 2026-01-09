@@ -4,66 +4,66 @@ import { ExploreCategory } from '../types';
 const categories: ExploreCategory[] = [
   {
     id: 'guides',
-    title: 'GUIDES',
+    title: 'الأدلة',
     href: '/guides',
     imageUrl: '/images/categories/guides.webp',
-    description: 'Complete walkthroughs and strategies'
+    description: 'شروحات كاملة واستراتيجيات'
   },
   {
     id: 'items',
-    title: 'ITEMS',
+    title: 'العناصر',
     href: '/items',
     imageUrl: '/images/categories/items.webp',
-    description: 'Browse all items and equipment'
+    description: 'تصفح جميع العناصر والمعدات'
   },
   {
     id: 'arcs',
-    title: 'ARCS',
+    title: 'الآركات',
     href: '/arcs',
     imageUrl: '/images/categories/arcs.webp',
-    description: 'Discover all Arc types and abilities'
+    description: 'اكتشف جميع أنواع الآرك وقدراتها'
   },
   {
     id: 'quests',
-    title: 'QUESTS',
+    title: 'المهام',
     href: '/quests',
     imageUrl: '/images/categories/quests.webp',
-    description: 'Mission objectives and rewards'
+    description: 'أهداف المهام والمكافآت'
   },
   {
     id: 'traders',
-    title: 'TRADERS',
+    title: 'التجار',
     href: '/traders',
     imageUrl: '/images/categories/traders.webp',
-    description: 'Find and trade with NPCs'
+    description: 'ابحث وتاجر مع التجار'
   },
   {
     id: 'skill-tree',
-    title: 'SKILL TREE',
+    title: 'شجرة المهارات',
     href: '/skill-tree',
     imageUrl: '/images/categories/skill-tree.webp',
-    description: 'Plan your character progression'
+    description: 'خطط لتطور شخصيتك'
   },
   {
     id: 'loadouts',
-    title: 'LOADOUTS',
+    title: 'التشكيلات',
     href: '/loadouts',
     imageUrl: '/images/categories/loadouts.webp',
-    description: 'Optimal equipment setups'
+    description: 'تجهيزات مثالية للمعدات'
   },
   {
     id: 'loot-value',
-    title: 'LOOT VALUE',
+    title: 'قيمة الغنيمة',
     href: '/loot-value',
     imageUrl: '/images/categories/loot-value.webp',
-    description: 'Item values and economics'
+    description: 'قيم العناصر والاقتصاد'
   },
   {
     id: 'needed-items',
-    title: 'NEEDED ITEMS',
+    title: 'العناصر المطلوبة',
     href: '/needed-items',
     imageUrl: '/images/categories/needed-items.webp',
-    description: 'Track essential items for quests'
+    description: 'تتبع العناصر الأساسية للمهام'
   }
 ];
 

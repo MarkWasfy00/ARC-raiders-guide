@@ -28,6 +28,7 @@ interface RatingDialogProps {
     honest: boolean;
     comment: string;
   }) => Promise<void>;
+  onSkip?: () => void;
 }
 
 export function RatingDialog({
@@ -36,6 +37,7 @@ export function RatingDialog({
   tradeId,
   otherUser,
   onSubmit,
+  onSkip,
 }: RatingDialogProps) {
   const [score, setScore] = useState(0);
   const [hoveredScore, setHoveredScore] = useState(0);
@@ -61,6 +63,9 @@ export function RatingDialog({
   };
 
   const handleSkip = () => {
+    if (onSkip) {
+      onSkip();
+    }
     onOpenChange(false);
   };
 

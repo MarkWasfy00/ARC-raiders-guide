@@ -21,14 +21,14 @@ export const authConfig = {
         return false; // Redirect to login page
       }
 
-      // Redirect non-admin users to home page when trying to access /admin routes
+      // Redirect non-admin users to unauthorized page when trying to access /admin routes
       if (isOnAdmin && !isAdmin) {
-        return Response.redirect(new URL('/', nextUrl.origin));
+        return Response.redirect(new URL('/unauthorized', nextUrl.origin));
       }
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         // Preserve email in token for profile lookups
@@ -42,6 +42,8 @@ export const authConfig = {
           token.sessionVersion = sessionVersion;
           console.log('JWT callback - token.sessionVersion set to:', token.sessionVersion);
         }
+        // Store banned status (will be checked on every request in proxy.ts)
+        token.banned = (user as any).banned || false;
       }
       return token;
     },

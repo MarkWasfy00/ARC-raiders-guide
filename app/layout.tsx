@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { SessionProvider } from "@/components/SessionProvider";
 import { auth } from "@/lib/auth";
 import { StructuredData, getOrganizationSchema, getWebSiteSchema } from "@/components/StructuredData";
+import { Toaster } from "@/components/ui/toaster";
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -106,6 +107,7 @@ export default async function RootLayout({
           <div className="mr-14">
             <Footer />
           </div>
+          <Toaster />
         </SessionProvider>
       </body>
     </html>

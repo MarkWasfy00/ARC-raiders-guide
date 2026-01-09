@@ -4,31 +4,31 @@ import { MapData } from '../types';
 const maps: MapData[] = [
   {
     id: 'dam-battlegrounds',
-    name: 'Dam Battlegrounds',
+    name: 'ساحة سد المعركة',
     href: '/maps/dam-battlegrounds',
     imageUrl: '/imagesmaps/dambattlegrounds.webp'
   },
   {
     id: 'the-spaceport',
-    name: 'The Spaceport',
+    name: 'ميناء الفضاء',
     href: '/maps/the-spaceport',
     imageUrl: '/imagesmaps/spaceport.webp'
   },
   {
     id: 'buried-city',
-    name: 'Buried City',
+    name: 'المدينة المدفونة',
     href: '/maps/buried-city',
     imageUrl: '/imagesmaps/buriecity.webp'
   },
   {
     id: 'blue-gate',
-    name: 'Blue Gate',
+    name: 'البوابة الزرقاء',
     href: '/maps/blue-gate',
     imageUrl: '/imagesmaps/blue-gate.webp'
   },
   {
     id: 'stella-montis',
-    name: 'Stella Montis',
+    name: 'ستيلا مونتيس',
     href: '/maps/stella-montis',
     imageUrl: '/imagesmaps/blue-gate.webp'
   }
@@ -46,7 +46,7 @@ export function MapsGrid() {
 
       {/* Explore Text */}
       <p className="text-center text-xs text-gray-500">
-        Explore the map
+        استكشف الخريطة
       </p>
     </div>
   );

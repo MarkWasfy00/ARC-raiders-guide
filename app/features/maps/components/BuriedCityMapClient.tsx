@@ -5,7 +5,8 @@ import L from 'leaflet';
 import { memo, useState, useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { MapSidebar } from './MapSidebar';
-import { AddMarkerModal } from './AddMarkerModal';
+import { AddMarkerModal, type MarkerSettings } from './AddMarkerModal';
+import { AddAreaLabelModal } from './AddAreaLabelModal';
 import { MARKER_CATEGORIES, SUBCATEGORY_ICONS, type MapMarker, type MarkerCategory, type AreaLabel } from '../types';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
@@ -49,10 +50,7 @@ const CustomCRS = L.extend({}, L.CRS.Simple, {
 // Marker data ranges: lat 2792-6543, lng 5007-9387
 const center = L.latLng(4667, 7197);
 
-// Buried City area labels - to be populated
-export const BURIED_CITY_AREA_LABELS: AreaLabel[] = [
-  // Add area labels here after clicking on the map to get coordinates
-];
+// Buried City area labels (now loaded from database)
 
 // Create custom marker icons by category and subcategory
 function createMarkerIcon(category: string, color: string, subcategory: string | null) {
@@ -123,9 +121,11 @@ function createMarkerIcon(category: string, color: string, subcategory: string |
 function MapClickHandler({
   onMapClick,
   addingMarker,
+  continuousMode,
 }: {
   onMapClick: (lat: number, lng: number) => void;
   addingMarker: boolean;
+  continuousMode: boolean;
 }) {
   useMapEvents({
     moveend: (e) => {
@@ -140,9 +140,13 @@ function MapClickHandler({
       const { lat, lng } = e.latlng;
       console.log('🎯 Clicked Position:');
       console.log(`  { lat: ${lat.toFixed(1)}, lng: ${lng.toFixed(1)} }`);
+      console.log('  addingMarker:', addingMarker, 'continuousMode:', continuousMode);
 
-      if (addingMarker) {
+      if (addingMarker || continuousMode) {
+        console.log('  ✅ Triggering onMapClick');
         onMapClick(lat, lng);
+      } else {
+        console.log('  ❌ Not in placement mode');
       }
     },
   });
@@ -150,12 +154,22 @@ function MapClickHandler({
 }
 
 // Component to display area labels
-function AreaLabels({ show }: { show: boolean }) {
+function AreaLabels({
+  show,
+  labels,
+  isAdminMode,
+  onDelete,
+}: {
+  show: boolean;
+  labels: AreaLabel[];
+  isAdminMode?: boolean;
+  onDelete?: (id: string) => void;
+}) {
   if (!show) return null;
 
   return (
     <>
-      {BURIED_CITY_AREA_LABELS.map((area) => {
+      {labels.map((area) => {
         const labelIcon = L.divIcon({
           html: `
             <div style="
@@ -190,8 +204,26 @@ function AreaLabels({ show }: { show: boolean }) {
             key={area.id}
             position={[area.lat, area.lng]}
             icon={labelIcon}
-            interactive={false}
-          />
+            interactive={isAdminMode}
+          >
+            {isAdminMode && onDelete && (
+              <Popup>
+                <div className="min-w-[150px]">
+                  <div className="font-bold mb-2">{area.nameAr}</div>
+                  <div className="text-sm text-muted-foreground mb-2">{area.name}</div>
+                  <div className="text-xs mb-2">
+                    حجم الخط: {area.fontSize || 14}px • اللون: {area.color || '#ffffff'}
+                  </div>
+                  <button
+                    onClick={() => onDelete(area.id)}
+                    className="w-full px-3 py-2 bg-destructive text-destructive-foreground rounded-md text-sm font-medium hover:bg-destructive/90 transition-colors"
+                  >
+                    🗑️ حذف العنوان
+                  </button>
+                </div>
+              </Popup>
+            )}
+          </Marker>
         );
       })}
     </>
@@ -365,6 +397,14 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
   const [addMarkerModalOpen, setAddMarkerModalOpen] = useState(false);
   const [newMarkerPosition, setNewMarkerPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [addingMarker, setAddingMarker] = useState(false);
+  const [continuousPlacementSettings, setContinuousPlacementSettings] = useState<MarkerSettings | null>(null);
+  const [markerCount, setMarkerCount] = useState(0);
+  const [placing, setPlacing] = useState(false);
+  const [temporaryMarkers, setTemporaryMarkers] = useState<Array<{ lat: number; lng: number; id: string }>>([]);
+  const [areaLabels, setAreaLabels] = useState<AreaLabel[]>([]);
+  const [addLabelModalOpen, setAddLabelModalOpen] = useState(false);
+  const [newLabelPosition, setNewLabelPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [addingLabel, setAddingLabel] = useState(false);
 
   // Log CRS configuration on mount
   useEffect(() => {
@@ -374,6 +414,25 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
     console.log(`   Center: [${center.lat}, ${center.lng}] game units`);
     console.log(`   Tile grid at zoom 3: 8×4 (rectangular)`);
     console.log(`   Marker ranges: lat 2792-6543, lng 5007-9387`);
+  }, []);
+
+  // Fetch area labels from API
+  useEffect(() => {
+    async function fetchAreaLabels() {
+      try {
+        const response = await fetch('/api/maps/buried-city/labels');
+        const data = await response.json();
+
+        if (data.success) {
+          setAreaLabels(data.labels);
+          console.log(`✅ Loaded ${data.labels.length} area labels`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch area labels:', error);
+      }
+    }
+
+    fetchAreaLabels();
   }, []);
 
   // Fetch markers from API
@@ -498,11 +557,68 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
     setShowAreaLabels((prev) => !prev);
   };
 
-  const handleMapClick = (lat: number, lng: number) => {
-    if (addingMarker) {
+  const handleMapClick = async (lat: number, lng: number) => {
+    // If in label adding mode, open label modal
+    if (addingLabel) {
+      setNewLabelPosition({ lat, lng });
+      setAddLabelModalOpen(true);
+      setAddingLabel(false);
+      return;
+    }
+
+    // If in continuous placement mode, create marker directly
+    if (continuousPlacementSettings) {
+      // Add temporary marker for immediate visual feedback
+      const tempId = `temp-${Date.now()}`;
+      setTemporaryMarkers(prev => [...prev, { lat, lng, id: tempId }]);
+
+      console.log('📍 Placing marker at:', { lat, lng });
+      console.log('Settings:', continuousPlacementSettings);
+
+      try {
+        const response = await fetch('/api/maps/buried-city/markers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lat,
+            lng,
+            category: continuousPlacementSettings.category,
+            subcategory: continuousPlacementSettings.subcategory || null,
+            instanceName: continuousPlacementSettings.instanceName || null,
+            behindLockedDoor: continuousPlacementSettings.behindLockedDoor,
+          }),
+        });
+
+        const data = await response.json();
+        console.log('API Response:', data);
+
+        if (data.success) {
+          setMarkerCount(prev => prev + 1);
+          // Add the real marker immediately to state
+          setMarkers(prev => [...prev, data.marker]);
+          // Remove temporary marker
+          setTemporaryMarkers(prev => prev.filter(m => m.id !== tempId));
+        } else {
+          console.error('Failed to create marker:', data.error);
+          alert('فشل في إضافة العلامة: ' + data.error);
+          // Remove temporary marker on error
+          setTemporaryMarkers(prev => prev.filter(m => m.id !== tempId));
+        }
+      } catch (error) {
+        console.error('Error creating marker:', error);
+        alert('حدث خطأ أثناء إضافة العلامة');
+        // Remove temporary marker on error
+        setTemporaryMarkers(prev => prev.filter(m => m.id !== tempId));
+      }
+      return;
+    }
+
+    // Normal single placement mode
+    if (addingMarker || addMarkerModalOpen) {
       setNewMarkerPosition({ lat, lng });
-      setAddMarkerModalOpen(true);
-      setAddingMarker(false);
+      if (!addMarkerModalOpen) {
+        setAddMarkerModalOpen(true);
+      }
     }
   };
 
@@ -523,6 +639,94 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
     setAddingMarker((prev) => !prev);
     if (!addingMarker) {
       setNewMarkerPosition(null);
+    }
+  };
+
+  const handleModalOpenChange = (open: boolean) => {
+    setAddMarkerModalOpen(open);
+    if (!open) {
+      // Modal closed - reset adding marker state
+      setAddingMarker(false);
+      setNewMarkerPosition(null);
+    }
+  };
+
+  const handleStartContinuousPlacement = (settings: MarkerSettings) => {
+    setContinuousPlacementSettings(settings);
+    setMarkerCount(0);
+    setAddingMarker(false);
+    setAddMarkerModalOpen(false);
+
+    // Auto-enable the category in sidebar so markers are visible
+    setCategories((prev) =>
+      prev.map((cat) =>
+        cat.id === settings.category ? { ...cat, enabled: true } : cat
+      )
+    );
+
+    // If there's a subcategory, enable it too
+    if (settings.subcategory) {
+      setEnabledSubcategories((prev) => {
+        const newSubcategories = { ...prev };
+        if (!newSubcategories[settings.category]) {
+          newSubcategories[settings.category] = new Set();
+        }
+        const categorySet = new Set(newSubcategories[settings.category]);
+        categorySet.add(settings.subcategory);
+        newSubcategories[settings.category] = categorySet;
+        return newSubcategories;
+      });
+    }
+  };
+
+  const handleStopContinuousPlacement = () => {
+    setContinuousPlacementSettings(null);
+    setMarkerCount(0);
+    setTemporaryMarkers([]);
+  };
+
+  const toggleAddingLabel = () => {
+    setAddingLabel((prev) => !prev);
+    if (!addingLabel) {
+      setNewLabelPosition(null);
+    }
+  };
+
+  const handleLabelAdded = async () => {
+    // Refetch labels
+    try {
+      const response = await fetch('/api/maps/buried-city/labels');
+      const data = await response.json();
+      if (data.success) {
+        setAreaLabels(data.labels);
+      }
+    } catch (error) {
+      console.error('Failed to refetch labels:', error);
+    }
+  };
+
+  const handleDeleteLabel = async (labelId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا العنوان؟')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/maps/buried-city/labels/${labelId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('فشل في حذف العنوان');
+        return;
+      }
+
+      // Refetch labels
+      handleLabelAdded();
+    } catch (error) {
+      console.error('Error deleting label:', error);
+      alert('حدث خطأ أثناء الحذف');
     }
   };
 
@@ -602,8 +806,17 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
           tileSize={TILE_SIZE}
           noWrap={true}
         />
-        <MapClickHandler onMapClick={handleMapClick} addingMarker={addingMarker} />
-        <AreaLabels show={showAreaLabels} />
+        <MapClickHandler
+          onMapClick={handleMapClick}
+          addingMarker={addingMarker || addingLabel}
+          continuousMode={!!continuousPlacementSettings}
+        />
+        <AreaLabels
+          show={showAreaLabels}
+          labels={areaLabels}
+          isAdminMode={isAdminMode}
+          onDelete={handleDeleteLabel}
+        />
         <MapMarkers
           markers={markers}
           categories={categories}
@@ -614,31 +827,149 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
           isAdminMode={isAdminMode}
           onDeleteMarker={handleDeleteMarker}
         />
+        {/* Temporary markers for visual feedback */}
+        {temporaryMarkers.map((tempMarker) => {
+          const category = continuousPlacementSettings ? MARKER_CATEGORIES[continuousPlacementSettings.category] : null;
+          if (!category) return null;
+
+          const tempIcon = L.divIcon({
+            html: `
+              <div style="
+                position: relative;
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">
+                <div style="
+                  background-color: ${category.color};
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 50%;
+                  border: 2px solid white;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 4px ${category.color}40;
+                  position: absolute;
+                  animation: pulse 1s infinite;
+                "></div>
+                <div style="
+                  color: white;
+                  font-weight: bold;
+                  font-size: 18px;
+                  position: relative;
+                  z-index: 1;
+                ">+</div>
+              </div>
+              <style>
+                @keyframes pulse {
+                  0%, 100% { opacity: 1; transform: scale(1); }
+                  50% { opacity: 0.5; transform: scale(1.1); }
+                }
+              </style>
+            `,
+            className: 'temp-marker-icon',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+          });
+
+          return (
+            <Marker
+              key={tempMarker.id}
+              position={[tempMarker.lat, tempMarker.lng]}
+              icon={tempIcon}
+            />
+          );
+        })}
       </MapContainer>
 
-      {/* Add Marker Button */}
+      {/* Add Marker and Label Buttons */}
       {(session || isAdminMode) && (
-        <button
-          onClick={toggleAddingMarker}
-          className={`absolute bottom-6 left-6 z-[1001] px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
-            addingMarker
-              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-              : isAdminMode
-              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-          }`}
-        >
-          {addingMarker ? 'إلغاء الإضافة' : '+ إضافة علامة'}
-        </button>
+        <div className="absolute bottom-6 left-6 z-[1001] flex flex-col gap-2">
+          <button
+            onClick={toggleAddingMarker}
+            className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
+              addingMarker
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                : isAdminMode
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
+          >
+            {addingMarker ? 'إلغاء إضافة العلامة' : '+ إضافة علامة'}
+          </button>
+
+          {isAdminMode && (
+            <button
+              onClick={toggleAddingLabel}
+              className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
+                addingLabel
+                  ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
+              }`}
+            >
+              {addingLabel ? 'إلغاء إضافة العنوان' : '+ إضافة عنوان (Title)'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Continuous Placement Indicator */}
+      {continuousPlacementSettings && (
+        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[1001] bg-gradient-to-r from-green-500/20 to-green-600/20 backdrop-blur-md px-6 py-3 rounded-xl shadow-2xl border-2 border-green-500/50">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm font-semibold text-green-100">
+                وضع الإضافة المتعددة نشط - انقر على الخريطة لإضافة علامات
+              </span>
+            </div>
+            <div className="text-sm text-green-200 flex items-center gap-2">
+              <span className="font-medium">
+                {MARKER_CATEGORIES[continuousPlacementSettings.category]?.label}
+                {continuousPlacementSettings.subcategory && ` • ${continuousPlacementSettings.subcategory.replace(/_/g, ' ')}`}
+              </span>
+              {markerCount > 0 && (
+                <span className="px-2 py-1 bg-green-500/30 rounded-md font-bold">
+                  {markerCount} علامة
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleStopContinuousPlacement}
+              className="px-3 py-1 bg-red-500/80 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              إنهاء الإضافة
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add crosshair cursor when in continuous mode */}
+      {continuousPlacementSettings && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          .leaflet-container {
+            cursor: crosshair !important;
+          }
+        `}} />
       )}
 
       {/* Add Marker Modal */}
       <AddMarkerModal
         open={addMarkerModalOpen}
-        onOpenChange={setAddMarkerModalOpen}
+        onOpenChange={handleModalOpenChange}
         position={newMarkerPosition}
         mapId="buried-city"
         onMarkerAdded={handleMarkerAdded}
+        onStartContinuousPlacement={handleStartContinuousPlacement}
+      />
+
+      {/* Add Area Label Modal */}
+      <AddAreaLabelModal
+        open={addLabelModalOpen}
+        onOpenChange={setAddLabelModalOpen}
+        position={newLabelPosition}
+        mapId="buried-city"
+        onLabelAdded={handleLabelAdded}
       />
     </div>
   );

@@ -247,9 +247,13 @@ export function Marketplace({ session, userProfile }: MarketplaceProps) {
   const wtsListings = filteredAndSortedListings.filter((listing) => listing.type === "WTS");
   const wtbListings = filteredAndSortedListings.filter((listing) => listing.type === "WTB");
 
-  const handleListingCreated = () => {
-    fetchListings();
-    setCreateDialogOpen(false);
+  const handleListingCreated = async () => {
+    // Refresh the listings to show the newly created one
+    await fetchListings();
+    // Reset pagination to show the new listing at the top
+    setVisibleWTS(4);
+    setVisibleWTB(4);
+    setPage(1);
   };
 
   if (loading) {

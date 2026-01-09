@@ -6,11 +6,11 @@ import { NextResponse } from "next/server";
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isAdmin = req.auth?.user?.role === 'ADMIN';
+  const isBanned = (req.auth?.user as any)?.banned === true;
   const { pathname } = req.nextUrl;
 
   // Define protected routes
   const isProtectedRoute = pathname.startsWith("/dashboard") ||
-                          pathname.startsWith("/traders") ||
                           pathname.startsWith("/events") ||
                           pathname.startsWith("/profile");
 
@@ -21,9 +21,22 @@ export default auth((req) => {
   const isAuthRoute = pathname.startsWith("/login") ||
                      pathname.startsWith("/register");
 
-  // Redirect non-admin users to home page when trying to access /admin routes
-  if (isAdminRoute && !isAdmin) {
+  // Define banned page route
+  const isBannedRoute = pathname.startsWith("/banned");
+
+  // Redirect banned users to banned page (except if already on banned page)
+  if (isLoggedIn && isBanned && !isBannedRoute) {
+    return NextResponse.redirect(new URL("/banned", req.url));
+  }
+
+  // Prevent non-banned users from accessing banned page
+  if (isBannedRoute && (!isLoggedIn || !isBanned)) {
     return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  // Redirect non-admin users to unauthorized page when trying to access /admin routes
+  if (isAdminRoute && !isAdmin) {
+    return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
 
   // Redirect unauthenticated users to login for protected routes

@@ -1,11 +1,22 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Users, MapPin, ShoppingCart, MessageSquare, Activity } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import { StatsCard } from "./components/StatsCard";
+import { ActivityTimeline } from "./components/ActivityTimeline";
+import { TopUsersWidget } from "./components/TopUsersWidget";
+import { QuickActionsPanel } from "./components/QuickActionsPanel";
+import { AreaChart } from "./components/charts/AreaChart";
+import { BarChart } from "./components/charts/BarChart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Users,
+  ShoppingCart,
+  MessageSquare,
+  Activity,
+  Handshake,
+  TrendingUp,
+} from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface AdminStats {
   connectedUsers: number;
@@ -13,61 +24,82 @@ interface AdminStats {
   totalMarkers: number;
   totalListings: number;
   totalChats: number;
-  markersByMap: { map: string; count: number }[];
-  listingsByStatus: { status: string; count: number }[];
-  recentUsers: {
-    id: string;
-    username: string | null;
-    email: string | null;
-    image: string | null;
-    createdAt: Date;
-  }[];
+}
+
+interface AnalyticsData {
+  data: { date: string; value: number }[];
+}
+
+interface MarketplaceData {
+  metrics: {
+    totalListings: number;
+    activeListings: number;
+    completedListings: number;
+    completionRate: number;
+    completedTrades: number;
+    avgTradesPerDay: number;
+  };
+  listingsByStatus: { status: string; statusLabel: string; count: number }[];
 }
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [userGrowthData, setUserGrowthData] = useState<AnalyticsData | null>(null);
+  const [marketplaceData, setMarketplaceData] = useState<MarketplaceData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchAllData = async () => {
       try {
-        const response = await fetch('/api/admin/stats');
-        const data = await response.json();
-        if (data.success) {
-          setStats(data.stats);
+        // Fetch basic stats
+        const statsResponse = await fetch("/api/admin/stats");
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          setStats(statsData.stats);
+        }
+
+        // Fetch user growth data
+        const userGrowthResponse = await fetch(
+          "/api/admin/analytics/user-growth?period=30d"
+        );
+        if (userGrowthResponse.ok) {
+          const growthData = await userGrowthResponse.json();
+          setUserGrowthData(growthData);
+        }
+
+        // Fetch marketplace data
+        const marketplaceResponse = await fetch(
+          "/api/admin/analytics/marketplace?period=30d"
+        );
+        if (marketplaceResponse.ok) {
+          const marketData = await marketplaceResponse.json();
+          setMarketplaceData(marketData);
         }
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
+    fetchAllData();
     // Refresh stats every 10 seconds
-    const interval = setInterval(fetchStats, 10000);
+    const interval = setInterval(async () => {
+      const response = await fetch("/api/admin/stats");
+      const data = await response.json();
+      if (data.success) {
+        setStats(data.stats);
+      }
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
 
-  const mapNames: Record<string, string> = {
-    'buried-city': 'المدينة المدفونة',
-    'dam': 'سد المعركة',
-    'spaceport': 'الميناء الفضائي',
-    'stella-montis': 'ستيلا مونتيس',
-  };
-
-  const statusNames: Record<string, string> = {
-    ACTIVE: 'نشط',
-    SOLD: 'مُباع',
-    CLOSED: 'مُغلق',
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <Loader2 className="mx-auto mb-4 h-16 w-16 animate-spin text-primary" />
           <p className="text-muted-foreground">جاري تحميل الإحصائيات...</p>
         </div>
       </div>
@@ -75,169 +107,154 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="border-b border-border/50 bg-gradient-to-r from-background/95 via-background/98 to-background/95 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-destructive/20 to-destructive/10 border border-destructive/30 shadow-lg">
-                <Shield className="w-8 h-8 text-destructive" />
-              </div>
-              <div className="flex-1">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-destructive via-destructive/80 to-destructive/60 bg-clip-text text-transparent mb-1">
-                  لوحة التحكم الرئيسية
-                </h1>
-                <p className="text-sm text-muted-foreground font-medium">
-                  Admin Dashboard
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Link href="/admin/guides">
-                <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                  إدارة الأدلة →
-                </Badge>
-              </Link>
-              <Link href="/admin/maps">
-                <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                  إدارة الخرائط →
-                </Badge>
-              </Link>
-            </div>
-          </div>
+      <div className="flex flex-col gap-4">
+        <div>
+          <h1 className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent">
+            لوحة التحكم الرئيسية
+          </h1>
+          <p className="text-sm font-medium text-muted-foreground">
+            Admin Dashboard - Real-time Analytics & Insights
+          </p>
         </div>
+        <QuickActionsPanel />
       </div>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Real-time Stats */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card className="border-primary/50 bg-gradient-to-br from-primary/5 to-background">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">المستخدمين المتصلين</CardTitle>
-              <Activity className="h-4 w-4 text-primary animate-pulse" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">{stats?.connectedUsers || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">اتصالات WebSocket نشطة</p>
-            </CardContent>
-          </Card>
+      {/* Stats Cards Row */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Connected Users"
+          titleAr="المستخدمين المتصلين"
+          value={stats?.connectedUsers || 0}
+          icon={Activity}
+          iconColor="text-primary"
+          iconBgColor="bg-primary/10"
+        />
+        <StatsCard
+          title="Total Users"
+          titleAr="إجمالي المستخدمين"
+          value={stats?.totalUsers || 0}
+          icon={Users}
+          iconColor="text-blue-500"
+          iconBgColor="bg-blue-500/10"
+        />
+        <StatsCard
+          title="Active Listings"
+          titleAr="الإعلانات النشطة"
+          value={marketplaceData?.metrics.activeListings || stats?.totalListings || 0}
+          icon={ShoppingCart}
+          iconColor="text-green-500"
+          iconBgColor="bg-green-500/10"
+        />
+        <StatsCard
+          title="Total Chats"
+          titleAr="إجمالي المحادثات"
+          value={stats?.totalChats || 0}
+          icon={MessageSquare}
+          iconColor="text-purple-500"
+          iconBgColor="bg-purple-500/10"
+        />
+      </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">إجمالي المستخدمين</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats?.totalUsers || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">مستخدم مسجل</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">علامات الخرائط</CardTitle>
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats?.totalMarkers || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">علامة على جميع الخرائط</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">قوائم السوق</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats?.totalListings || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">إعلان نشط</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Detailed Stats */}
-        <div className="grid gap-6 md:grid-cols-2 mb-8">
-          {/* Markers by Map */}
-          <Card>
-            <CardHeader>
-              <CardTitle>العلامات حسب الخريطة</CardTitle>
-              <CardDescription>توزيع العلامات على الخرائط المختلفة</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {stats?.markersByMap.map((map) => (
-                  <div key={map.map} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">
-                        {mapNames[map.map] || map.map}
-                      </span>
-                    </div>
-                    <Badge variant="secondary">{map.count}</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Listings by Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle>الإعلانات حسب الحالة</CardTitle>
-              <CardDescription>حالة إعلانات السوق</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {stats?.listingsByStatus.map((listing) => (
-                  <div key={listing.status} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ShoppingCart className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">
-                        {statusNames[listing.status] || listing.status}
-                      </span>
-                    </div>
-                    <Badge variant="secondary">{listing.count}</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Users */}
-        <Card>
+      {/* Charts Row */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* User Growth Chart */}
+        <Card className="border-border bg-gradient-to-br from-card to-muted/20">
           <CardHeader>
-            <CardTitle>المستخدمون الجدد</CardTitle>
-            <CardDescription>آخر المستخدمين المسجلين</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <div className="flex flex-col">
+                <span>نمو المستخدمين</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  User Growth (Last 30 Days)
+                </span>
+              </div>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {stats?.recentUsers.map((user) => (
-                <div key={user.id} className="flex items-center gap-4">
-                  <Avatar>
-                    <AvatarImage src={user.image || undefined} />
-                    <AvatarFallback>
-                      {user.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{user.username || user.email}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(user.createdAt).toLocaleDateString('en-GB', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {userGrowthData && userGrowthData.data.length > 0 ? (
+              <AreaChart
+                data={userGrowthData.data}
+                height={250}
+                isRTL={true}
+              />
+            ) : (
+              <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+                لا توجد بيانات (No data available)
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Marketplace Activity Chart */}
+        <Card className="border-border bg-gradient-to-br from-card to-muted/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Handshake className="h-5 w-5 text-green-500" />
+              <div className="flex flex-col">
+                <span>نشاط السوق</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Marketplace Activity
+                </span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {marketplaceData && marketplaceData.listingsByStatus.length > 0 ? (
+              <BarChart
+                data={marketplaceData.listingsByStatus.map((item) => ({
+                  label: item.statusLabel,
+                  value: item.count,
+                }))}
+                height={250}
+                isRTL={true}
+              />
+            ) : (
+              <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+                لا توجد بيانات (No data available)
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Bottom Row: Activity Timeline and Top Users */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <ActivityTimeline />
+        <TopUsersWidget />
+      </div>
+
+      {/* Additional Metrics Cards */}
+      {marketplaceData && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatsCard
+            title="Completed Trades"
+            titleAr="الصفقات المكتملة"
+            value={marketplaceData.metrics.completedTrades}
+            icon={Handshake}
+            iconColor="text-green-500"
+            iconBgColor="bg-green-500/10"
+          />
+          <StatsCard
+            title="Completed Listings"
+            titleAr="الإعلانات المكتملة"
+            value={marketplaceData.metrics.completedListings}
+            icon={ShoppingCart}
+            iconColor="text-blue-500"
+            iconBgColor="bg-blue-500/10"
+          />
+          <StatsCard
+            title="Completion Rate"
+            titleAr="معدل الإكمال"
+            value={marketplaceData.metrics.completionRate}
+            icon={TrendingUp}
+            iconColor="text-primary"
+            iconBgColor="bg-primary/10"
+            valueFormatter={(value) => `${value}%`}
+          />
+        </div>
+      )}
     </div>
   );
 }

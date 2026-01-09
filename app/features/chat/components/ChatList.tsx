@@ -29,7 +29,7 @@ interface Listing {
     name: string;
     icon: string | null;
     rarity: string | null;
-  };
+  } | null;
   user: User;
 }
 
@@ -38,6 +38,7 @@ interface Chat {
   listing: Listing;
   participant1: User;
   participant2: User;
+  status: "ACTIVE" | "COMPLETED" | "CANCELLED";
   messages: Message[];
   updated_at: string;
 }
@@ -46,15 +47,16 @@ interface ChatListProps {
   currentUserId: string;
   selectedChatId?: string;
   onChatSelect: (chatId: string) => void;
+  refreshKey?: number;
 }
 
-export function ChatList({ currentUserId, selectedChatId, onChatSelect }: ChatListProps) {
+export function ChatList({ currentUserId, selectedChatId, onChatSelect, refreshKey }: ChatListProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadChats();
-  }, []);
+  }, [refreshKey]);
 
   const loadChats = async () => {
     try {
@@ -62,7 +64,9 @@ export function ChatList({ currentUserId, selectedChatId, onChatSelect }: ChatLi
       const res = await fetch("/api/chat");
       if (!res.ok) throw new Error("Failed to load chats");
       const data = await res.json();
-      setChats(data);
+      // Filter out completed and cancelled chats
+      const activeChats = data.filter((chat: Chat) => chat.status === "ACTIVE");
+      setChats(activeChats);
     } catch (error) {
       console.error("Error loading chats:", error);
     } finally {
@@ -141,7 +145,7 @@ export function ChatList({ currentUserId, selectedChatId, onChatSelect }: ChatLi
               <div className="flex items-start gap-3">
                 {/* Item Icon */}
                 <div className="w-10 h-10 shrink-0 bg-muted/30 rounded border border-border/50 flex items-center justify-center">
-                  {chat.listing.item.icon ? (
+                  {chat.listing.item?.icon ? (
                     <img
                       src={chat.listing.item.icon}
                       alt={chat.listing.item.name}
@@ -154,8 +158,8 @@ export function ChatList({ currentUserId, selectedChatId, onChatSelect }: ChatLi
 
                 <div className="flex-1 min-w-0">
                   {/* Item Name */}
-                  <h3 className={`font-semibold text-sm truncate ${getRarityColor(chat.listing.item.rarity)}`}>
-                    {chat.listing.item.name}
+                  <h3 className={`font-semibold text-sm truncate ${getRarityColor(chat.listing.item?.rarity ?? null)}`}>
+                    {chat.listing.item?.name || "عنصر محذوف"}
                   </h3>
 
                   {/* Other User */}

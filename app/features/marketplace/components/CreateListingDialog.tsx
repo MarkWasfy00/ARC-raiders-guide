@@ -122,7 +122,8 @@ export function CreateListingDialog({
         throw new Error(data.error || "فشل في إنشاء القائمة");
       }
 
-      onSuccess();
+      // Wait for the marketplace to refresh before closing the dialog
+      await onSuccess();
       handleClose();
     } catch (err: any) {
       console.error("Error creating listing:", err);

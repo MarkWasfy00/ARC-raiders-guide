@@ -106,6 +106,27 @@ enum UserRole {
   ADMIN
 }
 
+enum ActivityType {
+  USER_REGISTERED
+  USER_LOGIN
+  USER_BANNED
+  USER_UNBANNED
+  LISTING_CREATED
+  LISTING_UPDATED
+  LISTING_DELETED
+  TRADE_COMPLETED
+  CHAT_STARTED
+  GUIDE_CREATED
+  GUIDE_UPDATED
+  GUIDE_DELETED
+  MAP_MARKER_ADDED
+  MAP_MARKER_DELETED
+  ITEM_CREATED
+  ITEM_UPDATED
+  ADMIN_ACTION
+  SYSTEM_EVENT
+}
+
 // Auth.js required models
 model Account {
   id                String  @id @default(cuid())
@@ -140,6 +161,9 @@ model Session {
 model User {
   id                String    @id @default(cuid())
   role              UserRole  @default(USER)
+  banned            Boolean   @default(false)
+  bannedAt          DateTime?
+  banReason         String?   @db.Text
   username          String?   @unique
   name              String?
   email             String?   @unique
@@ -149,6 +173,12 @@ model User {
   embark_id         String?
   discord_username  String?
   sessionVersion    Int       @default(0)
+
+  // Activity tracking fields
+  lastLoginAt       DateTime?
+  loginCount        Int       @default(0)
+  lastActivityAt    DateTime?
+
   accounts          Account[]
   sessions          Session[]
   comments          Comment[]
@@ -165,8 +195,18 @@ model User {
   guides            Guide[]        @relation("GuideAuthor")
   notifications     Notification[] @relation("UserNotifications")
   mapMarkers        MapMarker[]    @relation("MapMarkerCreator")
+  mapAreaLabels     MapAreaLabel[] @relation("MapAreaLabelCreator")
+  loadouts          Loadout[]      @relation("UserLoadouts")
+
+  // Activity log relations
+  activityLogs        ActivityLog[] @relation("ActivityLogUser")
+  targetedActivityLogs ActivityLog[] @relation("ActivityLogTarget")
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  @@index([lastActivityAt])
+  @@index([lastLoginAt])
 }
 
 model VerificationToken {
@@ -534,6 +574,24 @@ model MapMarker {
   @@index([addedByUserId])
 }
 
+model MapAreaLabel {
+  id              String   @id @default(uuid())
+  mapID           String
+  name            String
+  nameAr          String
+  lat             Float
+  lng             Float
+  fontSize        Int      @default(14)
+  color           String   @default("#ffffff")
+  addedByUserId   String?
+  addedBy         User?    @relation("MapAreaLabelCreator", fields: [addedByUserId], references: [id], onDelete: SetNull)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([mapID])
+  @@index([addedByUserId])
+}
+
 // Blog System Models
 model BlogCategory {
   id          String   @id @default(cuid())
@@ -713,4 +771,91 @@ model GuideTag {
   @@unique([guideId, tag])
   @@index([guideId])
   @@index([tag])
+}
+
+// Loadout System Models
+model Loadout {
+  id            String   @id @default(cuid())
+  uuid          String?  @unique // Original UUID from imported data
+  name          String
+  description   String?  @db.Text
+  tags          String[] @default([])
+  is_public     Boolean  @default(true)
+
+  // User relationship - nullable for imported data, allows users to create their own later
+  userId        String?
+  user          User?    @relation("UserLoadouts", fields: [userId], references: [id], onDelete: SetNull)
+
+  // Profile data (for imported loadouts without user accounts)
+  profileData   Json?    // Store {id, username, full_name}
+
+  // Complete loadout equipment stored as JSON
+  loadoutData   Json     // Contains shield, augment, backpack, quickUse, safePocket, weaponprimary, weaponsecondary
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([is_public])
+  @@index([created_at])
+  @@index([name])
+}
+
+// Activity Logging System
+model ActivityLog {
+  id                String       @id @default(cuid())
+  type              ActivityType
+  action            String       // Human-readable action description (English)
+  actionAr          String       // Arabic translation
+
+  // User who performed the action (nullable for system events)
+  userId            String?
+  user              User?        @relation("ActivityLogUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  // Target user (for admin actions on users)
+  targetUserId      String?
+  targetUser        User?        @relation("ActivityLogTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  // Related entity IDs for tracking
+  relatedEntityId   String?      // Generic ID for listings, guides, markers, etc.
+  relatedEntityType String?      // Type: "LISTING", "GUIDE", "MARKER", etc.
+
+  // Additional context
+  metadata          Json?        @default("{}")  // Store additional details
+  ipAddress         String?
+  userAgent         String?
+
+  created_at        DateTime     @default(now())
+
+  @@index([userId])
+  @@index([targetUserId])
+  @@index([type])
+  @@index([created_at])
+  @@index([relatedEntityType, relatedEntityId])
+}
+
+// Daily Statistics Aggregation (for performance)
+model DailyStats {
+  id              String   @id @default(cuid())
+  date            DateTime @unique @db.Date
+
+  // User metrics
+  newUsers        Int      @default(0)
+  activeUsers     Int      @default(0)
+
+  // Marketplace metrics
+  newListings     Int      @default(0)
+  completedTrades Int      @default(0)
+
+  // Chat metrics
+  totalMessages   Int      @default(0)
+
+  // Content metrics
+  newGuides       Int      @default(0)
+  newMapMarkers   Int      @default(0)
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([date])
 }

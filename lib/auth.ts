@@ -13,6 +13,61 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    pkceCodeVerifier: {
+      name: "next-auth.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    state: {
+      name: "next-auth.state",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    nonce: {
+      name: "next-auth.nonce",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   ...authConfig,
   callbacks: {
     ...authConfig.callbacks,
@@ -35,6 +90,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               discord_username: true,
               sessionVersion: true,
               role: true,
+              banned: true,
             },
           });
 
@@ -61,6 +117,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             (session.user as any).embark_id = dbUser.embark_id;
             (session.user as any).discord_username = dbUser.discord_username;
             (session.user as any).role = dbUser.role;
+            (session.user as any).banned = dbUser.banned;
           }
         }
       }
@@ -71,7 +128,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Discord({
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-      profile(profile) {
+      allowDangerousEmailAccountLinking: true, // Allow Discord to link with existing accounts via email
+      async profile(profile) {
+        // Check if user exists and get their banned status
+        const existingUser = await prisma.user.findUnique({
+          where: { email: profile.email },
+          select: { id: true, banned: true, sessionVersion: true, role: true },
+        });
+
+        // If user is banned, prevent login
+        if (existingUser?.banned) {
+          throw new Error("BANNED");
+        }
+
         return {
           id: profile.id,
           name: profile.global_name ?? profile.username,
@@ -81,6 +150,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             : null,
           username: profile.username,
           discord_username: `${profile.username}${profile.discriminator !== "0" ? `#${profile.discriminator}` : ""}`,
+          banned: existingUser?.banned ?? false,
+          sessionVersion: existingUser?.sessionVersion ?? 0,
+          role: existingUser?.role ?? 'USER',
         };
       },
     }),
@@ -103,6 +175,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user || !user.password) {
           throw new Error("Invalid credentials");
+        }
+
+        // Check if user is banned
+        if (user.banned) {
+          throw new Error("BANNED");
         }
 
         const isPasswordValid = await compare(

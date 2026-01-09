@@ -53,10 +53,8 @@ export async function POST(
       data: updateData,
     });
 
-    // Check if both participants have approved
-    const bothApproved =
-      (isParticipant1 && updatedChat.participant2Approved) ||
-      (!isParticipant1 && updatedChat.participant1Approved);
+    // Check if both participants have approved - BOTH must approve for trade to complete
+    const bothApproved = updatedChat.participant1Approved && updatedChat.participant2Approved;
 
     // If both approved, mark chat and listing as completed and create trade
     if (bothApproved) {

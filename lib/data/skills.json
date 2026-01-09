@@ -1,0 +1,268 @@
+{
+  "branches": [
+    {
+      "id": "conditioning",
+      "name": "Conditioning",
+      "color": "#ef4444",
+      "description": "Enhance your physical capabilities and endurance",
+      "skills": [
+        {
+          "id": "survivorsStamina",
+          "name": "Survivor's Stamina",
+          "description": "Increase maximum stamina by 20%",
+          "position": [100, 500],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "stamina",
+          "requires": []
+        },
+        {
+          "id": "hardened",
+          "name": "Hardened",
+          "description": "Increase maximum health by 15%",
+          "position": [200, 450],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "health",
+          "requires": ["survivorsStamina"]
+        },
+        {
+          "id": "ironLungs",
+          "name": "Iron Lungs",
+          "description": "Reduce stamina consumption while sprinting by 25%",
+          "position": [200, 550],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "lungs",
+          "requires": ["survivorsStamina"]
+        },
+        {
+          "id": "fortified",
+          "name": "Fortified",
+          "description": "Increase armor effectiveness by 10%",
+          "position": [300, 400],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "armor",
+          "requires": ["hardened"]
+        },
+        {
+          "id": "resilience",
+          "name": "Resilience",
+          "description": "Reduce damage taken while below 30% health by 15%",
+          "position": [300, 500],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "shield",
+          "requires": ["hardened", "ironLungs"]
+        },
+        {
+          "id": "secondWind",
+          "name": "Second Wind",
+          "description": "Stamina regeneration increased by 30%",
+          "position": [300, 600],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "wind",
+          "requires": ["ironLungs"]
+        },
+        {
+          "id": "titanBlood",
+          "name": "Titan Blood",
+          "description": "Increase maximum health by 25%",
+          "position": [400, 450],
+          "cost": 3,
+          "maxLevel": 1,
+          "icon": "blood",
+          "requires": ["fortified", "resilience"]
+        },
+        {
+          "id": "unbreakable",
+          "name": "Unbreakable",
+          "description": "Survive a fatal blow once per expedition",
+          "position": [500, 500],
+          "cost": 5,
+          "maxLevel": 1,
+          "icon": "phoenix",
+          "requires": ["titanBlood"]
+        }
+      ]
+    },
+    {
+      "id": "mobility",
+      "name": "Mobility",
+      "color": "#3b82f6",
+      "description": "Improve movement speed and agility",
+      "skills": [
+        {
+          "id": "swiftFoot",
+          "name": "Swift Foot",
+          "description": "Increase movement speed by 5%",
+          "position": [100, 800],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "boot",
+          "requires": []
+        },
+        {
+          "id": "catLike",
+          "name": "Cat-Like",
+          "description": "Reduce fall damage by 30%",
+          "position": [200, 750],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "cat",
+          "requires": ["swiftFoot"]
+        },
+        {
+          "id": "quickReflexes",
+          "name": "Quick Reflexes",
+          "description": "Increase weapon swap speed by 25%",
+          "position": [200, 850],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "reflex",
+          "requires": ["swiftFoot"]
+        },
+        {
+          "id": "parkour",
+          "name": "Parkour",
+          "description": "Increase vaulting speed by 40%",
+          "position": [300, 700],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "jump",
+          "requires": ["catLike"]
+        },
+        {
+          "id": "evasive",
+          "name": "Evasive",
+          "description": "Increase dodge distance by 20%",
+          "position": [300, 800],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "dodge",
+          "requires": ["catLike", "quickReflexes"]
+        },
+        {
+          "id": "combatReady",
+          "name": "Combat Ready",
+          "description": "Weapon ADS speed increased by 30%",
+          "position": [300, 900],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "aim",
+          "requires": ["quickReflexes"]
+        },
+        {
+          "id": "ghost",
+          "name": "Ghost",
+          "description": "Reduce noise from movement by 40%",
+          "position": [400, 750],
+          "cost": 3,
+          "maxLevel": 1,
+          "icon": "stealth",
+          "requires": ["parkour", "evasive"]
+        },
+        {
+          "id": "untouchable",
+          "name": "Untouchable",
+          "description": "Gain 10% movement speed for 3s after dodging",
+          "position": [500, 800],
+          "cost": 5,
+          "maxLevel": 1,
+          "icon": "dash",
+          "requires": ["ghost"]
+        }
+      ]
+    },
+    {
+      "id": "survival",
+      "name": "Survival",
+      "color": "#22c55e",
+      "description": "Master resource management and sustainability",
+      "skills": [
+        {
+          "id": "scavenger",
+          "name": "Scavenger",
+          "description": "Increase loot detection range by 5m",
+          "position": [100, 1100],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "search",
+          "requires": []
+        },
+        {
+          "id": "fieldMedic",
+          "name": "Field Medic",
+          "description": "Healing items are 20% more effective",
+          "position": [200, 1050],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "medkit",
+          "requires": ["scavenger"]
+        },
+        {
+          "id": "resourceful",
+          "name": "Resourceful",
+          "description": "Gain 10% more resources from containers",
+          "position": [200, 1150],
+          "cost": 1,
+          "maxLevel": 1,
+          "icon": "box",
+          "requires": ["scavenger"]
+        },
+        {
+          "id": "fastHands",
+          "name": "Fast Hands",
+          "description": "Reduce reload time by 15%",
+          "position": [300, 1000],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "hands",
+          "requires": ["fieldMedic"]
+        },
+        {
+          "id": "combatMedic",
+          "name": "Combat Medic",
+          "description": "Can use healing items while moving",
+          "position": [300, 1100],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "running-medic",
+          "requires": ["fieldMedic", "resourceful"]
+        },
+        {
+          "id": "packMule",
+          "name": "Pack Mule",
+          "description": "Increase inventory capacity by 2 slots",
+          "position": [300, 1200],
+          "cost": 2,
+          "maxLevel": 1,
+          "icon": "backpack",
+          "requires": ["resourceful"]
+        },
+        {
+          "id": "surgeon",
+          "name": "Surgeon",
+          "description": "Revive teammates 50% faster",
+          "position": [400, 1050],
+          "cost": 3,
+          "maxLevel": 1,
+          "icon": "revive",
+          "requires": ["fastHands", "combatMedic"]
+        },
+        {
+          "id": "fortuneFavors",
+          "name": "Fortune Favors",
+          "description": "5% chance to find rare items in any container",
+          "position": [500, 1100],
+          "cost": 5,
+          "maxLevel": 1,
+          "icon": "treasure",
+          "requires": ["surgeon"]
+        }
+      ]
+    }
+  ]
+}

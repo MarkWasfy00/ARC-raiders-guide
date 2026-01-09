@@ -6,6 +6,7 @@ import { hash } from "bcryptjs";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import type { LoginCredentials, RegisterCredentials, AuthResponse } from "../types";
+import { logUserRegistration } from "@/lib/services/activity-logger";
 
 export async function loginAction(credentials: LoginCredentials): Promise<AuthResponse> {
   try {
@@ -17,7 +18,17 @@ export async function loginAction(credentials: LoginCredentials): Promise<AuthRe
 
     return { success: true };
   } catch (error) {
+    // Check if user is banned
+    if (error instanceof Error && error.message === "BANNED") {
+      redirect("/banned");
+    }
+
     if (error instanceof AuthError) {
+      // Check for banned error in AuthError
+      if (error.cause?.err?.message === "BANNED") {
+        redirect("/banned");
+      }
+
       switch (error.type) {
         case "CredentialsSignin":
           return {
@@ -133,7 +144,7 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
     const hashedPassword = await hash(credentials.password, 10);
 
     // Create user
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         username: credentials.username,
         name: credentials.name,
@@ -143,6 +154,9 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
         discord_username: credentials.discord_username || null,
       },
     });
+
+    // Log user registration
+    await logUserRegistration(newUser.id, credentials.username);
 
     // Automatically sign in the user
     await signIn("credentials", {

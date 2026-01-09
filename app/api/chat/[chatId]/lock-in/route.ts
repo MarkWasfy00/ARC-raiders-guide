@@ -24,6 +24,7 @@ export async function POST(
             id: true,
             username: true,
             embark_id: true,
+            discord_username: true,
           },
         },
         participant2: {
@@ -31,6 +32,7 @@ export async function POST(
             id: true,
             username: true,
             embark_id: true,
+            discord_username: true,
           },
         },
       },
@@ -55,11 +57,24 @@ export async function POST(
         ? { participant1LockedIn: true }
         : { participant2LockedIn: true },
       include: {
+        listing: {
+          include: {
+            item: {
+              select: {
+                id: true,
+                name: true,
+                icon: true,
+                rarity: true,
+              },
+            },
+          },
+        },
         participant1: {
           select: {
             id: true,
             username: true,
             embark_id: true,
+            discord_username: true,
           },
         },
         participant2: {
@@ -67,6 +82,7 @@ export async function POST(
             id: true,
             username: true,
             embark_id: true,
+            discord_username: true,
           },
         },
       },
@@ -83,16 +99,19 @@ export async function POST(
         participant1LockedIn: updatedChat.participant1LockedIn,
         participant2LockedIn: updatedChat.participant2LockedIn,
         bothLockedIn,
-        // Only include embark_id if both have locked in
+        listing: updatedChat.listing,
+        // Only include embark_id and discord_username if both have locked in
         participant1: {
           id: updatedChat.participant1.id,
           username: updatedChat.participant1.username,
           embark_id: bothLockedIn ? updatedChat.participant1.embark_id : null,
+          discord_username: bothLockedIn ? updatedChat.participant1.discord_username : null,
         },
         participant2: {
           id: updatedChat.participant2.id,
           username: updatedChat.participant2.username,
           embark_id: bothLockedIn ? updatedChat.participant2.embark_id : null,
+          discord_username: bothLockedIn ? updatedChat.participant2.discord_username : null,
         },
       },
     };

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { logMapMarkerDeleted } from '@/lib/services/activity-logger';
 
 export async function DELETE(
   request: Request,
@@ -30,7 +31,9 @@ export async function DELETE(
     // Verify marker exists and belongs to buried-city map
     const marker = await prisma.mapMarker.findUnique({
       where: { id: markerId },
-      select: { mapID: true },
+      select: {
+        mapID: true,
+      },
     });
 
     if (!marker) {
@@ -53,6 +56,13 @@ export async function DELETE(
     });
 
     console.log(`✅ Marker ${markerId} deleted by admin ${session.user.username || session.user.email}`);
+
+    // Log marker deletion
+    await logMapMarkerDeleted(
+      session.user.id,
+      markerId,
+      marker.mapID
+    );
 
     return NextResponse.json({
       success: true,

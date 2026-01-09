@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Home, AppWindow, Package, Database, Map, Target,
   List, Calendar, MessageCircle, ChevronDown,
-  Crosshair, MessageSquare, FileText
+  Crosshair, MessageSquare, FileText, Backpack, Network
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +21,7 @@ interface SidebarItem {
 const mainItems: SidebarItem[] = [
   { icon: Home, label: 'الرئيسية', href: '/' },
   { icon: FileText, label: 'الأدلة', href: '/guides' },
+  { icon: Backpack, label: 'الحمولات', href: '/loadouts' },
   { icon: AppWindow, label: 'تطبيق التراكب', href: 'https://www.overwolf.com/app/3rb', external: true },
   { icon: Package, label: 'السوق', href: '/marketplace' },
   { icon: MessageSquare, label: 'المحادثات', href: '/chat' },
@@ -61,6 +62,7 @@ const trackerItems: SidebarItem[] = [
     children: [
       { label: 'متتبع المخططات', href: '/trackers/blueprint' },
       { label: 'مخطط الورشة', href: '/trackers/workshop-planner' },
+      { label: 'شجرة المهارات', href: '/skill-tree' },
     ]
   },
 ];

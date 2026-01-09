@@ -13,6 +13,7 @@ export default function ChatPage() {
   const router = useRouter();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [chatListRefreshKey, setChatListRefreshKey] = useState(0);
 
   useEffect(() => {
     const chatId = searchParams.get("id");
@@ -61,6 +62,11 @@ export default function ChatPage() {
     router.push("/chat", { scroll: false });
   };
 
+  const handleChatListUpdate = () => {
+    // Increment key to trigger ChatList refresh
+    setChatListRefreshKey(prev => prev + 1);
+  };
+
   return (
     <main className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
@@ -78,6 +84,7 @@ export default function ChatPage() {
               currentUserId={session.user.id}
               selectedChatId={selectedChatId || undefined}
               onChatSelect={handleChatSelect}
+              refreshKey={chatListRefreshKey}
             />
           </div>
 
@@ -88,6 +95,7 @@ export default function ChatPage() {
                 chatId={selectedChatId}
                 currentUserId={session.user.id}
                 onBack={handleBackToList}
+                onChatListUpdate={handleChatListUpdate}
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center p-8">

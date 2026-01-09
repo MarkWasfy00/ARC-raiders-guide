@@ -314,6 +314,16 @@ export function Navbar({ session }: NavbarProps) {
                       الرسائل
                     </Link>
                   </DropdownMenuItem>
+                  {session.user.role === 'ADMIN' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="w-full text-right cursor-pointer justify-end text-primary font-semibold">
+                          لوحة التحكم
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1.5">
                     <UserButton user={session.user} />

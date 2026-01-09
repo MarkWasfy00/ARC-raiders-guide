@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logListingCreated } from "@/lib/services/activity-logger";
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -188,6 +192,14 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("Listing created successfully:", listing.id);
+
+    // Log listing creation
+    await logListingCreated(
+      session.user.id,
+      listing.id,
+      listing.type
+    );
+
     return NextResponse.json({ listing }, { status: 201 });
   } catch (error) {
     console.error("Error creating listing:", error);
