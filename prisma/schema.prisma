@@ -246,6 +246,9 @@ model Item {
   @@index([rarity])
   @@index([workbench])
   @@index([loot_area])
+  @@index([item_type, rarity])
+  @@index([workbench, item_type])
+  @@index([name])
 }
 
 model Comment {
@@ -310,6 +313,8 @@ model Listing {
   @@index([type])
   @@index([status])
   @@index([created_at])
+  @@index([status, created_at])
+  @@index([type, status])
 }
 
 model ListingItem {
@@ -404,6 +409,8 @@ model Chat {
   @@index([participant1Id])
   @@index([participant2Id])
   @@index([status])
+  @@index([participant1Id, status])
+  @@index([participant2Id, status])
 }
 
 model Message {
@@ -419,6 +426,7 @@ model Message {
   @@index([chatId])
   @@index([senderId])
   @@index([created_at])
+  @@index([chatId, created_at])
 }
 
 model Arc {

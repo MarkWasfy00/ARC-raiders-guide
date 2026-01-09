@@ -21,6 +21,47 @@ services:
     networks:
       - arcraiders-network
 
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: arcraiders-pgbouncer
+    restart: unless-stopped
+    ports:
+      - '6432:6432'
+    environment:
+      DATABASES_HOST: postgres
+      DATABASES_PORT: 5432
+      DATABASES_USER: ${POSTGRES_USER:-postgres}
+      DATABASES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DATABASES_DBNAME: ${POSTGRES_DB:-arcraiders}
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_MAX_CLIENT_CONN: 1000
+      PGBOUNCER_DEFAULT_POOL_SIZE: 25
+      PGBOUNCER_MIN_POOL_SIZE: 10
+      PGBOUNCER_RESERVE_POOL_SIZE: 5
+      PGBOUNCER_SERVER_IDLE_TIMEOUT: 600
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - arcraiders-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: arcraiders-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - arcraiders-network
+
   minio:
     image: minio/minio:latest
     container_name: arcraiders-minio
@@ -57,6 +98,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      pgbouncer:
+        condition: service_started
     entrypoint: []  # Override Dockerfile ENTRYPOINT
     command: >
       sh -c "
@@ -66,7 +109,7 @@ services:
       "
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-arcraiders}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:6432/${POSTGRES_DB:-arcraiders}?schema=public&pgbouncer=true
     volumes:
       - ./prisma:/app/prisma
     networks:
@@ -84,6 +127,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      redis:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     entrypoint: []  # Override Dockerfile ENTRYPOINT
@@ -93,7 +140,8 @@ services:
       # Or use '3001:3001' if you prefer to access on port 3001
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-arcraiders}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:6432/${POSTGRES_DB:-arcraiders}?schema=public&pgbouncer=true
+      REDIS_URL: redis://redis:6379
       AUTH_URL: ${AUTH_URL:-http://145.223.116.42}
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_TRUST_HOST: true
@@ -118,6 +166,8 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   minio_data:
     driver: local

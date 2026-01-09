@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Sidebar } from "@/components/Sidebar";
 import { Footer } from "@/components/Footer";
 import { SessionProvider } from "@/components/SessionProvider";
+import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { auth } from "@/lib/auth";
 import { StructuredData, getOrganizationSchema, getWebSiteSchema } from "@/components/StructuredData";
 import { Toaster } from "@/components/ui/toaster";
@@ -99,15 +100,17 @@ export default async function RootLayout({
         }}
       >
         <SessionProvider session={session}>
-          <Navbar session={session} />
-          <Sidebar />
-          <main className="mr-14 mt-14">
-            {children}
-          </main>
-          <div className="mr-14">
-            <Footer />
-          </div>
-          <Toaster />
+          <ReactQueryProvider>
+            <Navbar session={session} />
+            <Sidebar />
+            <main className="mr-14 mt-14">
+              {children}
+            </main>
+            <div className="mr-14">
+              <Footer />
+            </div>
+            <Toaster />
+          </ReactQueryProvider>
         </SessionProvider>
       </body>
     </html>
