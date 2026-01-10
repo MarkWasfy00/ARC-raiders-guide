@@ -28,7 +28,8 @@ services:
     ports:
       - '6432:6432'
     environment:
-      DATABASES_HOST: postgres
+      # Connect to remote database server (not local Docker postgres)
+      DATABASES_HOST: 145.223.116.42
       DATABASES_PORT: 5432
       DATABASES_USER: ${POSTGRES_USER:-postgres}
       DATABASES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -39,9 +40,7 @@ services:
       PGBOUNCER_MIN_POOL_SIZE: 10
       PGBOUNCER_RESERVE_POOL_SIZE: 5
       PGBOUNCER_SERVER_IDLE_TIMEOUT: 600
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # No dependency on local postgres since we're using remote DB
     networks:
       - arcraiders-network
 
@@ -95,11 +94,7 @@ services:
     env_file:
       - .env.local
     working_dir: /app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      pgbouncer:
-        condition: service_started
+    # No dependencies - using remote database directly
     entrypoint: []  # Override Dockerfile ENTRYPOINT
     command: >
       sh -c "
@@ -109,7 +104,8 @@ services:
       "
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:6432/${POSTGRES_DB:-arcraiders}?schema=public&pgbouncer=true
+      # Use DATABASE_URL from .env.local (direct connection to your remote DB)
+      # Migrations should always use direct connection, not PgBouncer
     volumes:
       - ./prisma:/app/prisma
     networks:
@@ -125,8 +121,7 @@ services:
       - .env.local
     working_dir: /app
     depends_on:
-      postgres:
-        condition: service_healthy
+      # Using remote database, so no local postgres dependency
       pgbouncer:
         condition: service_started
       redis:
@@ -140,6 +135,7 @@ services:
       # Or use '3001:3001' if you prefer to access on port 3001
     environment:
       NODE_ENV: production
+      # Use PgBouncer for connection pooling to remote database
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:6432/${POSTGRES_DB:-arcraiders}?schema=public&pgbouncer=true
       REDIS_URL: redis://redis:6379
       AUTH_URL: ${AUTH_URL:-http://145.223.116.42}
