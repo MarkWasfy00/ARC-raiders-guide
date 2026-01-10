@@ -1,6 +1,6 @@
 import { cache, cacheKeys } from './redis'
 import { prisma } from './prisma'
-import type { Item, Listing, User } from './generated/prisma/client'
+import type { Item } from './generated/prisma/client'
 
 /**
  * Generic cache wrapper for database queries
@@ -50,6 +50,7 @@ export const itemQueries = {
             name: true,
             description: true,
             item_type: true,
+            loadout_slots: true,
             icon: true,
             rarity: true,
             value: true,
@@ -91,7 +92,7 @@ export const itemQueries = {
       cacheKey,
       300, // 5 minutes
       async () => {
-        const where: any = {}
+        const where: Record<string, unknown> = {}
 
         if (itemType) where.item_type = itemType
         if (rarity) where.rarity = rarity
@@ -110,11 +111,21 @@ export const itemQueries = {
               name: true,
               description: true,
               item_type: true,
+              loadout_slots: true,
               icon: true,
               rarity: true,
               value: true,
               workbench: true,
+              stat_block: true,
+              flavor_text: true,
+              subcategory: true,
+              shield_type: true,
               loot_area: true,
+              sources: true,
+              ammo_type: true,
+              locations: true,
+              created_at: true,
+              updated_at: true,
             },
             skip,
             take: pageSize,
@@ -152,7 +163,7 @@ export const listingQueries = {
     page?: number
     pageSize?: number
     type?: 'WTS' | 'WTB'
-  }): Promise<{ listings: any[]; total: number }> {
+  }) {
     const { page = 1, pageSize = 20, type } = params
     const skip = (page - 1) * pageSize
 
@@ -163,7 +174,7 @@ export const listingQueries = {
       cacheKey,
       60, // 1 minute (short TTL for marketplace data)
       async () => {
-        const where: any = { status: 'ACTIVE' }
+        const where: Record<string, unknown> = { status: 'ACTIVE' }
         if (type) where.type = type
 
         const [listings, total] = await Promise.all([
@@ -236,7 +247,7 @@ export const userQueries = {
   /**
    * Get user profile with ratings (10 minutes cache)
    */
-  async getProfile(userId: string): Promise<any> {
+  async getProfile(userId: string) {
     return cachedQuery(
       cacheKeys.user(userId),
       600, // 10 minutes
@@ -250,7 +261,7 @@ export const userQueries = {
             image: true,
             embark_id: true,
             discord_username: true,
-            created_at: true,
+            createdAt: true,
             ratingsReceived: {
               select: {
                 score: true,
@@ -299,7 +310,7 @@ export const invalidateRelated = {
     await listingQueries.invalidate()
   },
 
-  async listing(listingId: string): Promise<void> {
+  async listing(): Promise<void> {
     await listingQueries.invalidate()
   },
 
