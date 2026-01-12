@@ -101,7 +101,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Validate session version - if mismatch, session is invalidated
           if (dbUser && typeof token.sessionVersion === 'number' && typeof dbUser.sessionVersion === 'number') {
             if (dbUser.sessionVersion !== token.sessionVersion) {
-              console.log('🔴 SESSION INVALIDATED - Version mismatch!');
+              console.log("SESSION INVALIDATED - Version mismatch!");
               // Session has been invalidated - throw error to force re-login
               throw new Error('Session invalidated');
             }
