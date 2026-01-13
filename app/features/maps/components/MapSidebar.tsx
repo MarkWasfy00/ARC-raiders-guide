@@ -1,8 +1,26 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search, X, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Search, X, Lock, Filter, Route, Eye, EyeOff, Pencil, Trash2, Plus } from 'lucide-react';
 import { SUBCATEGORY_ICONS, type MarkerCategory, type MapMarker } from '../types';
+import type { MapRoute } from './RouteDisplay';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+} from '@/components/ui/alert-dialog';
+
+const ROUTE_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#F38181',
+  '#A8E6CF', '#FFD93D', '#6BCF7F', '#C7CEEA', '#FF8B94'
+];
 
 interface MapSidebarProps {
   categories: MarkerCategory[];
@@ -19,6 +37,13 @@ interface MapSidebarProps {
   onSearchChange: (query: string) => void;
   showAreaLabels: boolean;
   onAreaLabelsToggle: () => void;
+  // Route props (optional for logged-in users)
+  routes?: MapRoute[];
+  onDrawRoute?: (routeNumber: number) => void;
+  onToggleRouteVisibility?: (routeId: string, routeNumber: number) => void;
+  onEditRoute?: (routeId: string, routeNumber: number) => void;
+  onDeleteRoute?: (routeId: string) => void;
+  showRoutes?: boolean;
 }
 
 export function MapSidebar({
@@ -36,10 +61,19 @@ export function MapSidebar({
   onSearchChange,
   showAreaLabels,
   onAreaLabelsToggle,
+  routes = [],
+  onDrawRoute,
+  onToggleRouteVisibility,
+  onEditRoute,
+  onDeleteRoute,
+  showRoutes = false,
 }: MapSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showLootAreas, setShowLootAreas] = useState(false);
+  const [activeTab, setActiveTab] = useState<'filters' | 'routes'>('filters');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [routeToDelete, setRouteToDelete] = useState<{ id: string; name: string | null } | null>(null);
 
   const allEnabled = categories.every((cat) => cat.enabled);
 
@@ -104,6 +138,25 @@ export function MapSidebar({
     return subcategory.replace(/_/g, ' ').replace(/-/g, ' ');
   };
 
+  // Create map of route number to route
+  const routeMap = new Map<number, MapRoute>();
+  routes.forEach(route => {
+    routeMap.set(route.routeNumber, route);
+  });
+
+  const handleDeleteRoute = (routeId: string, routeName: string | null) => {
+    setRouteToDelete({ id: routeId, name: routeName });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteRoute = () => {
+    if (routeToDelete && onDeleteRoute) {
+      onDeleteRoute(routeToDelete.id);
+    }
+    setDeleteDialogOpen(false);
+    setRouteToDelete(null);
+  };
+
   return (
     <>
       {/* Sidebar */}
@@ -115,7 +168,7 @@ export function MapSidebar({
         <div className="h-full flex flex-col">
           {/* Header */}
           <div className="relative p-4 border-b border-border/50 bg-gradient-to-r from-primary/10 to-transparent">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                   تصفية الخريطة
@@ -125,10 +178,41 @@ export function MapSidebar({
                 </p>
               </div>
             </div>
+
+            {/* Tabs */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('filters')}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === 'filters'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted/50 hover:bg-muted text-muted-foreground'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span>الفلاتر</span>
+              </button>
+              {showRoutes && (
+                <button
+                  onClick={() => setActiveTab('routes')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === 'routes'
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : 'bg-muted/50 hover:bg-muted text-muted-foreground'
+                  }`}
+                >
+                  <Route className="w-4 h-4" />
+                  <span>المسارات</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Search */}
-          <div className="p-4 space-y-3">
+          {/* Filters Tab Content */}
+          {activeTab === 'filters' && (
+            <>
+              {/* Search */}
+              <div className="p-4 space-y-3">
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -387,6 +471,98 @@ export function MapSidebar({
               })}
             </div>
           </div>
+            </>
+          )}
+
+          {/* Routes Tab Content */}
+          {activeTab === 'routes' && showRoutes && (
+            <div className="flex-1 overflow-y-auto p-3">
+              <div className="space-y-2">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(routeNumber => {
+                  const route = routeMap.get(routeNumber);
+                  const color = ROUTE_COLORS[routeNumber - 1];
+                  const isVisible = route?.visible || false;
+
+                  return (
+                    <div
+                      key={routeNumber}
+                      className="flex items-center gap-2 p-2 rounded-lg border-2 hover:bg-accent/50 transition-colors"
+                      style={{
+                        borderColor: route ? color : 'transparent',
+                        backgroundColor: isVisible ? `${color}10` : 'transparent',
+                      }}
+                    >
+                      {/* Color indicator */}
+                      <div
+                        className="w-6 h-6 rounded-full border-2 flex-shrink-0"
+                        style={{
+                          backgroundColor: color,
+                          borderColor: route ? '#ffffff' : color,
+                          opacity: route ? 1 : 0.3,
+                        }}
+                      />
+
+                      {/* Route info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm">
+                          مسار {routeNumber}
+                        </div>
+                        {route && (route.nameAr || route.name) && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {route.nameAr || route.name}
+                          </div>
+                        )}
+                        {!route && (
+                          <div className="text-xs text-muted-foreground">فارغ</div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1">
+                        {route ? (
+                          <>
+                            <button
+                              onClick={() => onToggleRouteVisibility && onToggleRouteVisibility(route.id, routeNumber)}
+                              className="p-1.5 hover:bg-background rounded transition-colors"
+                              title={isVisible ? 'إخفاء المسار' : 'إظهار المسار'}
+                            >
+                              {isVisible ? (
+                                <Eye className="w-4 h-4 text-primary" />
+                              ) : (
+                                <EyeOff className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => onEditRoute && onEditRoute(route.id, routeNumber)}
+                              className="p-1.5 hover:bg-background rounded transition-colors"
+                              title="تعديل المسار"
+                            >
+                              <Pencil className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRoute(route.id, route.nameAr || route.name)}
+                              className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
+                              title="حذف المسار"
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => onDrawRoute && onDrawRoute(routeNumber)}
+                            className="p-1.5 hover:bg-primary/10 rounded transition-colors"
+                            title="رسم مسار جديد"
+                          >
+                            <Plus className="w-4 h-4 text-primary" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Stats Footer */}
           <div className="p-4 border-t border-border/50 bg-gradient-to-r from-muted/30 to-transparent">
@@ -436,6 +612,30 @@ export function MapSidebar({
           <ChevronRight className="w-5 h-5" />
         </button>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogPortal>
+          <AlertDialogOverlay className="z-[9999]" />
+          <AlertDialogContent className="z-[10000]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من حذف {routeToDelete?.name || 'هذا المسار'}؟ لا يمكن التراجع عن هذا الإجراء.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteRoute}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                حذف
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogPortal>
+      </AlertDialog>
     </>
   );
 }

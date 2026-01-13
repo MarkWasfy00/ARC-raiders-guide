@@ -196,6 +196,8 @@ model User {
   notifications     Notification[] @relation("UserNotifications")
   mapMarkers        MapMarker[]    @relation("MapMarkerCreator")
   mapAreaLabels     MapAreaLabel[] @relation("MapAreaLabelCreator")
+  mapRegions        MapRegion[]    @relation("MapRegionCreator")
+  mapRoutes         MapRoute[]     @relation("UserRoutes")
   loadouts          Loadout[]      @relation("UserLoadouts")
 
   // Activity log relations
@@ -866,4 +868,58 @@ model DailyStats {
   updated_at      DateTime @updatedAt
 
   @@index([date])
+}
+
+// Map Configuration - stores default center and zoom for each map
+model MapConfiguration {
+  id         String   @id @default(cuid())
+  mapID      String   @unique  // e.g., "buried-city", "dam", "spaceport", "stella-montis"
+  centerLat  Float
+  centerLng  Float
+  zoom       Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([mapID])
+}
+
+// Map Region - stores drawn regions/polygons on maps with transparent colors
+model MapRegion {
+  id              String   @id @default(uuid())
+  mapID           String
+  name            String
+  nameAr          String?
+  description     String?  @db.Text
+  coordinates     Json     // Array of [lat, lng] points forming the polygon
+  fillColor       String   @default("#ff0000")
+  fillOpacity     Float    @default(0.3)
+  strokeColor     String   @default("#ff0000")
+  strokeWeight    Int      @default(2)
+  addedByUserId   String?
+  addedBy         User?    @relation("MapRegionCreator", fields: [addedByUserId], references: [id], onDelete: SetNull)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([mapID])
+  @@index([addedByUserId])
+}
+
+// Map Route - personal user routes for navigation/planning
+model MapRoute {
+  id              String   @id @default(uuid())
+  userId          String   // Owner of the route
+  user            User     @relation("UserRoutes", fields: [userId], references: [id], onDelete: Cascade)
+  mapID           String   // e.g., "buried-city", "dam", "spaceport", "stella-montis"
+  routeNumber     Int      // 1-10 per user per map
+  name            String?  // Optional user-provided name
+  nameAr          String?  // Optional Arabic name
+  coordinates     Json     // Array of {lat, lng} points forming the polyline
+  color           String   // Predefined color based on routeNumber
+  visible         Boolean  @default(false) // Only one can be true at a time per user per map
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@unique([userId, mapID, routeNumber]) // Each user can have routes 1-10 per map
+  @@index([userId, mapID])
+  @@index([userId, mapID, visible]) // Fast lookup for active route
 }

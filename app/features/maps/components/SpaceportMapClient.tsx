@@ -5,8 +5,14 @@ import L from 'leaflet';
 import { memo, useState, useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { MapSidebar } from './MapSidebar';
+import { AdminMapSidebar } from './AdminMapSidebar';
 import { AddMarkerModal, type MarkerSettings } from './AddMarkerModal';
 import { AddAreaLabelModal } from './AddAreaLabelModal';
+import { SaveMapPositionButton } from './SaveMapPositionButton';
+import { DrawRegionButton } from './DrawRegionButton';
+import { RegionDisplay, type MapRegion } from './RegionDisplay';
+import { RouteDisplay, type MapRoute } from './RouteDisplay';
+import { RouteDrawButton } from './RouteDrawButton';
 import { MARKER_CATEGORIES, SUBCATEGORY_ICONS, type MapMarker, type MarkerCategory, type AreaLabel } from '../types';
 import { useSession } from 'next-auth/react';
 
@@ -17,6 +23,16 @@ const mapStyles = `
   }
   .leaflet-tile-container {
     background-color: transparent;
+  }
+  .leaflet-tile {
+    transition: opacity 0s !important;
+    opacity: 1 !important;
+  }
+  .leaflet-tile-loaded {
+    opacity: 1 !important;
+  }
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
   .leaflet-container::after {
     content: '';
@@ -51,8 +67,10 @@ const CustomCRS = L.extend({}, L.CRS.Simple, {
   transformation: new L.Transformation(1/SCALE, X_OFFSET, 1/SCALE, Y_OFFSET)
 });
 
-// Center coordinates for perfect map positioning
-const center = L.latLng(2350.000, 3867.000);
+// Default center coordinates for perfect map positioning
+// This will be overridden by saved configuration if available
+const DEFAULT_CENTER = L.latLng(2350.000, 3867.000);
+const DEFAULT_ZOOM = 3;
 
 // Create custom marker icons by category and subcategory
 function createMarkerIcon(category: string, color: string, subcategory: string | null) {
@@ -400,6 +418,48 @@ export const SpaceportMapClient = memo(function SpaceportMapClient({ isAdminMode
   const [addLabelModalOpen, setAddLabelModalOpen] = useState(false);
   const [newLabelPosition, setNewLabelPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [addingLabel, setAddingLabel] = useState(false);
+  const [regions, setRegions] = useState<MapRegion[]>([]);
+
+  // Route state
+  const [routes, setRoutes] = useState<MapRoute[]>([]);
+  const [activeRoute, setActiveRoute] = useState<MapRoute | null>(null);
+  const [isDrawingRoute, setIsDrawingRoute] = useState(false);
+  const [selectedRouteSlot, setSelectedRouteSlot] = useState<number | null>(null);
+  const [editingRoute, setEditingRoute] = useState<{ id: string; coordinates: Array<{ lat: number; lng: number }>; name?: string | null; nameAr?: string | null } | null>(null);
+
+  // Admin tool triggers
+  const [triggerDrawRegion, setTriggerDrawRegion] = useState(false);
+  const [triggerSavePosition, setTriggerSavePosition] = useState(false);
+  const [isDrawingRegion, setIsDrawingRegion] = useState(false);
+
+  // Map configuration state (center and zoom)
+  const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  // Fetch saved map configuration on mount
+  useEffect(() => {
+    async function fetchMapConfig() {
+      try {
+        const response = await fetch('/api/maps/config?mapId=spaceport');
+        const data = await response.json();
+
+        if (data.success && data.config) {
+          setMapCenter(L.latLng(data.config.centerLat, data.config.centerLng));
+          setMapZoom(data.config.zoom);
+          console.log('✅ Loaded saved map configuration:', data.config);
+        } else {
+          console.log('ℹ️ Using default map configuration');
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch map configuration:', error);
+      } finally {
+        setConfigLoaded(true);
+      }
+    }
+
+    fetchMapConfig();
+  }, []);
 
   // Fetch area labels from API
   useEffect(() => {
@@ -419,6 +479,115 @@ export const SpaceportMapClient = memo(function SpaceportMapClient({ isAdminMode
 
     fetchAreaLabels();
   }, []);
+
+  // Fetch regions from API
+  useEffect(() => {
+    async function fetchRegions() {
+      try {
+        const response = await fetch('/api/maps/regions?mapId=spaceport');
+        const data = await response.json();
+
+        if (data.success) {
+          setRegions(data.regions);
+          console.log(`✅ Loaded ${data.regions.length} regions`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch regions:', error);
+      }
+    }
+
+    fetchRegions();
+  }, []);
+
+  // Fetch routes from API
+  const fetchRoutes = async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      const response = await fetch('/api/maps/routes?mapId=spaceport');
+      const data = await response.json();
+      if (data.success) {
+        setRoutes(data.routes);
+        const visible = data.routes.find((r: MapRoute) => r.visible);
+        setActiveRoute(visible || null);
+        console.log(`✅ Loaded ${data.routes.length} routes`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch routes:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchRoutes();
+    }
+  }, [session]);
+
+  // Route handlers
+  const handleDrawRoute = (routeNumber: number) => {
+    setSelectedRouteSlot(routeNumber);
+    setIsDrawingRoute(true);
+    setEditingRoute(null);
+  };
+
+  const handleToggleVisibility = async (routeId: string, routeNumber: number) => {
+    try {
+      const response = await fetch('/api/maps/routes/visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ routeId, mapId: 'spaceport' }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchRoutes();
+      }
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+    }
+  };
+
+  const handleEditRoute = (routeId: string, routeNumber: number) => {
+    const route = routes.find(r => r.id === routeId);
+    if (route) {
+      setEditingRoute({
+        id: route.id,
+        coordinates: route.coordinates,
+        name: route.name,
+        nameAr: route.nameAr,
+      });
+      setSelectedRouteSlot(routeNumber);
+      setIsDrawingRoute(true);
+    }
+  };
+
+  const handleDeleteRoute = async (routeId: string) => {
+    try {
+      const response = await fetch(`/api/maps/routes/${routeId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchRoutes();
+      }
+    } catch (error) {
+      console.error('Error deleting route:', error);
+    }
+  };
+
+  const handleRouteDrawn = async () => {
+    setIsDrawingRoute(false);
+    setSelectedRouteSlot(null);
+    setEditingRoute(null);
+    await fetchRoutes();
+  };
+
+  const handleCancelDrawing = () => {
+    setIsDrawingRoute(false);
+    setSelectedRouteSlot(null);
+    setEditingRoute(null);
+  };
 
   // Fetch markers from API
   useEffect(() => {
@@ -710,27 +879,103 @@ export const SpaceportMapClient = memo(function SpaceportMapClient({ isAdminMode
     }
   };
 
+  const handleRegionDrawn = async () => {
+    // Refetch regions
+    try {
+      const response = await fetch('/api/maps/regions?mapId=spaceport');
+      const data = await response.json();
+      if (data.success) {
+        setRegions(data.regions);
+      }
+    } catch (error) {
+      console.error('Failed to refetch regions:', error);
+    }
+  };
+
+  const handleDeleteRegion = async (regionId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه المنطقة؟')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/maps/regions/${regionId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('فشل في حذف المنطقة');
+        return;
+      }
+
+      // Refetch regions
+      handleRegionDrawn();
+    } catch (error) {
+      console.error('Error deleting region:', error);
+      alert('حدث خطأ أثناء الحذف');
+    }
+  };
+
   return (
     <div className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
       <style dangerouslySetInnerHTML={{ __html: mapStyles }} />
 
-      {/* Sidebar */}
-      <MapSidebar
-        categories={categories}
-        markers={markers}
-        onCategoryToggle={handleCategoryToggle}
-        onSubcategoryToggle={handleSubcategoryToggle}
-        onLootAreaToggle={handleLootAreaToggle}
-        onLockedDoorToggle={handleLockedDoorToggle}
-        onToggleAll={handleToggleAll}
-        enabledSubcategories={enabledSubcategories}
-        enabledLootAreas={enabledLootAreas}
-        showLockedOnly={showLockedOnly}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        showAreaLabels={showAreaLabels}
-        onAreaLabelsToggle={handleAreaLabelsToggle}
-      />
+      {/* Sidebar - Use AdminMapSidebar when in admin mode */}
+      {isAdminMode ? (
+        <AdminMapSidebar
+          categories={categories}
+          markers={markers}
+          onCategoryToggle={handleCategoryToggle}
+          onSubcategoryToggle={handleSubcategoryToggle}
+          onLootAreaToggle={handleLootAreaToggle}
+          onLockedDoorToggle={handleLockedDoorToggle}
+          onToggleAll={handleToggleAll}
+          enabledSubcategories={enabledSubcategories}
+          enabledLootAreas={enabledLootAreas}
+          showLockedOnly={showLockedOnly}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showAreaLabels={showAreaLabels}
+          onAreaLabelsToggle={handleAreaLabelsToggle}
+          onDrawRegion={() => setTriggerDrawRegion(prev => !prev)}
+          onAddMarker={toggleAddingMarker}
+          onAddLabel={toggleAddingLabel}
+          onSavePosition={() => setTriggerSavePosition(prev => !prev)}
+          isDrawingRegion={isDrawingRegion}
+          isAddingMarker={addingMarker}
+          isAddingLabel={addingLabel}
+          routes={routes}
+          onDrawRoute={handleDrawRoute}
+          onToggleRouteVisibility={handleToggleVisibility}
+          onEditRoute={handleEditRoute}
+          onDeleteRoute={handleDeleteRoute}
+          showRoutes={!!session?.user?.id && !isDrawingRoute}
+        />
+      ) : (
+        <MapSidebar
+          categories={categories}
+          markers={markers}
+          onCategoryToggle={handleCategoryToggle}
+          onSubcategoryToggle={handleSubcategoryToggle}
+          onLootAreaToggle={handleLootAreaToggle}
+          onLockedDoorToggle={handleLockedDoorToggle}
+          onToggleAll={handleToggleAll}
+          enabledSubcategories={enabledSubcategories}
+          enabledLootAreas={enabledLootAreas}
+          showLockedOnly={showLockedOnly}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showAreaLabels={showAreaLabels}
+          onAreaLabelsToggle={handleAreaLabelsToggle}
+          routes={routes}
+          onDrawRoute={handleDrawRoute}
+          onToggleRouteVisibility={handleToggleVisibility}
+          onEditRoute={handleEditRoute}
+          onDeleteRoute={handleDeleteRoute}
+          showRoutes={!!session?.user?.id && !isDrawingRoute}
+        />
+      )}
 
       {/* Loading indicator */}
       {loading && (
@@ -742,34 +987,39 @@ export const SpaceportMapClient = memo(function SpaceportMapClient({ isAdminMode
         </div>
       )}
 
-      {/* Map */}
-      <MapContainer
-        key="spaceport-map-static"
-        center={center}
-        zoom={3}
-        minZoom={MIN_ZOOM}
-        maxZoom={MAX_ZOOM}
-        crs={CustomCRS}
-        className="w-full h-full bg-black"
-        zoomControl={true}
-        attributionControl={false}
-        zoomSnap={1}
-        zoomDelta={1}
-        wheelPxPerZoomLevel={60}
-        scrollWheelZoom={true}
-        dragging={true}
-        style={{ backgroundColor: '#000000' }}
-      >
+      {/* Map - Only render after config is loaded */}
+      {configLoaded && (
+        <MapContainer
+          key="spaceport-map-static"
+          center={mapCenter}
+          zoom={mapZoom}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          crs={CustomCRS}
+          className="w-full h-full bg-black"
+          zoomControl={true}
+          attributionControl={false}
+          zoomSnap={1}
+          zoomDelta={1}
+          wheelPxPerZoomLevel={60}
+          scrollWheelZoom={true}
+          dragging={true}
+          style={{ backgroundColor: '#000000' }}
+        >
         <TileLayer
           url="/imagesmaps/spaceport/{z}/{x}/{y}.webp"
           tileSize={TILE_SIZE}
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
+          minNativeZoom={MIN_ZOOM}
+          maxNativeZoom={MAX_ZOOM}
           noWrap={true}
-          keepBuffer={2}
-          updateWhenIdle={true}
-          updateWhenZooming={false}
-          errorTileUrl="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Crect width='256' height='256' fill='%23000000'/%3E%3C/svg%3E"
+          keepBuffer={12}
+          bounds={undefined}
+          updateWhenIdle={false}
+          updateWhenZooming={true}
+          updateInterval={100}
+          className="map-tiles"
         />
         <MapClickHandler
           onMapClick={handleMapClick}
@@ -781,6 +1031,11 @@ export const SpaceportMapClient = memo(function SpaceportMapClient({ isAdminMode
           labels={areaLabels}
           isAdminMode={isAdminMode}
           onDelete={handleDeleteLabel}
+        />
+        <RegionDisplay
+          regions={regions}
+          isAdminMode={isAdminMode}
+          onDelete={handleDeleteRegion}
         />
         <MapMarkers
           markers={markers}
@@ -845,37 +1100,43 @@ export const SpaceportMapClient = memo(function SpaceportMapClient({ isAdminMode
             />
           );
         })}
+        {/* Save Map Position Button (Admin Only) - Hidden UI, controlled from sidebar */}
+        {isAdminMode && (
+          <SaveMapPositionButton
+            mapId="spaceport"
+            hideUI={true}
+            triggerSave={triggerSavePosition}
+          />
+        )}
+        {/* Draw Region Button (Admin Only) - Hidden UI, controlled from sidebar */}
+        {isAdminMode && (
+          <DrawRegionButton
+            mapId="spaceport"
+            onRegionDrawn={handleRegionDrawn}
+            hideUI={true}
+            triggerStart={triggerDrawRegion}
+            onDrawingStateChange={setIsDrawingRegion}
+          />
+        )}
+
+        {/* User routes - only for logged-in users */}
+        {session?.user?.id && (
+          <>
+            <RouteDisplay route={activeRoute} />
+            {isDrawingRoute && selectedRouteSlot && (
+              <RouteDrawButton
+                mapId="spaceport"
+                routeSlot={selectedRouteSlot}
+                existingRoute={editingRoute}
+                onRouteDrawn={handleRouteDrawn}
+                onCancel={handleCancelDrawing}
+                isDrawing={isDrawingRoute}
+                onDrawingStateChange={setIsDrawingRoute}
+              />
+            )}
+          </>
+        )}
       </MapContainer>
-
-      {/* Add Marker and Label Buttons */}
-      {(session || isAdminMode) && (
-        <div className="absolute bottom-6 left-6 z-[1001] flex flex-col gap-2">
-          <button
-            onClick={toggleAddingMarker}
-            className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
-              addingMarker
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : isAdminMode
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-            }`}
-          >
-            {addingMarker ? 'إلغاء إضافة العلامة' : '+ إضافة علامة'}
-          </button>
-
-          {isAdminMode && (
-            <button
-              onClick={toggleAddingLabel}
-              className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
-                addingLabel
-                  ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
-              }`}
-            >
-              {addingLabel ? 'إلغاء إضافة العنوان' : '+ إضافة عنوان (Title)'}
-            </button>
-          )}
-        </div>
       )}
 
       {/* Continuous Placement Indicator */}

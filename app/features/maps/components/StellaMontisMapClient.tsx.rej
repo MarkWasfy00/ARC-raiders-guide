@@ -1,0 +1,14 @@
+--- app/features/maps/components/StellaMontisMapClient.tsx
++++ app/features/maps/components/StellaMontisMapClient.tsx
+@@ -427,6 +427,11 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAd
+   const [regions, setRegions] = useState<MapRegion[]>([]);
+ 
++  // Admin tool triggers
++  const [triggerDrawRegion, setTriggerDrawRegion] = useState(false);
++  const [triggerSavePosition, setTriggerSavePosition] = useState(false);
++  const [isDrawingRegion, setIsDrawingRegion] = useState(false);
++
+   // Map configuration state (center and zoom)
+ 
+ 
+ 

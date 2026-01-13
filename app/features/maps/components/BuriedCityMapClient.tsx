@@ -5,8 +5,14 @@ import L from 'leaflet';
 import { memo, useState, useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { MapSidebar } from './MapSidebar';
+import { AdminMapSidebar } from './AdminMapSidebar';
 import { AddMarkerModal, type MarkerSettings } from './AddMarkerModal';
 import { AddAreaLabelModal } from './AddAreaLabelModal';
+import { SaveMapPositionButton } from './SaveMapPositionButton';
+import { DrawRegionButton } from './DrawRegionButton';
+import { RegionDisplay, type MapRegion } from './RegionDisplay';
+import { RouteDisplay, type MapRoute } from './RouteDisplay';
+import { RouteDrawButton } from './RouteDrawButton';
 import { MARKER_CATEGORIES, SUBCATEGORY_ICONS, type MapMarker, type MarkerCategory, type AreaLabel } from '../types';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
@@ -18,6 +24,16 @@ const mapStyles = `
   }
   .leaflet-tile-container {
     background-color: transparent;
+  }
+  .leaflet-tile {
+    transition: opacity 0s !important;
+    opacity: 1 !important;
+  }
+  .leaflet-tile-loaded {
+    opacity: 1 !important;
+  }
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
   .leaflet-container::after {
     content: '';
@@ -46,9 +62,11 @@ const CustomCRS = L.extend({}, L.CRS.Simple, {
   transformation: new L.Transformation(1/SCALE, 0, 1/SCALE, 0)
 });
 
-// Center coordinates for Buried City map (centered on marker data range)
+// Default center coordinates for Buried City map (centered on marker data range)
 // Marker data ranges: lat 2792-6543, lng 5007-9387
-const center = L.latLng(4667, 7197);
+// This will be overridden by saved configuration if available
+const DEFAULT_CENTER = L.latLng(4667, 7197);
+const DEFAULT_ZOOM = 2;
 
 // Buried City area labels (now loaded from database)
 
@@ -405,16 +423,58 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
   const [addLabelModalOpen, setAddLabelModalOpen] = useState(false);
   const [newLabelPosition, setNewLabelPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [addingLabel, setAddingLabel] = useState(false);
+  const [regions, setRegions] = useState<MapRegion[]>([]);
+
+  // Route state
+  const [routes, setRoutes] = useState<MapRoute[]>([]);
+  const [activeRoute, setActiveRoute] = useState<MapRoute | null>(null);
+  const [isDrawingRoute, setIsDrawingRoute] = useState(false);
+  const [selectedRouteSlot, setSelectedRouteSlot] = useState<number | null>(null);
+  const [editingRoute, setEditingRoute] = useState<{ id: string; coordinates: Array<{ lat: number; lng: number }>; name?: string | null; nameAr?: string | null } | null>(null);
+
+  // Admin tool triggers
+  const [triggerDrawRegion, setTriggerDrawRegion] = useState(false);
+  const [triggerSavePosition, setTriggerSavePosition] = useState(false);
+  const [isDrawingRegion, setIsDrawingRegion] = useState(false);
+
+  // Map configuration state (center and zoom)
+  const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  // Fetch saved map configuration on mount
+  useEffect(() => {
+    async function fetchMapConfig() {
+      try {
+        const response = await fetch('/api/maps/config?mapId=buried-city');
+        const data = await response.json();
+
+        if (data.success && data.config) {
+          setMapCenter(L.latLng(data.config.centerLat, data.config.centerLng));
+          setMapZoom(data.config.zoom);
+          console.log('✅ Loaded saved map configuration:', data.config);
+        } else {
+          console.log('ℹ️ Using default map configuration');
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch map configuration:', error);
+      } finally {
+        setConfigLoaded(true);
+      }
+    }
+
+    fetchMapConfig();
+  }, []);
 
   // Log CRS configuration on mount
   useEffect(() => {
     console.log('🗺️  Buried City Map - Game Coordinate System:');
     console.log(`   World size: ${WORLD_SIZE} units with scale 1/${SCALE}`);
     console.log(`   CRS: Simple (same as Dam map)`);
-    console.log(`   Center: [${center.lat}, ${center.lng}] game units`);
+    console.log(`   Center: [${mapCenter.lat}, ${mapCenter.lng}] game units`);
     console.log(`   Tile grid at zoom 3: 8×4 (rectangular)`);
     console.log(`   Marker ranges: lat 2792-6543, lng 5007-9387`);
-  }, []);
+  }, [mapCenter]);
 
   // Fetch area labels from API
   useEffect(() => {
@@ -434,6 +494,115 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
 
     fetchAreaLabels();
   }, []);
+
+  // Fetch regions from API
+  useEffect(() => {
+    async function fetchRegions() {
+      try {
+        const response = await fetch('/api/maps/regions?mapId=buried-city');
+        const data = await response.json();
+
+        if (data.success) {
+          setRegions(data.regions);
+          console.log(`✅ Loaded ${data.regions.length} regions`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch regions:', error);
+      }
+    }
+
+    fetchRegions();
+  }, []);
+
+  // Fetch routes from API
+  const fetchRoutes = async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      const response = await fetch('/api/maps/routes?mapId=buried-city');
+      const data = await response.json();
+      if (data.success) {
+        setRoutes(data.routes);
+        const visible = data.routes.find((r: MapRoute) => r.visible);
+        setActiveRoute(visible || null);
+        console.log(`✅ Loaded ${data.routes.length} routes`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch routes:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchRoutes();
+    }
+  }, [session]);
+
+  // Route handlers
+  const handleDrawRoute = (routeNumber: number) => {
+    setSelectedRouteSlot(routeNumber);
+    setIsDrawingRoute(true);
+    setEditingRoute(null);
+  };
+
+  const handleToggleVisibility = async (routeId: string, routeNumber: number) => {
+    try {
+      const response = await fetch('/api/maps/routes/visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ routeId, mapId: 'buried-city' }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchRoutes();
+      }
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+    }
+  };
+
+  const handleEditRoute = (routeId: string, routeNumber: number) => {
+    const route = routes.find(r => r.id === routeId);
+    if (route) {
+      setEditingRoute({
+        id: route.id,
+        coordinates: route.coordinates,
+        name: route.name,
+        nameAr: route.nameAr,
+      });
+      setSelectedRouteSlot(routeNumber);
+      setIsDrawingRoute(true);
+    }
+  };
+
+  const handleDeleteRoute = async (routeId: string) => {
+    try {
+      const response = await fetch(`/api/maps/routes/${routeId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchRoutes();
+      }
+    } catch (error) {
+      console.error('Error deleting route:', error);
+    }
+  };
+
+  const handleRouteDrawn = async () => {
+    setIsDrawingRoute(false);
+    setSelectedRouteSlot(null);
+    setEditingRoute(null);
+    await fetchRoutes();
+  };
+
+  const handleCancelDrawing = () => {
+    setIsDrawingRoute(false);
+    setSelectedRouteSlot(null);
+    setEditingRoute(null);
+  };
 
   // Fetch markers from API
   useEffect(() => {
@@ -755,27 +924,103 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
     }
   };
 
+  const handleRegionDrawn = async () => {
+    // Refetch regions
+    try {
+      const response = await fetch('/api/maps/regions?mapId=buried-city');
+      const data = await response.json();
+      if (data.success) {
+        setRegions(data.regions);
+      }
+    } catch (error) {
+      console.error('Failed to refetch regions:', error);
+    }
+  };
+
+  const handleDeleteRegion = async (regionId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه المنطقة؟')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/maps/regions/${regionId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('فشل في حذف المنطقة');
+        return;
+      }
+
+      // Refetch regions
+      handleRegionDrawn();
+    } catch (error) {
+      console.error('Error deleting region:', error);
+      alert('حدث خطأ أثناء الحذف');
+    }
+  };
+
   return (
     <div className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
       <style dangerouslySetInnerHTML={{ __html: mapStyles }} />
 
-      {/* Sidebar */}
-      <MapSidebar
-        categories={categories}
-        markers={markers}
-        onCategoryToggle={handleCategoryToggle}
-        onSubcategoryToggle={handleSubcategoryToggle}
-        onLootAreaToggle={handleLootAreaToggle}
-        onLockedDoorToggle={handleLockedDoorToggle}
-        onToggleAll={handleToggleAll}
-        enabledSubcategories={enabledSubcategories}
-        enabledLootAreas={enabledLootAreas}
-        showLockedOnly={showLockedOnly}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        showAreaLabels={showAreaLabels}
-        onAreaLabelsToggle={handleAreaLabelsToggle}
-      />
+      {/* Sidebar - Use AdminMapSidebar when in admin mode */}
+      {isAdminMode ? (
+        <AdminMapSidebar
+          categories={categories}
+          markers={markers}
+          onCategoryToggle={handleCategoryToggle}
+          onSubcategoryToggle={handleSubcategoryToggle}
+          onLootAreaToggle={handleLootAreaToggle}
+          onLockedDoorToggle={handleLockedDoorToggle}
+          onToggleAll={handleToggleAll}
+          enabledSubcategories={enabledSubcategories}
+          enabledLootAreas={enabledLootAreas}
+          showLockedOnly={showLockedOnly}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showAreaLabels={showAreaLabels}
+          onAreaLabelsToggle={handleAreaLabelsToggle}
+          onDrawRegion={() => setTriggerDrawRegion(prev => !prev)}
+          onAddMarker={toggleAddingMarker}
+          onAddLabel={toggleAddingLabel}
+          onSavePosition={() => setTriggerSavePosition(prev => !prev)}
+          isDrawingRegion={isDrawingRegion}
+          isAddingMarker={addingMarker}
+          isAddingLabel={addingLabel}
+          routes={routes}
+          onDrawRoute={handleDrawRoute}
+          onToggleRouteVisibility={handleToggleVisibility}
+          onEditRoute={handleEditRoute}
+          onDeleteRoute={handleDeleteRoute}
+          showRoutes={!!session?.user?.id && !isDrawingRoute}
+        />
+      ) : (
+        <MapSidebar
+          categories={categories}
+          markers={markers}
+          onCategoryToggle={handleCategoryToggle}
+          onSubcategoryToggle={handleSubcategoryToggle}
+          onLootAreaToggle={handleLootAreaToggle}
+          onLockedDoorToggle={handleLockedDoorToggle}
+          onToggleAll={handleToggleAll}
+          enabledSubcategories={enabledSubcategories}
+          enabledLootAreas={enabledLootAreas}
+          showLockedOnly={showLockedOnly}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showAreaLabels={showAreaLabels}
+          onAreaLabelsToggle={handleAreaLabelsToggle}
+          routes={routes}
+          onDrawRoute={handleDrawRoute}
+          onToggleRouteVisibility={handleToggleVisibility}
+          onEditRoute={handleEditRoute}
+          onDeleteRoute={handleDeleteRoute}
+          showRoutes={!!session?.user?.id && !isDrawingRoute}
+        />
+      )}
 
       {/* Loading indicator */}
       {loading && (
@@ -787,24 +1032,35 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
         </div>
       )}
 
-      {/* Map */}
-      <MapContainer
-        center={center}
-        zoom={2}
-        minZoom={MIN_ZOOM}
-        maxZoom={MAX_ZOOM}
-        crs={CustomCRS}
-        className="w-full h-full bg-black"
-        zoomControl={true}
-        attributionControl={false}
-        scrollWheelZoom={true}
-        dragging={true}
-        style={{ backgroundColor: '#000000' }}
-      >
+      {/* Map - Only render after config is loaded */}
+      {configLoaded && (
+        <MapContainer
+          center={mapCenter}
+          zoom={mapZoom}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          crs={CustomCRS}
+          className="w-full h-full bg-black"
+          zoomControl={true}
+          attributionControl={false}
+          scrollWheelZoom={true}
+          dragging={true}
+          style={{ backgroundColor: '#000000' }}
+        >
         <TileLayer
           url="/imagesmaps/buried-city/{z}/{x}/{y}.webp"
           tileSize={TILE_SIZE}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          minNativeZoom={MIN_ZOOM}
+          maxNativeZoom={MAX_ZOOM}
           noWrap={true}
+          keepBuffer={12}
+          bounds={undefined}
+          updateWhenIdle={false}
+          updateWhenZooming={true}
+          updateInterval={100}
+          className="map-tiles"
         />
         <MapClickHandler
           onMapClick={handleMapClick}
@@ -816,6 +1072,11 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
           labels={areaLabels}
           isAdminMode={isAdminMode}
           onDelete={handleDeleteLabel}
+        />
+        <RegionDisplay
+          regions={regions}
+          isAdminMode={isAdminMode}
+          onDelete={handleDeleteRegion}
         />
         <MapMarkers
           markers={markers}
@@ -880,37 +1141,43 @@ export const BuriedCityMapClient = memo(function BuriedCityMapClient({ isAdminMo
             />
           );
         })}
+        {/* Save Map Position Button (Admin Only) - Hidden UI, controlled from sidebar */}
+        {isAdminMode && (
+          <SaveMapPositionButton
+            mapId="buried-city"
+            hideUI={true}
+            triggerSave={triggerSavePosition}
+          />
+        )}
+        {/* Draw Region Button (Admin Only) - Hidden UI, controlled from sidebar */}
+        {isAdminMode && (
+          <DrawRegionButton
+            mapId="buried-city"
+            onRegionDrawn={handleRegionDrawn}
+            hideUI={true}
+            triggerStart={triggerDrawRegion}
+            onDrawingStateChange={setIsDrawingRegion}
+          />
+        )}
+
+        {/* User routes - only for logged-in users */}
+        {session?.user?.id && (
+          <>
+            <RouteDisplay route={activeRoute} />
+            {isDrawingRoute && selectedRouteSlot && (
+              <RouteDrawButton
+                mapId="buried-city"
+                routeSlot={selectedRouteSlot}
+                existingRoute={editingRoute}
+                onRouteDrawn={handleRouteDrawn}
+                onCancel={handleCancelDrawing}
+                isDrawing={isDrawingRoute}
+                onDrawingStateChange={setIsDrawingRoute}
+              />
+            )}
+          </>
+        )}
       </MapContainer>
-
-      {/* Add Marker and Label Buttons */}
-      {(session || isAdminMode) && (
-        <div className="absolute bottom-6 left-6 z-[1001] flex flex-col gap-2">
-          <button
-            onClick={toggleAddingMarker}
-            className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
-              addingMarker
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : isAdminMode
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-            }`}
-          >
-            {addingMarker ? 'إلغاء إضافة العلامة' : '+ إضافة علامة'}
-          </button>
-
-          {isAdminMode && (
-            <button
-              onClick={toggleAddingLabel}
-              className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
-                addingLabel
-                  ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
-              }`}
-            >
-              {addingLabel ? 'إلغاء إضافة العنوان' : '+ إضافة عنوان (Title)'}
-            </button>
-          )}
-        </div>
       )}
 
       {/* Continuous Placement Indicator */}
