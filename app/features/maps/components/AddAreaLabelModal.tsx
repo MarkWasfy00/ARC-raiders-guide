@@ -20,12 +20,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+interface FloorOption {
+  value: 'top' | 'bottom';
+  label: string;
+  labelEn: string;
+}
+
+const DEFAULT_FLOOR_OPTIONS: FloorOption[] = [
+  { value: 'top', label: 'الطابق العلوي', labelEn: 'Top Floor' },
+  { value: 'bottom', label: 'الطابق السفلي', labelEn: 'Bottom Floor' },
+];
+
 interface AddAreaLabelModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   position: { lat: number; lng: number } | null;
   mapId: string;
   onLabelAdded: () => void;
+  showFloorSelector?: boolean; // Show floor selector for multi-floor maps
+  currentFloor?: 'top' | 'bottom'; // Current floor being viewed
+  floorOptions?: FloorOption[]; // Custom floor labels for different maps
 }
 
 const LABEL_PRESETS = [
@@ -40,6 +54,9 @@ export function AddAreaLabelModal({
   position,
   mapId,
   onLabelAdded,
+  showFloorSelector = false,
+  currentFloor = 'top',
+  floorOptions = DEFAULT_FLOOR_OPTIONS,
 }: AddAreaLabelModalProps) {
   const [name, setName] = useState<string>('');
   const [nameAr, setNameAr] = useState<string>('');
@@ -48,6 +65,7 @@ export function AddAreaLabelModal({
   const [preset, setPreset] = useState<string>('Custom');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
+  const [selectedFloor, setSelectedFloor] = useState<'top' | 'bottom'>(currentFloor);
 
   const handlePresetChange = (presetName: string) => {
     setPreset(presetName);
@@ -70,17 +88,24 @@ export function AddAreaLabelModal({
     setError('');
 
     try {
+      const requestBody: any = {
+        lat: position.lat,
+        lng: position.lng,
+        name,
+        nameAr,
+        fontSize,
+        color,
+      };
+
+      // Include zlayers if floor selector is shown
+      if (showFloorSelector) {
+        requestBody.zlayers = selectedFloor === 'top' ? 2 : 1;
+      }
+
       const response = await fetch(`/api/maps/${mapId}/labels`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lat: position.lat,
-          lng: position.lng,
-          name,
-          nameAr,
-          fontSize,
-          color,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -95,6 +120,7 @@ export function AddAreaLabelModal({
       setFontSize(14);
       setColor('#ffffff');
       setPreset('Custom');
+      setSelectedFloor(currentFloor);
 
       // Notify parent
       onLabelAdded();
@@ -121,6 +147,24 @@ export function AddAreaLabelModal({
             {position && (
               <div className="text-sm text-muted-foreground">
                 الموقع: ({position.lat.toFixed(1)}, {position.lng.toFixed(1)})
+              </div>
+            )}
+
+            {showFloorSelector && (
+              <div className="grid gap-3">
+                <Label htmlFor="floor">الطابق *</Label>
+                <Select value={selectedFloor} onValueChange={(value: 'top' | 'bottom') => setSelectedFloor(value)}>
+                  <SelectTrigger id="floor">
+                    <SelectValue placeholder="اختر الطابق" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {floorOptions.map((floor) => (
+                      <SelectItem key={floor.value} value={floor.value}>
+                        {floor.label} ({floor.labelEn})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 

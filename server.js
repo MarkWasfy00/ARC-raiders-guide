@@ -15,7 +15,7 @@ app.prepare().then(() => {
   // Initialize Socket.IO server
   const io = new Server(httpServer, {
     cors: {
-      origin: dev ? `http://${hostname}:${port}` : process.env.NEXTAUTH_URL,
+      origin: dev ? `http://${hostname}:${port}` : process.env.AUTH_URL,
       methods: ["GET", "POST"],
       credentials: true,
     },

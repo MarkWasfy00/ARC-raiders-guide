@@ -6,6 +6,11 @@ import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "./auth.config";
 
+// Allow HTTP in production by setting AUTH_URL to http:// or NEXTAUTH_URL_INTERNAL
+const useSecureCookies = process.env.NODE_ENV === "production" &&
+  !process.env.AUTH_URL?.startsWith("http://") &&
+  process.env.NEXTAUTH_SECURE_COOKIES !== "false";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
@@ -15,56 +20,56 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   cookies: {
     sessionToken: {
-      name: "next-auth.session-token",
+      name: useSecureCookies ? "__Secure-next-auth.session-token" : "next-auth.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: useSecureCookies,
       },
     },
     callbackUrl: {
-      name: "next-auth.callback-url",
+      name: useSecureCookies ? "__Secure-next-auth.callback-url" : "next-auth.callback-url",
       options: {
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: useSecureCookies,
       },
     },
     csrfToken: {
-      name: "next-auth.csrf-token",
+      name: useSecureCookies ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: useSecureCookies,
       },
     },
     pkceCodeVerifier: {
-      name: "next-auth.pkce.code_verifier",
+      name: useSecureCookies ? "__Secure-next-auth.pkce.code_verifier" : "next-auth.pkce.code_verifier",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: useSecureCookies,
       },
     },
     state: {
-      name: "next-auth.state",
+      name: useSecureCookies ? "__Secure-next-auth.state" : "next-auth.state",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: useSecureCookies,
       },
     },
     nonce: {
-      name: "next-auth.nonce",
+      name: useSecureCookies ? "__Secure-next-auth.nonce" : "next-auth.nonce",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: useSecureCookies,
       },
     },
   },

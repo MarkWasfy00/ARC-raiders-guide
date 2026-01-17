@@ -17,7 +17,7 @@ const initialMaps: MapData[] = [
     id: 'stella-montis',
     name: 'Stella Montis',
     href: '/admin/maps/stella-montis',
-    imageUrl: '/imagesmaps/blue-gate.webp'
+    imageUrl: '/imagesmaps/dambattlegrounds.webp'
   },
   {
     id: 'buried-city',
@@ -30,6 +30,12 @@ const initialMaps: MapData[] = [
     name: 'The Spaceport',
     href: '/admin/maps/spaceport',
     imageUrl: '/imagesmaps/spaceport.webp'
+  },
+  {
+    id: 'blue-gate',
+    name: 'Blue Gate',
+    href: '/admin/maps/blue-gate',
+    imageUrl: '/imagesmaps/dambattlegrounds.webp'
   },
 ];
 

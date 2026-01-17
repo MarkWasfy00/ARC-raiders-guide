@@ -60,7 +60,25 @@ export async function seedStellaMontisMap() {
     }
 
     console.log(`✅ Successfully seeded ${insertedCount} Stella Montis map markers!`);
-    console.log(`📊 Breakdown:`);
+
+    // Get counts by floor (zlayers)
+    const floors = await prisma.mapMarker.groupBy({
+      by: ['zlayers'],
+      where: {
+        mapID: 'stella-montis',
+      },
+      _count: {
+        zlayers: true,
+      },
+    });
+
+    console.log(`\n📊 Floor Breakdown:`);
+    floors.forEach((floor) => {
+      const floorName = floor.zlayers === 1 ? 'Bottom Floor'
+        : floor.zlayers === 2 ? 'Top Floor'
+        : 'All Floors';
+      console.log(`   🏢 ${floorName} (zlayers=${floor.zlayers}): ${floor._count.zlayers} markers`);
+    });
 
     // Get counts by category
     const categories = await prisma.mapMarker.groupBy({
@@ -73,13 +91,47 @@ export async function seedStellaMontisMap() {
       },
     });
 
+    console.log(`\n📊 Category Breakdown:`);
     categories.forEach((cat) => {
       console.log(`   - ${cat.category}: ${cat._count.category} markers`);
+    });
+
+    // Get counts by floor AND category for detailed breakdown
+    const floorCategories = await prisma.mapMarker.groupBy({
+      by: ['zlayers', 'category'],
+      where: {
+        mapID: 'stella-montis',
+      },
+      _count: {
+        id: true,
+      },
+      orderBy: [
+        { zlayers: 'asc' },
+        { category: 'asc' },
+      ],
+    });
+
+    console.log(`\n📊 Detailed Breakdown (Floor + Category):`);
+    let currentFloor = -1;
+    floorCategories.forEach((fc) => {
+      if (fc.zlayers !== currentFloor) {
+        currentFloor = fc.zlayers;
+        const floorName = fc.zlayers === 1 ? 'Bottom Floor'
+          : fc.zlayers === 2 ? 'Top Floor'
+          : 'All Floors';
+        console.log(`   🏢 ${floorName}:`);
+      }
+      console.log(`      - ${fc.category}: ${fc._count.id} markers`);
     });
 
     return {
       success: true,
       total: insertedCount,
+      floors: floors.map((floor) => ({
+        zlayers: floor.zlayers,
+        floorName: floor.zlayers === 1 ? 'bottom' : floor.zlayers === 2 ? 'top' : 'all',
+        count: floor._count.zlayers,
+      })),
       categories: categories.map((cat) => ({
         category: cat.category,
         count: cat._count.category,

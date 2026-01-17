@@ -6,4 +6,5 @@ export { DamMap } from './components/DamMap';
 export { StellaMontisMap } from './components/StellaMontisMap';
 export { SpaceportMapClient } from './components/SpaceportMapClient';
 export { BuriedCityMap } from './components/BuriedCityMap';
+export { BlueGateMap } from './components/BlueGateMap';
 export type { MapData } from './types';

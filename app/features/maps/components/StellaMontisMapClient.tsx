@@ -6,8 +6,14 @@ import { memo, useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { MapSidebar } from './MapSidebar';
+import { AdminMapSidebar } from './AdminMapSidebar';
 import { AddMarkerModal, type MarkerSettings } from './AddMarkerModal';
 import { AddAreaLabelModal } from './AddAreaLabelModal';
+import { SaveMapPositionButton } from './SaveMapPositionButton';
+import { DrawRegionButton } from './DrawRegionButton';
+import { RegionDisplay, type MapRegion } from './RegionDisplay';
+import { RouteDisplay, type MapRoute } from './RouteDisplay';
+import { RouteDrawButton } from './RouteDrawButton';
 import { MARKER_CATEGORIES, SUBCATEGORY_ICONS, type MapMarker, type MarkerCategory, type AreaLabel } from '../types';
 import { useSession } from 'next-auth/react';
 
@@ -18,6 +24,16 @@ const mapStyles = `
   }
   .leaflet-tile-container {
     background-color: transparent;
+  }
+  .leaflet-tile {
+    transition: opacity 0s !important;
+    opacity: 1 !important;
+  }
+  .leaflet-tile-loaded {
+    opacity: 1 !important;
+  }
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
   .leaflet-container::after {
     content: '';
@@ -46,13 +62,15 @@ const CustomCRS = L.extend({}, L.CRS.Simple, {
   transformation: new L.Transformation(1/SCALE, 0, 1/SCALE, 0)
 });
 
-// Floor-specific center positions (calculated from actual marker data)
+// Default floor-specific center positions (calculated from actual marker data)
 // Bottom floor: 350 markers, lat range: 1165-3441, lng range: 1944-6295
 // Top floor: 149 markers, lat range: 1569-4098, lng range: 2798-5504
-const FLOOR_CENTERS = {
+// These will be overridden by saved configuration if available
+const DEFAULT_FLOOR_CENTERS = {
   bottom: L.latLng(2302.95, 4119.49),
   top: L.latLng(2833.56, 4150.84),
 };
+const DEFAULT_ZOOM = 3;
 
 // Create custom marker icons by category and subcategory
 function createMarkerIcon(category: string, color: string, subcategory: string | null) {
@@ -409,6 +427,24 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
   const [addLabelModalOpen, setAddLabelModalOpen] = useState(false);
   const [newLabelPosition, setNewLabelPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [addingLabel, setAddingLabel] = useState(false);
+  const [regions, setRegions] = useState<MapRegion[]>([]);
+
+  // Route state
+  const [routes, setRoutes] = useState<MapRoute[]>([]);
+  const [activeRoute, setActiveRoute] = useState<MapRoute | null>(null);
+  const [isDrawingRoute, setIsDrawingRoute] = useState(false);
+  const [selectedRouteSlot, setSelectedRouteSlot] = useState<number | null>(null);
+  const [editingRoute, setEditingRoute] = useState<{ id: string; coordinates: Array<{ lat: number; lng: number }>; name?: string | null; nameAr?: string | null } | null>(null);
+
+  // Admin tool triggers
+  const [triggerDrawRegion, setTriggerDrawRegion] = useState(false);
+  const [triggerSavePosition, setTriggerSavePosition] = useState(false);
+  const [isDrawingRegion, setIsDrawingRegion] = useState(false);
+
+  // Map configuration state (center and zoom)
+  const [mapCenter, setMapCenter] = useState(DEFAULT_FLOOR_CENTERS.bottom);
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   const floors = [
     { id: 'top' as const, label: 'الطابق العلوي', labelEn: 'Top Floor', path: 'stellamontis/top-floor' },
@@ -417,16 +453,47 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
 
   const selectedFloor = floors.find(f => f.id === currentFloor) || floors[1];
 
-  // Fetch area labels from API
+  // Fetch saved map configuration when floor changes
+  useEffect(() => {
+    async function fetchMapConfig() {
+      setConfigLoaded(false);
+      try {
+        const mapId = `stella-montis-${currentFloor}`;
+        const response = await fetch(`/api/maps/config?mapId=${mapId}`);
+        const data = await response.json();
+
+        if (data.success && data.config) {
+          setMapCenter(L.latLng(data.config.centerLat, data.config.centerLng));
+          setMapZoom(data.config.zoom);
+          console.log(`✅ Loaded saved map configuration for ${currentFloor} floor:`, data.config);
+        } else {
+          // Use default center for the current floor
+          setMapCenter(DEFAULT_FLOOR_CENTERS[currentFloor]);
+          setMapZoom(DEFAULT_ZOOM);
+          console.log(`ℹ️ Using default map configuration for ${currentFloor} floor`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch map configuration:', error);
+        setMapCenter(DEFAULT_FLOOR_CENTERS[currentFloor]);
+        setMapZoom(DEFAULT_ZOOM);
+      } finally {
+        setConfigLoaded(true);
+      }
+    }
+
+    fetchMapConfig();
+  }, [currentFloor]);
+
+  // Fetch area labels from API (floor-filtered)
   useEffect(() => {
     async function fetchAreaLabels() {
       try {
-        const response = await fetch('/api/maps/stella-montis/labels');
+        const response = await fetch(`/api/maps/stella-montis/labels?floor=${currentFloor}`);
         const data = await response.json();
 
         if (data.success) {
           setAreaLabels(data.labels);
-          console.log(`✅ Loaded ${data.labels.length} area labels for Stella Montis`);
+          console.log(`✅ Loaded ${data.labels.length} area labels for Stella Montis (${currentFloor} floor)`);
         }
       } catch (error) {
         console.error('❌ Failed to fetch Stella Montis area labels:', error);
@@ -434,7 +501,116 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
     }
 
     fetchAreaLabels();
+  }, [currentFloor]); // Re-fetch when floor changes
+
+  // Fetch regions from API
+  useEffect(() => {
+    async function fetchRegions() {
+      try {
+        const response = await fetch('/api/maps/regions?mapId=stella-montis');
+        const data = await response.json();
+
+        if (data.success) {
+          setRegions(data.regions);
+          console.log(`✅ Loaded ${data.regions.length} regions`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to fetch regions:', error);
+      }
+    }
+
+    fetchRegions();
   }, []);
+
+  // Fetch routes from API
+  const fetchRoutes = async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      const response = await fetch('/api/maps/routes?mapId=stella-montis');
+      const data = await response.json();
+      if (data.success) {
+        setRoutes(data.routes);
+        const visible = data.routes.find((r: MapRoute) => r.visible);
+        setActiveRoute(visible || null);
+        console.log(`✅ Loaded ${data.routes.length} routes`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch routes:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchRoutes();
+    }
+  }, [session]);
+
+  // Route handlers
+  const handleDrawRoute = (routeNumber: number) => {
+    setSelectedRouteSlot(routeNumber);
+    setIsDrawingRoute(true);
+    setEditingRoute(null);
+  };
+
+  const handleToggleVisibility = async (routeId: string, routeNumber: number) => {
+    try {
+      const response = await fetch('/api/maps/routes/visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ routeId, mapId: 'stella-montis' }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchRoutes(); // Refresh
+      }
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+    }
+  };
+
+  const handleEditRoute = (routeId: string, routeNumber: number) => {
+    const route = routes.find(r => r.id === routeId);
+    if (route) {
+      setEditingRoute({
+        id: route.id,
+        coordinates: route.coordinates,
+        name: route.name,
+        nameAr: route.nameAr,
+      });
+      setSelectedRouteSlot(routeNumber);
+      setIsDrawingRoute(true);
+    }
+  };
+
+  const handleDeleteRoute = async (routeId: string) => {
+    try {
+      const response = await fetch(`/api/maps/routes/${routeId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchRoutes(); // Refresh
+      }
+    } catch (error) {
+      console.error('Error deleting route:', error);
+    }
+  };
+
+  const handleRouteDrawn = async () => {
+    setIsDrawingRoute(false);
+    setSelectedRouteSlot(null);
+    setEditingRoute(null);
+    await fetchRoutes(); // Refresh
+  };
+
+  const handleCancelDrawing = () => {
+    setIsDrawingRoute(false);
+    setSelectedRouteSlot(null);
+    setEditingRoute(null);
+  };
 
   // Fetch markers from API based on current floor (z-layer detection)
   useEffect(() => {
@@ -537,8 +713,9 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
       return;
     }
 
-    // Get the current floor's zlayers value
-    const zlayers = currentFloor === 'bottom' ? 1 : currentFloor === 'top' ? 2 : 2147483647;
+    // Get the zlayers value - use settings.zlayers if provided (admin selected floor), otherwise use current floor
+    const zlayers = continuousPlacementSettings?.zlayers
+      ?? (currentFloor === 'bottom' ? 1 : currentFloor === 'top' ? 2 : 2147483647);
 
     // If in continuous placement mode, create marker directly
     if (continuousPlacementSettings) {
@@ -546,7 +723,10 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
       const tempId = `temp-${Date.now()}`;
       setTemporaryMarkers(prev => [...prev, { lat, lng, id: tempId }]);
 
-      console.log('📍 Placing marker at:', { lat, lng, zlayers, floor: currentFloor });
+      // Use zlayers from settings if admin selected a floor, otherwise use current floor
+      const markerZlayers = continuousPlacementSettings.zlayers ?? zlayers;
+
+      console.log('📍 Placing marker at:', { lat, lng, zlayers: markerZlayers, floor: currentFloor });
       console.log('Settings:', continuousPlacementSettings);
 
       try {
@@ -556,7 +736,7 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
           body: JSON.stringify({
             lat,
             lng,
-            zlayers, // Include floor-specific zlayers
+            zlayers: markerZlayers, // Include floor-specific zlayers (from settings or current floor)
             category: continuousPlacementSettings.category,
             subcategory: continuousPlacementSettings.subcategory || null,
             instanceName: continuousPlacementSettings.instanceName || null,
@@ -668,9 +848,9 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
   };
 
   const handleLabelAdded = async () => {
-    // Refetch labels
+    // Refetch labels for current floor
     try {
-      const response = await fetch('/api/maps/stella-montis/labels');
+      const response = await fetch(`/api/maps/stella-montis/labels?floor=${currentFloor}`);
       const data = await response.json();
       if (data.success) {
         setAreaLabels(data.labels);
@@ -734,27 +914,103 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
     }
   };
 
+  const handleRegionDrawn = async () => {
+    // Refetch regions
+    try {
+      const response = await fetch('/api/maps/regions?mapId=stella-montis');
+      const data = await response.json();
+      if (data.success) {
+        setRegions(data.regions);
+      }
+    } catch (error) {
+      console.error('Failed to refetch regions:', error);
+    }
+  };
+
+  const handleDeleteRegion = async (regionId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه المنطقة؟')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/maps/regions/${regionId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        alert('فشل في حذف المنطقة');
+        return;
+      }
+
+      // Refetch regions
+      handleRegionDrawn();
+    } catch (error) {
+      console.error('Error deleting region:', error);
+      alert('حدث خطأ أثناء الحذف');
+    }
+  };
+
   return (
     <div className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
       <style dangerouslySetInnerHTML={{ __html: mapStyles }} />
 
-      {/* Sidebar */}
-      <MapSidebar
-        categories={categories}
-        markers={markers}
-        onCategoryToggle={handleCategoryToggle}
-        onSubcategoryToggle={handleSubcategoryToggle}
-        onLootAreaToggle={handleLootAreaToggle}
-        onLockedDoorToggle={handleLockedDoorToggle}
-        onToggleAll={handleToggleAll}
-        enabledSubcategories={enabledSubcategories}
-        enabledLootAreas={enabledLootAreas}
-        showLockedOnly={showLockedOnly}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        showAreaLabels={showAreaLabels}
-        onAreaLabelsToggle={handleAreaLabelsToggle}
-      />
+      {/* Sidebar - Use AdminMapSidebar when in admin mode */}
+      {isAdminMode ? (
+        <AdminMapSidebar
+          categories={categories}
+          markers={markers}
+          onCategoryToggle={handleCategoryToggle}
+          onSubcategoryToggle={handleSubcategoryToggle}
+          onLootAreaToggle={handleLootAreaToggle}
+          onLockedDoorToggle={handleLockedDoorToggle}
+          onToggleAll={handleToggleAll}
+          enabledSubcategories={enabledSubcategories}
+          enabledLootAreas={enabledLootAreas}
+          showLockedOnly={showLockedOnly}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showAreaLabels={showAreaLabels}
+          onAreaLabelsToggle={handleAreaLabelsToggle}
+          onDrawRegion={() => setTriggerDrawRegion(prev => !prev)}
+          onAddMarker={toggleAddingMarker}
+          onAddLabel={toggleAddingLabel}
+          onSavePosition={() => setTriggerSavePosition(prev => !prev)}
+          isDrawingRegion={isDrawingRegion}
+          isAddingMarker={addingMarker}
+          isAddingLabel={addingLabel}
+          routes={routes}
+          onDrawRoute={handleDrawRoute}
+          onToggleRouteVisibility={handleToggleVisibility}
+          onEditRoute={handleEditRoute}
+          onDeleteRoute={handleDeleteRoute}
+          showRoutes={!!session?.user?.id && !isDrawingRoute}
+        />
+      ) : (
+        <MapSidebar
+          categories={categories}
+          markers={markers}
+          onCategoryToggle={handleCategoryToggle}
+          onSubcategoryToggle={handleSubcategoryToggle}
+          onLootAreaToggle={handleLootAreaToggle}
+          onLockedDoorToggle={handleLockedDoorToggle}
+          onToggleAll={handleToggleAll}
+          enabledSubcategories={enabledSubcategories}
+          enabledLootAreas={enabledLootAreas}
+          showLockedOnly={showLockedOnly}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          showAreaLabels={showAreaLabels}
+          onAreaLabelsToggle={handleAreaLabelsToggle}
+          routes={routes}
+          onDrawRoute={handleDrawRoute}
+          onToggleRouteVisibility={handleToggleVisibility}
+          onEditRoute={handleEditRoute}
+          onDeleteRoute={handleDeleteRoute}
+          showRoutes={!!session?.user?.id && !isDrawingRoute}
+        />
+      )}
 
       {/* Loading indicator */}
       {loading && (
@@ -800,24 +1056,25 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
         ))}
       </div>
 
-      {/* Map */}
-      <MapContainer
-        key={`stella-montis-${currentFloor}`}
-        center={FLOOR_CENTERS[currentFloor]}
-        zoom={3}
-        minZoom={MIN_ZOOM}
-        maxZoom={MAX_ZOOM}
-        crs={CustomCRS}
-        className="w-full h-full bg-black"
-        zoomControl={true}
-        attributionControl={false}
-        zoomSnap={1}
-        zoomDelta={1}
-        wheelPxPerZoomLevel={60}
-        scrollWheelZoom={true}
-        dragging={true}
-        style={{ backgroundColor: '#000000' }}
-      >
+      {/* Map - Only render after config is loaded */}
+      {configLoaded && (
+        <MapContainer
+          key={`stella-montis-${currentFloor}`}
+          center={mapCenter}
+          zoom={mapZoom}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          crs={CustomCRS}
+          className="w-full h-full bg-black"
+          zoomControl={true}
+          attributionControl={false}
+          zoomSnap={1}
+          zoomDelta={1}
+          wheelPxPerZoomLevel={60}
+          scrollWheelZoom={true}
+          dragging={true}
+          style={{ backgroundColor: '#000000' }}
+        >
         <TileLayer
           key={`floor-${currentFloor}`}
           url={`/imagesmaps/${selectedFloor.path}/{z}/{x}_{y}.webp`}
@@ -827,10 +1084,12 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
           minNativeZoom={MIN_ZOOM}
           maxNativeZoom={MAX_ZOOM}
           noWrap={true}
-          keepBuffer={2}
-          updateWhenIdle={true}
-          updateWhenZooming={false}
-          errorTileUrl="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Crect width='256' height='256' fill='%23000000'/%3E%3C/svg%3E"
+          keepBuffer={12}
+          bounds={undefined}
+          updateWhenIdle={false}
+          updateWhenZooming={true}
+          updateInterval={100}
+          className="map-tiles"
         />
         <MapClickHandler
           onMapClick={handleMapClick}
@@ -846,6 +1105,11 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
           })}
           isAdminMode={isAdminMode}
           onDelete={handleDeleteLabel}
+        />
+        <RegionDisplay
+          regions={regions}
+          isAdminMode={isAdminMode}
+          onDelete={handleDeleteRegion}
         />
         <MapMarkers
           markers={markers}
@@ -910,37 +1174,43 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
             />
           );
         })}
+        {/* Save Map Position Button (Admin Only) - Hidden UI, controlled from sidebar */}
+        {isAdminMode && (
+          <SaveMapPositionButton
+            mapId={`stella-montis-${currentFloor}`}
+            hideUI={true}
+            triggerSave={triggerSavePosition}
+          />
+        )}
+        {/* Draw Region Button (Admin Only) - Hidden UI, controlled from sidebar */}
+        {isAdminMode && (
+          <DrawRegionButton
+            mapId="stella-montis"
+            onRegionDrawn={handleRegionDrawn}
+            hideUI={true}
+            triggerStart={triggerDrawRegion}
+            onDrawingStateChange={setIsDrawingRegion}
+          />
+        )}
+
+        {/* User routes - only for logged-in users */}
+        {session?.user?.id && (
+          <>
+            <RouteDisplay route={activeRoute} />
+            {isDrawingRoute && selectedRouteSlot && (
+              <RouteDrawButton
+                mapId="stella-montis"
+                routeSlot={selectedRouteSlot}
+                existingRoute={editingRoute}
+                onRouteDrawn={handleRouteDrawn}
+                onCancel={handleCancelDrawing}
+                isDrawing={isDrawingRoute}
+                onDrawingStateChange={setIsDrawingRoute}
+              />
+            )}
+          </>
+        )}
       </MapContainer>
-
-      {/* Add Marker and Label Buttons */}
-      {(session || isAdminMode) && (
-        <div className="absolute bottom-6 left-6 z-[1001] flex flex-col gap-2">
-          <button
-            onClick={toggleAddingMarker}
-            className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
-              addingMarker
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : isAdminMode
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-            }`}
-          >
-            {addingMarker ? 'إلغاء إضافة العلامة' : '+ إضافة علامة'}
-          </button>
-
-          {isAdminMode && (
-            <button
-              onClick={toggleAddingLabel}
-              className={`px-4 py-2 rounded-lg font-semibold shadow-lg transition-all ${
-                addingLabel
-                  ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
-              }`}
-            >
-              {addingLabel ? 'إلغاء إضافة العنوان' : '+ إضافة عنوان (Title)'}
-            </button>
-          )}
-        </div>
       )}
 
       {/* Continuous Placement Indicator */}
@@ -992,6 +1262,8 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
         onMarkerAdded={handleMarkerAdded}
         onStartContinuousPlacement={handleStartContinuousPlacement}
         zlayers={currentFloor === 'bottom' ? 1 : currentFloor === 'top' ? 2 : 2147483647}
+        showFloorSelector={isAdminMode}
+        currentFloor={currentFloor}
       />
 
       {/* Add Area Label Modal */}
@@ -1001,6 +1273,8 @@ export const StellaMontisMapClient = memo(function StellaMontisMapClient({ isAdm
         position={newLabelPosition}
         mapId="stella-montis"
         onLabelAdded={handleLabelAdded}
+        showFloorSelector={isAdminMode}
+        currentFloor={currentFloor}
       />
     </div>
   );

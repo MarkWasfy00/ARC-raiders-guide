@@ -9,6 +9,7 @@ interface EventWithNavbarFormat {
   event: {
     name: string;
     map: string;
+    icon: string;
   };
   timeUntilChange: number;
 }
@@ -55,6 +56,7 @@ export function useEventTimers() {
     event: {
       name: e.event.name,
       map: e.event.map,
+      icon: e.event.icon,
     },
     timeUntilChange: e.timeUntilChange,
   }));

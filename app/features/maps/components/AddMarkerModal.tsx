@@ -27,6 +27,13 @@ export interface MarkerSettings {
   subcategory: string;
   instanceName: string;
   behindLockedDoor: boolean;
+  zlayers?: number;
+}
+
+interface FloorOption {
+  value: 'top' | 'bottom';
+  label: string;
+  labelEn: string;
 }
 
 interface AddMarkerModalProps {
@@ -37,7 +44,15 @@ interface AddMarkerModalProps {
   onMarkerAdded: () => void;
   onStartContinuousPlacement?: (settings: MarkerSettings) => void;
   zlayers?: number; // Optional floor-specific zlayers (for stella-montis)
+  showFloorSelector?: boolean; // Show floor selector for multi-floor maps
+  currentFloor?: 'top' | 'bottom'; // Current floor being viewed
+  floorOptions?: FloorOption[]; // Custom floor labels for different maps
 }
+
+const DEFAULT_FLOOR_OPTIONS: FloorOption[] = [
+  { value: 'top', label: 'الطابق العلوي', labelEn: 'Top Floor' },
+  { value: 'bottom', label: 'الطابق السفلي', labelEn: 'Bottom Floor' },
+];
 
 export function AddMarkerModal({
   open,
@@ -47,6 +62,9 @@ export function AddMarkerModal({
   onMarkerAdded,
   onStartContinuousPlacement,
   zlayers,
+  showFloorSelector = false,
+  currentFloor = 'top',
+  floorOptions = DEFAULT_FLOOR_OPTIONS,
 }: AddMarkerModalProps) {
   const [category, setCategory] = useState<string>('');
   const [subcategory, setSubcategory] = useState<string>('');
@@ -55,6 +73,7 @@ export function AddMarkerModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
   const [continuousMode, setContinuousMode] = useState(false);
+  const [selectedFloor, setSelectedFloor] = useState<'top' | 'bottom'>(currentFloor);
 
   // Get subcategories for selected category
   const getSubcategories = () => {
@@ -78,6 +97,7 @@ export function AddMarkerModal({
         subcategory: subcategory || '',
         instanceName: instanceName || '',
         behindLockedDoor,
+        zlayers: showFloorSelector ? (selectedFloor === 'top' ? 2 : 1) : zlayers,
       });
       // Reset form and close
       setCategory('');
@@ -85,6 +105,7 @@ export function AddMarkerModal({
       setInstanceName('');
       setBehindLockedDoor(false);
       setContinuousMode(false);
+      setSelectedFloor(currentFloor);
       onOpenChange(false);
       return;
     }
@@ -108,8 +129,10 @@ export function AddMarkerModal({
         behindLockedDoor,
       };
 
-      // Include zlayers if provided (for stella-montis map)
-      if (zlayers !== undefined) {
+      // Include zlayers - use floor selector value if shown, otherwise use provided zlayers
+      if (showFloorSelector) {
+        requestBody.zlayers = selectedFloor === 'top' ? 2 : 1;
+      } else if (zlayers !== undefined) {
         requestBody.zlayers = zlayers;
       }
 
@@ -130,6 +153,7 @@ export function AddMarkerModal({
       setSubcategory('');
       setInstanceName('');
       setBehindLockedDoor(false);
+      setSelectedFloor(currentFloor);
       onMarkerAdded();
       onOpenChange(false);
     } catch (err) {
@@ -154,6 +178,24 @@ export function AddMarkerModal({
             {!continuousMode && position && (
               <div className="text-sm text-muted-foreground">
                 الموقع: ({position.lat.toFixed(1)}, {position.lng.toFixed(1)})
+              </div>
+            )}
+
+            {showFloorSelector && (
+              <div className="grid gap-3">
+                <Label htmlFor="floor">الطابق *</Label>
+                <Select value={selectedFloor} onValueChange={(value: 'top' | 'bottom') => setSelectedFloor(value)}>
+                  <SelectTrigger id="floor">
+                    <SelectValue placeholder="اختر الطابق" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {floorOptions.map((floor) => (
+                      <SelectItem key={floor.value} value={floor.value}>
+                        {floor.label} ({floor.labelEn})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
