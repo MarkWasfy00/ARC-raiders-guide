@@ -4,4 +4,5 @@ export interface ExploreCategory {
   href: string;
   imageUrl: string;
   description?: string;
+  highlights?: string[];
 }

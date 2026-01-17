@@ -35,7 +35,7 @@ export function ItemCard({ item }: ItemCardProps) {
     <Link
       ref={cardRef}
       href={`/items/${item.id}`}
-      className="group relative flex items-center gap-2 p-1.5 rounded-lg border border-border hover:bg-accent hover:border-primary/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="group relative flex flex-col items-center gap-3 rounded-xl border border-border/70 bg-background/60 p-4 text-center transition-all hover:-translate-y-1 hover:border-orange-500/60 hover:bg-orange-500/5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onFocus={() => setIsHovered(true)}
@@ -43,27 +43,31 @@ export function ItemCard({ item }: ItemCardProps) {
       aria-label={`View ${item.name} details`}
     >
       {/* Item Thumbnail */}
-      <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-muted rounded-md overflow-hidden">
+      <div className="relative h-14 w-14 rounded-lg bg-muted/60 overflow-hidden">
         {!imageError ? (
           <Image
             src={item.imageUrl}
             alt=""
             fill
             className="object-cover"
-            sizes="48px"
+            sizes="56px"
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
             N/A
           </div>
         )}
       </div>
 
-      {/* Item Name */}
-      <p className="text-xs sm:text-sm font-medium line-clamp-2 flex-1">
-        {item.name}
-      </p>
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-foreground line-clamp-2">
+          {item.name}
+        </p>
+        <p className="text-xs text-muted-foreground line-clamp-2">
+          {item.description}
+        </p>
+      </div>
 
       {/* Hover Card */}
       {isHovered && (
