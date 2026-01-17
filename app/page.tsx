@@ -16,7 +16,7 @@ export default function Home() {
       <StructuredData
         data={getBreadcrumbSchema(baseUrl, [{ name: 'OU,OñOÝUSO3USOc', url: '/' }])}
       />
-      <div className="w-full px-8 py-8 space-y-12">
+      <div className="container mx-auto px-4 py-8 space-y-12">
         {/* Hero + Categories */}
         <section>
           <ExploreRaiders />
