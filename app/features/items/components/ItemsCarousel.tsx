@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { TouchEvent } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ItemData } from '../types';
 import { ItemCard } from './ItemCard';
 
@@ -151,26 +150,6 @@ export function ItemsCarousel({ items }: ItemsCarouselProps) {
           </div>
         </div>
 
-        {pages.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={() => (isRtl ? goNext(true) : goTo(pageIndex - 1, true))}
-              className="absolute -left-3 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-lg transition hover:bg-background/95 md:flex"
-              aria-label="Previous items"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => (isRtl ? goTo(pageIndex - 1, true) : goNext(true))}
-              className="absolute -right-3 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/80 text-foreground shadow-lg transition hover:bg-background/95 md:flex"
-              aria-label="Next items"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </>
-        )}
       </div>
 
       {pages.length > 1 && (

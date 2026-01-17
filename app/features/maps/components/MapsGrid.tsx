@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MapData } from '../types';
 
 const maps: MapData[] = [
@@ -135,26 +134,6 @@ export function MapsGrid() {
           </div>
         </div>
 
-        <div className="absolute inset-y-0 left-3 flex items-center">
-          <button
-            type="button"
-            onClick={() => (isRtl ? goNext(true) : goTo(activeIndex - 1, true))}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white transition hover:bg-black/60"
-            aria-label="Previous map"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="absolute inset-y-0 right-3 flex items-center">
-          <button
-            type="button"
-            onClick={() => (isRtl ? goTo(activeIndex - 1, true) : goNext(true))}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white transition hover:bg-black/60"
-            aria-label="Next map"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
