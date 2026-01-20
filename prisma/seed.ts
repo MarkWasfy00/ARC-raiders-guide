@@ -9,6 +9,7 @@ import { seedDamMap } from '@/lib/damMapSeed'
 import { seedStellaMontisMap } from '@/lib/stellaMontisMapSeed'
 import { seedSpaceportMap } from '@/lib/spaceportMapSeed'
 import { seedBuriedCityMap } from '@/lib/buriedCityMapSeed'
+import { seedBlueGateMap } from '@/lib/blueGateMapSeed'
 import { seedLabels } from '@/lib/seedLabels'
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
@@ -40,10 +41,13 @@ async function main() {
     await seedStellaMontisMap()
 
     // Seed Spaceport map markers
-    // await seedSpaceportMap()
+    await seedSpaceportMap()
 
     // Seed Buried City map markers
-    // await seedBuriedCityMap()
+    await seedBuriedCityMap()
+
+    // Seed Blue Gate map markers
+    await seedBlueGateMap()
 
     // Seed area labels for maps (Dam, Stella Montis)
     await seedLabels()

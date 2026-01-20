@@ -113,15 +113,16 @@ export function LoadoutEditor({
       const result = await getItem(itemId);
 
       if (result.success && result.data) {
+        const itemData = result.data;
         setItemCache((prev) => {
           const newCache = new Map(prev);
-          newCache.set(itemId, result.data);
+          newCache.set(itemId, itemData);
           return newCache;
         });
 
         // If it's the bag item, set it
         if (itemId === loadoutData.augment) {
-          setBagItem(result.data);
+          setBagItem(itemData);
         }
       }
     } catch (error) {

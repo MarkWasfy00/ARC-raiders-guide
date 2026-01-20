@@ -12,10 +12,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, AlertCircle, Filter, Search, ArrowDownUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, AlertCircle, Filter, Search, ArrowDownUp, ChevronLeft, ChevronRight, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { CreateListingDialog } from "./CreateListingDialog";
 import { ListingCard } from "./ListingCard";
+import { MarketplaceRulesDialog, useMarketplaceRulesDialog } from "./MarketplaceRulesDialog";
 import { cn } from "@/lib/utils";
 
 interface MarketplaceProps {
@@ -81,6 +82,9 @@ export function Marketplace({ session, userProfile }: MarketplaceProps) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  // Rules dialog state
+  const { open: rulesOpen, setOpen: setRulesOpen, onDismiss: onRulesDismiss } = useMarketplaceRulesDialog();
 
   // Search state
   const [searchInput, setSearchInput] = useState("");
@@ -304,6 +308,15 @@ export function Marketplace({ session, userProfile }: MarketplaceProps) {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setRulesOpen(true)}
+              className="h-9 w-9 border-border"
+              title="قواعد ونصائح السوق"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
             {session?.user && (
               <>
                 <Link
@@ -591,6 +604,8 @@ export function Marketplace({ session, userProfile }: MarketplaceProps) {
           onSuccess={handleListingCreated}
         />
       )}
+
+      <MarketplaceRulesDialog open={rulesOpen} onOpenChange={setRulesOpen} onDismiss={onRulesDismiss} />
     </div>
   );
 }

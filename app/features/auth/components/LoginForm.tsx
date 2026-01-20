@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { loginAction, discordSignInAction } from "../services/auth-actions";
+import { ResendVerificationButton } from "./ResendVerificationButton";
 import type { LoginCredentials } from "../types";
 
 export function LoginForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string>("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [formData, setFormData] = useState<LoginCredentials>({
     email: "",
     password: "",
@@ -21,6 +23,7 @@ export function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setUnverifiedEmail(null);
 
     startTransition(async () => {
       const result = await loginAction(formData);
@@ -29,7 +32,10 @@ export function LoginForm() {
         router.push("/");
         router.refresh();
       } else {
-        setError(result.error?.message || "An error occurred");
+        setError(result.error?.message || "حدث خطأ");
+        if (result.error?.code === "EMAIL_NOT_VERIFIED" && result.email) {
+          setUnverifiedEmail(result.email);
+        }
       }
     });
   };
@@ -51,7 +57,12 @@ export function LoginForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
-              {error}
+              <p>{error}</p>
+              {unverifiedEmail && (
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <ResendVerificationButton email={unverifiedEmail} variant="outline" />
+                </div>
+              )}
             </div>
           )}
 

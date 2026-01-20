@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { cache } from '@/lib/redis';
 
-export const dynamic = 'force-dynamic';
+// Cache TTL: 1 hour (quests rarely change)
+const CACHE_TTL = 3600;
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,10 +17,24 @@ export async function GET(request: NextRequest) {
     // Search parameter
     const search = searchParams.get('search') || '';
 
-    // Build where clause
-    const where: any = {};
+    // Create cache key
+    const cacheKey = `quests:${JSON.stringify({ page, pageSize, search })}`;
 
-    // Search filter (searches name and objectives)
+    // Try Redis cache first (skip for searches)
+    if (!search) {
+      const cachedData = await cache.get<{ data: unknown; pagination: unknown }>(cacheKey);
+      if (cachedData) {
+        return NextResponse.json({
+          success: true,
+          ...cachedData,
+          cached: true,
+        });
+      }
+    }
+
+    // Build where clause
+    const where: Record<string, unknown> = {};
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -60,8 +76,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
+    const responseData = {
       data: quests,
       pagination: {
         page,
@@ -69,6 +84,16 @@ export async function GET(request: NextRequest) {
         totalCount,
         totalPages: Math.ceil(totalCount / pageSize),
       },
+    };
+
+    // Cache the result (skip for searches)
+    if (!search) {
+      await cache.set(cacheKey, responseData, CACHE_TTL);
+    }
+
+    return NextResponse.json({
+      success: true,
+      ...responseData,
     });
   } catch (error) {
     console.error('Error fetching quests:', error);

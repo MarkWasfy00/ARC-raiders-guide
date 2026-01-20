@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logListingCreated } from "@/lib/services/activity-logger";
+import { cache, cacheKeys } from "@/lib/redis";
+
+// Cache TTL: 1 minute (listings change frequently)
+const CACHE_TTL = 60;
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -11,12 +15,38 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get("type") as "WTS" | "WTB" | null;
 
+    // Create cache key based on filter
+    const cacheKey = cacheKeys.listings(type || "all");
+
+    // Try Redis cache first
+    const cachedData = await cache.get<{ listings: unknown[]; fetchedAt: number }>(cacheKey);
+
+    if (cachedData) {
+      return NextResponse.json({
+        listings: cachedData.listings,
+        cached: true,
+        cacheAge: Math.floor((Date.now() - cachedData.fetchedAt) / 1000),
+      });
+    }
+
+    // Get unique user IDs first to batch rating aggregations
     const listings = await prisma.listing.findMany({
       where: {
         status: "ACTIVE",
         ...(type && { type }),
       },
-      include: {
+      select: {
+        id: true,
+        type: true,
+        status: true,
+        quantity: true,
+        paymentType: true,
+        seedsAmount: true,
+        description: true,
+        created_at: true,
+        updated_at: true,
+        userId: true,
+        itemId: true,
         user: {
           select: {
             id: true,
@@ -26,12 +56,6 @@ export async function GET(request: NextRequest) {
             embark_id: true,
             discord_username: true,
             createdAt: true,
-            ratingsReceived: {
-              select: {
-                score: true,
-                honest: true,
-              },
-            },
           },
         },
         item: {
@@ -44,7 +68,9 @@ export async function GET(request: NextRequest) {
           },
         },
         paymentItems: {
-          include: {
+          select: {
+            id: true,
+            quantity: true,
             item: {
               select: {
                 id: true,
@@ -61,28 +87,61 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Calculate user ratings
-    const listingsWithRatings = listings.map((listing) => {
-      const ratings = listing.user.ratingsReceived;
-      const totalRatings = ratings.length;
-      const averageRating =
-        totalRatings > 0
-          ? ratings.reduce((sum, r) => sum + r.score, 0) / totalRatings
-          : 0;
-      const honestTradesCount = ratings.filter((r) => r.honest).length;
+    // Get unique user IDs from listings
+    const userIds = [...new Set(listings.map((l) => l.user.id))];
 
-      const { ratingsReceived, ...userWithoutRatings } = listing.user;
+    // Batch fetch rating aggregations for all users in one query
+    const userRatings = await prisma.rating.groupBy({
+      by: ["toUserId"],
+      where: {
+        toUserId: { in: userIds },
+      },
+      _count: { id: true },
+      _avg: { score: true },
+    });
+
+    // Batch fetch honest trade counts
+    const honestCounts = await prisma.rating.groupBy({
+      by: ["toUserId"],
+      where: {
+        toUserId: { in: userIds },
+        honest: true,
+      },
+      _count: { id: true },
+    });
+
+    // Create lookup maps for O(1) access
+    const ratingsMap = new Map(
+      userRatings.map((r) => [
+        r.toUserId,
+        { count: r._count.id, avg: r._avg.score || 0 },
+      ])
+    );
+    const honestMap = new Map(
+      honestCounts.map((h) => [h.toUserId, h._count.id])
+    );
+
+    // Transform listings with pre-computed ratings
+    const listingsWithRatings = listings.map((listing) => {
+      const userRating = ratingsMap.get(listing.user.id);
+      const honestCount = honestMap.get(listing.user.id) || 0;
 
       return {
         ...listing,
         user: {
-          ...userWithoutRatings,
-          averageRating: Number(averageRating.toFixed(1)),
-          totalRatings,
-          honestTradesCount,
+          ...listing.user,
+          averageRating: Number((userRating?.avg || 0).toFixed(1)),
+          totalRatings: userRating?.count || 0,
+          honestTradesCount: honestCount,
         },
       };
     });
+
+    // Store in Redis
+    await cache.set(cacheKey, {
+      listings: listingsWithRatings,
+      fetchedAt: Date.now(),
+    }, CACHE_TTL);
 
     return NextResponse.json({ listings: listingsWithRatings });
   } catch (error) {
@@ -153,17 +212,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Creating listing with data:", {
-      type,
-      userId: session.user.id,
-      itemId,
-      quantity,
-      paymentType,
-      seedsAmount,
-      description,
-      paymentItemsCount: paymentItems?.length || 0,
-    });
-
     // Create the listing
     const listing = await prisma.listing.create({
       data: {
@@ -191,7 +239,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log("Listing created successfully:", listing.id);
+    // Invalidate listings cache after creating new listing
+    await cache.delPattern("listings:*");
 
     // Log listing creation
     await logListingCreated(

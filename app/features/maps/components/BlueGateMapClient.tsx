@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { MapSidebar } from './MapSidebar';
@@ -14,6 +14,7 @@ import { DrawRegionButton } from './DrawRegionButton';
 import { RegionDisplay, type MapRegion } from './RegionDisplay';
 import { RouteDisplay, type MapRoute } from './RouteDisplay';
 import { RouteDrawButton } from './RouteDrawButton';
+import { FullscreenButton } from './FullscreenButton';
 import { MARKER_CATEGORIES, SUBCATEGORY_ICONS, type MapMarker, type MarkerCategory, type AreaLabel } from '../types';
 import { useSession } from 'next-auth/react';
 
@@ -389,6 +390,7 @@ interface BlueGateMapClientProps {
 
 export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode = false }: BlueGateMapClientProps = {}) {
   const { data: session } = useSession();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [currentFloor, setCurrentFloor] = useState<'surface' | 'underground'>('surface');
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -405,6 +407,7 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
   const [showLockedOnly, setShowLockedOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAreaLabels, setShowAreaLabels] = useState(true);
+  const [showRegions, setShowRegions] = useState(true);
   const [addMarkerModalOpen, setAddMarkerModalOpen] = useState(false);
   const [newMarkerPosition, setNewMarkerPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [addingMarker, setAddingMarker] = useState(false);
@@ -690,6 +693,10 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
     setShowAreaLabels((prev) => !prev);
   };
 
+  const handleRegionsToggle = () => {
+    setShowRegions((prev) => !prev);
+  };
+
   const handleMapClick = async (lat: number, lng: number) => {
     if (addingLabel) {
       setNewLabelPosition({ lat, lng });
@@ -918,8 +925,11 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
   };
 
   return (
-    <div className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
+    <div ref={containerRef} className="w-full h-[calc(100vh-20rem)] min-h-[600px] relative rounded-xl overflow-hidden border-2 border-border/50 bg-black shadow-2xl">
       <style dangerouslySetInnerHTML={{ __html: mapStyles }} />
+
+      {/* Fullscreen Button */}
+      <FullscreenButton containerRef={containerRef} />
 
       {/* Sidebar */}
       {isAdminMode ? (
@@ -938,6 +948,8 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
           onSearchChange={setSearchQuery}
           showAreaLabels={showAreaLabels}
           onAreaLabelsToggle={handleAreaLabelsToggle}
+          showRegions={showRegions}
+          onRegionsToggle={handleRegionsToggle}
           onDrawRegion={() => setTriggerDrawRegion(prev => !prev)}
           onAddMarker={toggleAddingMarker}
           onAddLabel={toggleAddingLabel}
@@ -968,6 +980,8 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
           onSearchChange={setSearchQuery}
           showAreaLabels={showAreaLabels}
           onAreaLabelsToggle={handleAreaLabelsToggle}
+          showRegions={showRegions}
+          onRegionsToggle={handleRegionsToggle}
           routes={routes}
           onDrawRoute={handleDrawRoute}
           onToggleRouteVisibility={handleToggleVisibility}
@@ -1069,6 +1083,7 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
         />
         <RegionDisplay
           regions={regions}
+          show={showRegions}
           isAdminMode={isAdminMode}
           onDelete={handleDeleteRegion}
         />

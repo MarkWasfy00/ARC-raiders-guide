@@ -9,7 +9,26 @@ import type {
   LoadoutFilters,
   LoadoutActionResponse,
   Loadout,
+  ItemWithSlots,
 } from '../types';
+
+interface LoadoutData {
+  shield?: string;
+  augment?: string;
+  weaponprimary?: string;
+  weaponsecondary?: string;
+  backpack?: string[];
+  quickUse?: string[];
+  safePocket?: string[];
+  primaryAttachments?: string[];
+  secondaryAttachments?: string[];
+}
+
+interface ItemData {
+  id: string;
+  value: number | null;
+  stat_block: Record<string, unknown> | null;
+}
 
 /**
  * Create a new loadout
@@ -24,19 +43,17 @@ export async function createLoadout(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: 'يجب تسجيل الدخول لإنشاء حمولة', // Must be logged in to create loadout
+        error: 'يجب تسجيل الدخول لإنشاء حمولة',
       };
     }
 
-    // Validate input
     if (!data.name || data.name.trim() === '') {
       return {
         success: false,
-        error: 'اسم الحمولة مطلوب', // Loadout name is required
+        error: 'اسم الحمولة مطلوب',
       };
     }
 
-    // Create loadout
     const loadout = await prisma.loadout.create({
       data: {
         name: data.name.trim(),
@@ -44,7 +61,7 @@ export async function createLoadout(
         tags: data.tags,
         is_public: data.is_public,
         userId: session.user.id,
-        loadoutData: data.loadoutData as any,
+        loadoutData: data.loadoutData as object,
       },
       include: {
         user: {
@@ -68,7 +85,7 @@ export async function createLoadout(
     console.error('Error creating loadout:', error);
     return {
       success: false,
-      error: 'فشل في إنشاء الحمولة', // Failed to create loadout
+      error: 'فشل في إنشاء الحمولة',
     };
   }
 }
@@ -87,11 +104,10 @@ export async function updateLoadout(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: 'يجب تسجيل الدخول لتحديث الحمولة', // Must be logged in to update loadout
+        error: 'يجب تسجيل الدخول لتحديث الحمولة',
       };
     }
 
-    // Check ownership
     const existing = await prisma.loadout.findUnique({
       where: { id },
       select: { userId: true },
@@ -100,25 +116,24 @@ export async function updateLoadout(
     if (!existing) {
       return {
         success: false,
-        error: 'الحمولة غير موجودة', // Loadout not found
+        error: 'الحمولة غير موجودة',
       };
     }
 
     if (existing.userId !== session.user.id) {
       return {
         success: false,
-        error: 'غير مصرح لك بتحديث هذه الحمولة', // Not authorized to update this loadout
+        error: 'غير مصرح لك بتحديث هذه الحمولة',
       };
     }
 
-    // Prepare update data
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
 
     if (data.name !== undefined) {
       if (!data.name || data.name.trim() === '') {
         return {
           success: false,
-          error: 'اسم الحمولة مطلوب', // Loadout name is required
+          error: 'اسم الحمولة مطلوب',
         };
       }
       updateData.name = data.name.trim();
@@ -137,10 +152,9 @@ export async function updateLoadout(
     }
 
     if (data.loadoutData !== undefined) {
-      updateData.loadoutData = data.loadoutData as any;
+      updateData.loadoutData = data.loadoutData as unknown as Record<string, unknown>;
     }
 
-    // Update loadout
     const loadout = await prisma.loadout.update({
       where: { id },
       data: updateData,
@@ -167,7 +181,7 @@ export async function updateLoadout(
     console.error('Error updating loadout:', error);
     return {
       success: false,
-      error: 'فشل في تحديث الحمولة', // Failed to update loadout
+      error: 'فشل في تحديث الحمولة',
     };
   }
 }
@@ -185,11 +199,10 @@ export async function deleteLoadout(
     if (!session?.user?.id) {
       return {
         success: false,
-        error: 'يجب تسجيل الدخول لحذف الحمولة', // Must be logged in to delete loadout
+        error: 'يجب تسجيل الدخول لحذف الحمولة',
       };
     }
 
-    // Check ownership
     const existing = await prisma.loadout.findUnique({
       where: { id },
       select: { userId: true },
@@ -198,18 +211,17 @@ export async function deleteLoadout(
     if (!existing) {
       return {
         success: false,
-        error: 'الحمولة غير موجودة', // Loadout not found
+        error: 'الحمولة غير موجودة',
       };
     }
 
     if (existing.userId !== session.user.id) {
       return {
         success: false,
-        error: 'غير مصرح لك بحذف هذه الحمولة', // Not authorized to delete this loadout
+        error: 'غير مصرح لك بحذف هذه الحمولة',
       };
     }
 
-    // Delete loadout
     await prisma.loadout.delete({
       where: { id },
     });
@@ -223,45 +235,73 @@ export async function deleteLoadout(
     console.error('Error deleting loadout:', error);
     return {
       success: false,
-      error: 'فشل في حذف الحمولة', // Failed to delete loadout
+      error: 'فشل في حذف الحمولة',
     };
   }
 }
 
 /**
- * Calculate total weight and price for a loadout
+ * Extract all item IDs from loadout data
  */
-async function calculateLoadoutTotals(loadoutData: any): Promise<{ weight: number; price: number }> {
+function extractItemIds(loadoutData: LoadoutData): Set<string> {
+  const itemIds = new Set<string>();
+
+  if (loadoutData.shield) itemIds.add(loadoutData.shield);
+  if (loadoutData.augment) itemIds.add(loadoutData.augment);
+  if (loadoutData.weaponprimary) itemIds.add(loadoutData.weaponprimary);
+  if (loadoutData.weaponsecondary) itemIds.add(loadoutData.weaponsecondary);
+
+  [
+    ...(loadoutData.backpack || []),
+    ...(loadoutData.quickUse || []),
+    ...(loadoutData.safePocket || []),
+    ...(loadoutData.primaryAttachments || []),
+    ...(loadoutData.secondaryAttachments || []),
+  ].forEach((id) => {
+    if (id && typeof id === 'string') itemIds.add(id);
+  });
+
+  return itemIds;
+}
+
+/**
+ * Calculate totals from an items map (no database query)
+ */
+function calculateTotalsFromMap(
+  loadoutData: LoadoutData,
+  itemsMap: Map<string, ItemData>
+): { weight: number; price: number } {
+  const itemIds = extractItemIds(loadoutData);
+
+  let totalWeight = 0;
+  let totalPrice = 0;
+
+  itemIds.forEach((id) => {
+    const item = itemsMap.get(id);
+    if (item) {
+      const weight = (item.stat_block as Record<string, unknown>)?.weight;
+      totalWeight += typeof weight === 'number' ? weight : 0;
+      totalPrice += item.value || 0;
+    }
+  });
+
+  return { weight: totalWeight, price: totalPrice };
+}
+
+/**
+ * Calculate total weight and price for a single loadout (used for single loadout fetch)
+ */
+async function calculateLoadoutTotals(loadoutData: LoadoutData): Promise<{ weight: number; price: number }> {
   try {
-    // Extract all item IDs from loadout
-    const itemIds = new Set<string>();
-
-    if (loadoutData.shield) itemIds.add(loadoutData.shield);
-    if (loadoutData.augment) itemIds.add(loadoutData.augment);
-    if (loadoutData.weaponprimary) itemIds.add(loadoutData.weaponprimary);
-    if (loadoutData.weaponsecondary) itemIds.add(loadoutData.weaponsecondary);
-
-    // Add items from arrays
-    [
-      ...(loadoutData.backpack || []),
-      ...(loadoutData.quickUse || []),
-      ...(loadoutData.safePocket || []),
-      ...(loadoutData.primaryAttachments || []),
-      ...(loadoutData.secondaryAttachments || []),
-    ].forEach((id) => {
-      if (id && typeof id === 'string') itemIds.add(id);
-    });
+    const itemIds = extractItemIds(loadoutData);
 
     if (itemIds.size === 0) {
       return { weight: 0, price: 0 };
     }
 
-    // Fetch all items in one query
     const items = await prisma.item.findMany({
       where: {
-        id: {
-          in: Array.from(itemIds),
-        },
+        id: { in: Array.from(itemIds) },
       },
       select: {
         id: true,
@@ -270,20 +310,16 @@ async function calculateLoadoutTotals(loadoutData: any): Promise<{ weight: numbe
       },
     });
 
-    // Calculate totals
     let totalWeight = 0;
     let totalPrice = 0;
 
     items.forEach((item) => {
-      const weight = (item.stat_block as any)?.weight || 0;
+      const weight = (item.stat_block as Record<string, unknown>)?.weight;
       totalWeight += typeof weight === 'number' ? weight : 0;
       totalPrice += item.value || 0;
     });
 
-    return {
-      weight: totalWeight,
-      price: totalPrice,
-    };
+    return { weight: totalWeight, price: totalPrice };
   } catch (error) {
     console.error('Error calculating loadout totals:', error);
     return { weight: 0, price: 0 };
@@ -293,16 +329,17 @@ async function calculateLoadoutTotals(loadoutData: any): Promise<{ weight: numbe
 /**
  * Get loadouts with filters and pagination
  * Public loadouts are visible to all, private only to owner
+ * OPTIMIZED: Uses batch item fetching instead of N+1 queries
  */
 export async function getLoadouts(
   filters?: LoadoutFilters & { page?: number; pageSize?: number }
-): Promise<LoadoutActionResponse<{ loadouts: any[]; total: number; hasMore: boolean }>> {
+): Promise<LoadoutActionResponse<{ loadouts: unknown[]; total: number; hasMore: boolean }>> {
   try {
     const page = filters?.page || 1;
     const pageSize = filters?.pageSize || 12;
     const skip = (page - 1) * pageSize;
 
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (filters?.userId) {
       where.userId = filters.userId;
@@ -347,17 +384,41 @@ export async function getLoadouts(
       take: pageSize,
     });
 
-    // Calculate totals for each loadout
-    const loadoutsWithTotals = await Promise.all(
-      loadouts.map(async (loadout) => {
-        const totals = await calculateLoadoutTotals(loadout.loadoutData);
-        return {
-          ...loadout,
-          totalWeight: totals.weight,
-          totalPrice: totals.price,
-        };
-      })
-    );
+    // OPTIMIZED: Extract ALL item IDs from ALL loadouts
+    const allItemIds = new Set<string>();
+    loadouts.forEach((loadout) => {
+      const ids = extractItemIds(loadout.loadoutData as LoadoutData);
+      ids.forEach((id) => allItemIds.add(id));
+    });
+
+    // OPTIMIZED: Single query to fetch ALL items
+    const itemsMap = new Map<string, ItemData>();
+    if (allItemIds.size > 0) {
+      const items = await prisma.item.findMany({
+        where: {
+          id: { in: Array.from(allItemIds) },
+        },
+        select: {
+          id: true,
+          value: true,
+          stat_block: true,
+        },
+      });
+
+      items.forEach((item) => {
+        itemsMap.set(item.id, item as ItemData);
+      });
+    }
+
+    // Calculate totals using the map (no additional queries)
+    const loadoutsWithTotals = loadouts.map((loadout) => {
+      const totals = calculateTotalsFromMap(loadout.loadoutData as LoadoutData, itemsMap);
+      return {
+        ...loadout,
+        totalWeight: totals.weight,
+        totalPrice: totals.price,
+      };
+    });
 
     return {
       success: true,
@@ -371,7 +432,7 @@ export async function getLoadouts(
     console.error('Error fetching loadouts:', error);
     return {
       success: false,
-      error: 'فشل في جلب الحمولات', // Failed to fetch loadouts
+      error: 'فشل في جلب الحمولات',
     };
   }
 }
@@ -402,7 +463,7 @@ export async function getLoadout(
     if (!loadout) {
       return {
         success: false,
-        error: 'الحمولة غير موجودة', // Loadout not found
+        error: 'الحمولة غير موجودة',
       };
     }
 
@@ -410,7 +471,7 @@ export async function getLoadout(
     if (!loadout.is_public && loadout.userId !== session?.user?.id) {
       return {
         success: false,
-        error: 'غير مصرح لك بعرض هذه الحمولة', // Not authorized to view this loadout
+        error: 'غير مصرح لك بعرض هذه الحمولة',
       };
     }
 
@@ -422,7 +483,7 @@ export async function getLoadout(
     console.error('Error fetching loadout:', error);
     return {
       success: false,
-      error: 'فشل في جلب الحمولة', // Failed to fetch loadout
+      error: 'فشل في جلب الحمولة',
     };
   }
 }
@@ -433,7 +494,7 @@ export async function getLoadout(
  */
 export async function getItem(
   id: string
-): Promise<LoadoutActionResponse<any>> {
+): Promise<LoadoutActionResponse<ItemWithSlots>> {
   try {
     const item = await prisma.item.findUnique({
       where: { id },
@@ -453,7 +514,7 @@ export async function getItem(
     if (!item) {
       return {
         success: false,
-        error: 'العنصر غير موجود', // Item not found
+        error: 'العنصر غير موجود',
       };
     }
 
@@ -477,7 +538,7 @@ export async function getItem(
     console.error('Error fetching item:', error);
     return {
       success: false,
-      error: 'فشل في جلب العنصر', // Failed to fetch item
+      error: 'فشل في جلب العنصر',
     };
   }
 }

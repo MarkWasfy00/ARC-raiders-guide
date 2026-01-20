@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Search, ChevronDown, Star, User, Bell, Loader2, MapPin, Clock, Zap } from 'lucide-react';
 import { useSearch } from '@/hooks/useSearch';
@@ -27,33 +27,40 @@ export function Navbar({ session }: NavbarProps) {
   const { query, setQuery, results, isLoading, isOpen, setIsOpen, hasResults } = useSearch();
   const { activeEvents } = useEventTimers();
 
-  // Filter only currently active events (not upcoming)
-  const currentlyActiveEvents = activeEvents?.filter(e => e.status === 'active') || [];
+  // Memoize event filtering and deduplication to avoid recalculating on every render
+  const { uniqueActiveEvents, uniqueUpcomingEvents, activeEventCount, upcomingEventCount, totalEventCount, nextEvent } = useMemo(() => {
+    // Filter only currently active events (not upcoming)
+    const currentlyActiveEvents = activeEvents?.filter(e => e.status === 'active') || [];
 
-  // Filter upcoming events
-  const currentlyUpcomingEvents = activeEvents?.filter(e => e.status === 'upcoming') || [];
+    // Filter upcoming events
+    const currentlyUpcomingEvents = activeEvents?.filter(e => e.status === 'upcoming') || [];
 
-  // Deduplicate events by name + map (some events have multiple time slots)
-  const uniqueActiveEvents = currentlyActiveEvents.reduce((acc, curr) => {
-    const key = `${curr.event.name}-${curr.event.map}`;
-    if (!acc.find(e => `${e.event.name}-${e.event.map}` === key)) {
-      acc.push(curr);
-    }
-    return acc;
-  }, [] as typeof currentlyActiveEvents);
+    // Deduplicate events by name + map (some events have multiple time slots)
+    const uniqueActive = currentlyActiveEvents.reduce((acc, curr) => {
+      const key = `${curr.event.name}-${curr.event.map}`;
+      if (!acc.find(e => `${e.event.name}-${e.event.map}` === key)) {
+        acc.push(curr);
+      }
+      return acc;
+    }, [] as typeof currentlyActiveEvents);
 
-  const uniqueUpcomingEvents = currentlyUpcomingEvents.reduce((acc, curr) => {
-    const key = `${curr.event.name}-${curr.event.map}`;
-    if (!acc.find(e => `${e.event.name}-${e.event.map}` === key)) {
-      acc.push(curr);
-    }
-    return acc;
-  }, [] as typeof currentlyUpcomingEvents);
+    const uniqueUpcoming = currentlyUpcomingEvents.reduce((acc, curr) => {
+      const key = `${curr.event.name}-${curr.event.map}`;
+      if (!acc.find(e => `${e.event.name}-${e.event.map}` === key)) {
+        acc.push(curr);
+      }
+      return acc;
+    }, [] as typeof currentlyUpcomingEvents);
 
-  const activeEventCount = uniqueActiveEvents.length;
-  const upcomingEventCount = uniqueUpcomingEvents.length;
-  const totalEventCount = activeEventCount + upcomingEventCount;
-  const nextEvent = uniqueActiveEvents[0] || uniqueUpcomingEvents[0];
+    return {
+      uniqueActiveEvents: uniqueActive,
+      uniqueUpcomingEvents: uniqueUpcoming,
+      activeEventCount: uniqueActive.length,
+      upcomingEventCount: uniqueUpcoming.length,
+      totalEventCount: uniqueActive.length + uniqueUpcoming.length,
+      nextEvent: uniqueActive[0] || uniqueUpcoming[0],
+    };
+  }, [activeEvents]);
 
 
   const searchRef = useRef<HTMLDivElement>(null);

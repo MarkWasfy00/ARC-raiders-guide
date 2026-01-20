@@ -1,30 +1,31 @@
 import { NextResponse } from 'next/server';
 import { ArcRaidersAPIResponse } from '@/app/features/traders/types';
+import { cache, cacheKeys } from '@/lib/redis';
 
-// Cache configuration
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day in milliseconds
-let cachedData: ArcRaidersAPIResponse | null = null;
-let lastFetchTime: number = 0;
+// Cache TTL: 24 hours
+const CACHE_TTL = 24 * 60 * 60;
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const now = Date.now();
-    const cacheAge = now - lastFetchTime;
+    const cacheKey = cacheKeys.traders();
 
-    // Return cached data if it's still fresh
-    if (cachedData && cacheAge < CACHE_DURATION) {
+    // Try Redis cache first
+    const cachedData = await cache.get<ArcRaidersAPIResponse & { fetchedAt: number }>(cacheKey);
+
+    if (cachedData) {
+      const cacheAge = Math.floor((Date.now() - cachedData.fetchedAt) / 1000);
       return NextResponse.json({
         ...cachedData,
         cached: true,
-        cacheAge: Math.floor(cacheAge / 1000), // in seconds
+        cacheAge,
       });
     }
 
     // Fetch fresh data from MetaForge API
     const response = await fetch('https://metaforge.app/api/arc-raiders/traders', {
-      next: { revalidate: 86400 }, // Revalidate every 24 hours
+      next: { revalidate: 86400 },
     });
 
     if (!response.ok) {
@@ -33,9 +34,13 @@ export async function GET() {
 
     const data: ArcRaidersAPIResponse = await response.json();
 
-    // Update cache
-    cachedData = data;
-    lastFetchTime = now;
+    // Store in Redis with timestamp
+    const dataWithTimestamp = {
+      ...data,
+      fetchedAt: Date.now(),
+    };
+
+    await cache.set(cacheKey, dataWithTimestamp, CACHE_TTL);
 
     return NextResponse.json({
       ...data,
@@ -45,17 +50,19 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching traders data:', error);
 
-    // Return cached data if available, even if stale
-    if (cachedData) {
+    // Try to get stale data from Redis on error
+    const cacheKey = cacheKeys.traders();
+    const staleData = await cache.get<ArcRaidersAPIResponse & { fetchedAt: number }>(cacheKey);
+
+    if (staleData) {
       return NextResponse.json({
-        ...cachedData,
+        ...staleData,
         cached: true,
         stale: true,
-        cacheAge: Math.floor((Date.now() - lastFetchTime) / 1000),
+        cacheAge: Math.floor((Date.now() - staleData.fetchedAt) / 1000),
       });
     }
 
-    // Return error response
     return NextResponse.json(
       {
         success: false,

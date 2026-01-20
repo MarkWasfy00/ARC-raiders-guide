@@ -87,26 +87,56 @@ export function ItemsDataTable() {
 
   const pageSize = 12;
 
-  // Fetch all items from API
+  // Fetch items from API with reasonable batch size
   useEffect(() => {
-    const fetchAllItems = async () => {
+    const fetchItems = async () => {
       setLoading(true);
       try {
-        // Fetch with a large page size to get all items
-        const response = await fetch('/api/items?pageSize=10000');
-        const result = await response.json();
+        // Fetch in batches for better performance (500 items per batch)
+        const batchSize = 500;
+        let allItems: Item[] = [];
+        let page = 1;
+        let hasMore = true;
 
-        if (result.success) {
-          setAllData(result.data);
+        // First batch - show loading state
+        const firstResponse = await fetch(`/api/items?pageSize=${batchSize}&page=1`);
+        const firstResult = await firstResponse.json();
+
+        if (firstResult.success) {
+          allItems = firstResult.data;
+          setAllData(allItems);
+          setLoading(false); // Show first batch immediately
+
+          // Continue fetching remaining batches in background
+          const totalPages = firstResult.pagination?.totalPages || 1;
+
+          if (totalPages > 1) {
+            const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+
+            // Fetch remaining pages in parallel (max 3 concurrent)
+            for (let i = 0; i < remainingPages.length; i += 3) {
+              const batch = remainingPages.slice(i, i + 3);
+              const results = await Promise.all(
+                batch.map(p => fetch(`/api/items?pageSize=${batchSize}&page=${p}`).then(r => r.json()))
+              );
+
+              results.forEach(result => {
+                if (result.success) {
+                  allItems = [...allItems, ...result.data];
+                }
+              });
+
+              setAllData([...allItems]);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching items:', error);
-      } finally {
         setLoading(false);
       }
     };
 
-    fetchAllItems();
+    fetchItems();
   }, []);
 
   // Filter and sort data

@@ -2,6 +2,7 @@
 export { LoginForm } from "./components/LoginForm";
 export { RegisterForm } from "./components/RegisterForm";
 export { UserButton } from "./components/UserButton";
+export { ResendVerificationButton } from "./components/ResendVerificationButton";
 
 // Actions
 export {
@@ -13,5 +14,11 @@ export {
   discordSignInAction
 } from "./services/auth-actions";
 
+export {
+  verifyEmailAction,
+  resendVerificationAction,
+} from "./services/verification-actions";
+
 // Types
 export type { LoginCredentials, RegisterCredentials, AuthError, AuthResponse } from "./types";
+export type { VerificationResponse } from "./services/verification-actions";

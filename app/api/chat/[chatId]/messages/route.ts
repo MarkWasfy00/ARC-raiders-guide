@@ -3,7 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/app/features/notifications/services/notification-actions";
 
-// GET - Fetch messages for a chat
+// Default page size for message pagination
+const DEFAULT_PAGE_SIZE = 50;
+
+// GET - Fetch messages for a chat with pagination
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ chatId: string }> }
@@ -15,6 +18,12 @@ export async function GET(
     }
 
     const { chatId } = await params;
+    const url = new URL(req.url);
+    const cursor = url.searchParams.get("cursor");
+    const limit = Math.min(
+      parseInt(url.searchParams.get("limit") || String(DEFAULT_PAGE_SIZE)),
+      100 // Max limit to prevent abuse
+    );
 
     // Verify user is part of this chat
     const chat = await prisma.chat.findFirst({
@@ -34,9 +43,16 @@ export async function GET(
       );
     }
 
+    // Fetch messages with cursor-based pagination
     const messages = await prisma.message.findMany({
       where: { chatId },
-      include: {
+      select: {
+        id: true,
+        content: true,
+        read: true,
+        created_at: true,
+        chatId: true,
+        senderId: true,
         sender: {
           select: {
             id: true,
@@ -46,10 +62,27 @@ export async function GET(
           },
         },
       },
-      orderBy: { created_at: "asc" },
+      orderBy: { created_at: "desc" }, // Fetch newest first for cursor pagination
+      take: limit + 1, // Take one extra to check if there are more
+      ...(cursor && {
+        cursor: { id: cursor },
+        skip: 1, // Skip the cursor itself
+      }),
     });
 
-    return NextResponse.json(messages);
+    // Check if there are more messages
+    const hasMore = messages.length > limit;
+    const resultMessages = hasMore ? messages.slice(0, -1) : messages;
+    const nextCursor = hasMore ? resultMessages[resultMessages.length - 1]?.id : null;
+
+    // Reverse to return in ascending order (oldest first)
+    resultMessages.reverse();
+
+    return NextResponse.json({
+      messages: resultMessages,
+      nextCursor,
+      hasMore,
+    });
   } catch (error) {
     console.error("Error fetching messages:", error);
     return NextResponse.json(

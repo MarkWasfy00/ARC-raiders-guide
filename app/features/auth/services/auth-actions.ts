@@ -7,9 +7,28 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import type { LoginCredentials, RegisterCredentials, AuthResponse } from "../types";
 import { logUserRegistration } from "@/lib/services/activity-logger";
+import { createVerificationToken } from "@/lib/verification-token";
+import { sendVerificationEmail } from "@/lib/email";
 
 export async function loginAction(credentials: LoginCredentials): Promise<AuthResponse> {
   try {
+    // First, check if the user exists and if their email is verified
+    const user = await prisma.user.findUnique({
+      where: { email: credentials.email },
+      select: { emailVerified: true, banned: true },
+    });
+
+    if (user && !user.emailVerified) {
+      return {
+        success: false,
+        error: {
+          message: "يرجى تأكيد بريدك الإلكتروني قبل تسجيل الدخول",
+          code: "EMAIL_NOT_VERIFIED",
+        },
+        email: credentials.email,
+      };
+    }
+
     await signIn("credentials", {
       email: credentials.email,
       password: credentials.password,
@@ -34,14 +53,16 @@ export async function loginAction(credentials: LoginCredentials): Promise<AuthRe
           return {
             success: false,
             error: {
-              message: "Invalid email or password",
+              message: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+              code: "INVALID_CREDENTIALS",
             },
           };
         default:
           return {
             success: false,
             error: {
-              message: "Authentication failed",
+              message: "فشل تسجيل الدخول",
+              code: "GENERIC_ERROR",
             },
           };
       }
@@ -50,7 +71,8 @@ export async function loginAction(credentials: LoginCredentials): Promise<AuthRe
     return {
       success: false,
       error: {
-        message: "An unexpected error occurred",
+        message: "حدث خطأ غير متوقع",
+        code: "GENERIC_ERROR",
       },
     };
   }
@@ -143,7 +165,7 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
     // Hash password
     const hashedPassword = await hash(credentials.password, 10);
 
-    // Create user
+    // Create user (emailVerified is null by default)
     const newUser = await prisma.user.create({
       data: {
         username: credentials.username,
@@ -158,20 +180,21 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
     // Log user registration
     await logUserRegistration(newUser.id, credentials.username);
 
-    // Automatically sign in the user
-    await signIn("credentials", {
-      email: credentials.email,
-      password: credentials.password,
-      redirect: false,
-    });
+    // Generate verification token and send email
+    const token = await createVerificationToken(credentials.email);
+    await sendVerificationEmail(credentials.email, token);
 
-    return { success: true };
+    return {
+      success: true,
+      requiresVerification: true,
+      email: credentials.email,
+    };
   } catch (error) {
     console.error("Registration error:", error);
     return {
       success: false,
       error: {
-        message: "An unexpected error occurred during registration",
+        message: "حدث خطأ غير متوقع أثناء التسجيل",
       },
     };
   }

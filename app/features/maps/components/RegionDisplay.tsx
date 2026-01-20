@@ -23,12 +23,13 @@ export interface MapRegion {
 
 interface RegionDisplayProps {
   regions: MapRegion[];
+  show?: boolean;
   isAdminMode?: boolean;
   onDelete?: (id: string) => void;
 }
 
-export function RegionDisplay({ regions, isAdminMode = false, onDelete }: RegionDisplayProps) {
-  if (!regions || regions.length === 0) {
+export function RegionDisplay({ regions, show = true, isAdminMode = false, onDelete }: RegionDisplayProps) {
+  if (!show || !regions || regions.length === 0) {
     return null;
   }
 

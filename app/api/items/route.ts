@@ -1,24 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ItemType, Rarity } from '@/lib/generated/prisma/enums';
+import { cache, cacheKeys } from '@/lib/redis';
 
-export const dynamic = 'force-dynamic';
+// Cache TTL: 1 hour (items rarely change)
+const CACHE_TTL = 3600;
 
 /**
  * Converts an icon value to a valid image URL
  */
 function getImageUrl(icon: string | null): string | null {
-  // If no icon, return null (component will show fallback)
   if (!icon || icon.trim() === '') {
     return null;
   }
 
-  // If already a full URL, return as-is
   if (icon.startsWith('http://') || icon.startsWith('https://')) {
     return icon;
   }
 
-  // If it's just an ID or partial path, construct full CDN URL
   const iconId = icon.endsWith('.webp') ? icon : `${icon}.webp`;
   return `https://cdn.metaforge.app/arc-raiders/icons/${iconId}`;
 }
@@ -39,10 +38,24 @@ export async function GET(request: NextRequest) {
     const typeFilter = searchParams.get('type') as ItemType | null;
     const rarityFilter = searchParams.get('rarity') as Rarity | null;
 
-    // Build where clause
-    const where: any = {};
+    // Create cache key from query params
+    const cacheKey = cacheKeys.items(JSON.stringify({ page, pageSize, search, typeFilter, rarityFilter }));
 
-    // Search filter (searches name and description)
+    // Try Redis cache first (skip for searches to ensure fresh results)
+    if (!search) {
+      const cachedData = await cache.get<{ data: unknown; pagination: unknown }>(cacheKey);
+      if (cachedData) {
+        return NextResponse.json({
+          success: true,
+          ...cachedData,
+          cached: true,
+        });
+      }
+    }
+
+    // Build where clause
+    const where: Record<string, unknown> = {};
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -50,12 +63,10 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Type filter
     if (typeFilter) {
       where.item_type = typeFilter;
     }
 
-    // Rarity filter
     if (rarityFilter) {
       where.rarity = rarityFilter;
     }
@@ -85,8 +96,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate weight from stat_block and fix icon URLs
     const itemsWithWeight = items.map(item => {
-      const statBlock = item.stat_block as any;
-      const weight = statBlock?.weight || 0;
+      const statBlock = item.stat_block as Record<string, unknown> | null;
+      const weight = (statBlock?.weight as number) || 0;
 
       return {
         ...item,
@@ -95,8 +106,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      success: true,
+    const responseData = {
       data: itemsWithWeight,
       pagination: {
         page,
@@ -104,6 +114,16 @@ export async function GET(request: NextRequest) {
         totalCount,
         totalPages: Math.ceil(totalCount / pageSize),
       },
+    };
+
+    // Cache the result (skip for searches)
+    if (!search) {
+      await cache.set(cacheKey, responseData, CACHE_TTL);
+    }
+
+    return NextResponse.json({
+      success: true,
+      ...responseData,
     });
   } catch (error) {
     console.error('Error fetching items:', error);

@@ -1,30 +1,31 @@
 import { NextResponse } from 'next/server';
 import { EventsScheduleResponse } from '@/app/features/event-timers';
+import { cache, cacheKeys } from '@/lib/redis';
 
-// Cache configuration
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-let cachedData: EventsScheduleResponse | null = null;
-let lastFetchTime: number = 0;
+// Cache TTL: 5 minutes
+const CACHE_TTL = 5 * 60;
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const now = Date.now();
-    const cacheAge = now - lastFetchTime;
+    const cacheKey = cacheKeys.eventTimers();
 
-    // Return cached data if it's still fresh
-    if (cachedData && cacheAge < CACHE_DURATION) {
+    // Try Redis cache first
+    const cachedData = await cache.get<EventsScheduleResponse & { fetchedAt: number }>(cacheKey);
+
+    if (cachedData) {
+      const cacheAge = Math.floor((Date.now() - cachedData.fetchedAt) / 1000);
       return NextResponse.json({
         ...cachedData,
         cached: true,
-        cacheAge: Math.floor(cacheAge / 1000), // in seconds
+        cacheAge,
       });
     }
 
-    // Fetch fresh data from MetaForge API (new events-schedule endpoint)
+    // Fetch fresh data from MetaForge API
     const response = await fetch('https://metaforge.app/api/arc-raiders/events-schedule', {
-      next: { revalidate: 300 }, // Revalidate every 5 minutes
+      next: { revalidate: 300 },
     });
 
     if (!response.ok) {
@@ -33,9 +34,13 @@ export async function GET() {
 
     const data: EventsScheduleResponse = await response.json();
 
-    // Update cache
-    cachedData = data;
-    lastFetchTime = now;
+    // Store in Redis with timestamp
+    const dataWithTimestamp = {
+      ...data,
+      fetchedAt: Date.now(),
+    };
+
+    await cache.set(cacheKey, dataWithTimestamp, CACHE_TTL);
 
     return NextResponse.json({
       ...data,
@@ -45,17 +50,19 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching event timers data:', error);
 
-    // Return cached data if available, even if stale
-    if (cachedData) {
+    // Try to get stale data from Redis on error
+    const cacheKey = cacheKeys.eventTimers();
+    const staleData = await cache.get<EventsScheduleResponse & { fetchedAt: number }>(cacheKey);
+
+    if (staleData) {
       return NextResponse.json({
-        ...cachedData,
+        ...staleData,
         cached: true,
         stale: true,
-        cacheAge: Math.floor((Date.now() - lastFetchTime) / 1000),
+        cacheAge: Math.floor((Date.now() - staleData.fetchedAt) / 1000),
       });
     }
 
-    // Return error response
     return NextResponse.json(
       {
         success: false,

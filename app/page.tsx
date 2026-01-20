@@ -8,8 +8,8 @@ import { StructuredData, getBreadcrumbSchema } from '@/components/StructuredData
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-// Force dynamic rendering to avoid database queries during build
-export const dynamic = 'force-dynamic';
+// Enable ISR - revalidate every 60 seconds for fresh content
+export const revalidate = 60;
 
 export default function Home() {
   return (

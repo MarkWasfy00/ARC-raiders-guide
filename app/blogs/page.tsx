@@ -61,21 +61,21 @@ export default async function BlogsPage() {
           priority
         />
         {/* Dynamic Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-slate-900/70 to-background" />
-        <div className="absolute inset-0 bg-gradient-to-r from-orange-900/30 via-transparent to-red-900/30" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-slate-900/70 to-background pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-900/30 via-transparent to-red-900/30 pointer-events-none" />
 
         {/* Animated Grid Pattern */}
-        <div className="absolute inset-0 opacity-10" style={{
+        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
           backgroundSize: '50px 50px'
         }} />
 
         {/* Glowing Orbs */}
-        <div className="absolute top-20 left-20 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-red-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-20 left-20 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-red-500/20 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
         {/* Hero Content */}
-        <div className="relative h-full container mx-auto px-4 flex flex-col justify-center items-center text-center">
+        <div className="relative z-10 h-full container mx-auto px-4 flex flex-col justify-center items-center text-center">
           <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 backdrop-blur-md mb-8 animate-fade-in shadow-lg shadow-orange-500/20">
             <Sparkles className="h-5 w-5 text-orange-400 animate-pulse" />
             <span className="text-sm font-bold text-orange-300 uppercase tracking-widest">مركز الأخبار والأدلة</span>
@@ -115,8 +115,8 @@ export default async function BlogsPage() {
         </div>
 
         {/* Bottom Fade with Glow */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background via-background/50 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background via-background/50 to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent pointer-events-none" />
       </div>
 
       <div className="container mx-auto px-4 py-12 space-y-16">

@@ -37,6 +37,8 @@ interface MapSidebarProps {
   onSearchChange: (query: string) => void;
   showAreaLabels: boolean;
   onAreaLabelsToggle: () => void;
+  showRegions: boolean;
+  onRegionsToggle: () => void;
   // Route props (optional for logged-in users)
   routes?: MapRoute[];
   onDrawRoute?: (routeNumber: number) => void;
@@ -61,6 +63,8 @@ export function MapSidebar({
   onSearchChange,
   showAreaLabels,
   onAreaLabelsToggle,
+  showRegions,
+  onRegionsToggle,
   routes = [],
   onDrawRoute,
   onToggleRouteVisibility,
@@ -262,6 +266,19 @@ export function MapSidebar({
               >
                 <svg className="w-4 h-4" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
                   <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+              </button>
+              <button
+                onClick={onRegionsToggle}
+                className={`p-2 rounded-lg transition-all ${
+                  showRegions
+                    ? 'bg-purple-500/20 text-purple-600 border border-purple-500/50'
+                    : 'bg-muted/50 hover:bg-muted text-muted-foreground'
+                }`}
+                title="المناطق المحددة"
+              >
+                <svg className="w-4 h-4" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                 </svg>
               </button>
             </div>

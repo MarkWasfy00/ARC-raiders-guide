@@ -6,7 +6,16 @@ const adapter = new PrismaPg({
 })
 
 const prismaClientSingleton = () => {
-  return new PrismaClient({ adapter })
+  return new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === 'development'
+      ? [
+          { level: 'query', emit: 'stdout' },
+          { level: 'warn', emit: 'stdout' },
+          { level: 'error', emit: 'stdout' },
+        ]
+      : [{ level: 'error', emit: 'stdout' }],
+  })
 }
 
 

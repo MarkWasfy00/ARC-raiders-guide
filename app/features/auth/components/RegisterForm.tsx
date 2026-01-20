@@ -33,13 +33,18 @@ export function RegisterForm() {
       const result = await registerAction(formData);
 
       if (result.success) {
-        router.push("/");
-        router.refresh();
+        if (result.requiresVerification && result.email) {
+          // Redirect to verification pending page
+          router.push(`/verify-email/pending?email=${encodeURIComponent(result.email)}`);
+        } else {
+          router.push("/");
+          router.refresh();
+        }
       } else {
         if (result.error?.field) {
           setFieldErrors({ [result.error.field]: result.error.message });
         } else {
-          setError(result.error?.message || "An error occurred");
+          setError(result.error?.message || "حدث خطأ");
         }
       }
     });

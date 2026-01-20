@@ -219,22 +219,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: user.email },
         });
 
-        if (dbUser && !dbUser.username) {
+        if (dbUser) {
           // Generate a username from email if not set
-          const emailUsername = user.email.split("@")[0];
-          let username = emailUsername;
-          let counter = 1;
+          let updateData: { username?: string; emailVerified?: Date } = {};
 
-          // Ensure username is unique
-          while (await prisma.user.findUnique({ where: { username } })) {
-            username = `${emailUsername}${counter}`;
-            counter++;
+          if (!dbUser.username) {
+            const emailUsername = user.email.split("@")[0];
+            let username = emailUsername;
+            let counter = 1;
+
+            // Ensure username is unique
+            while (await prisma.user.findUnique({ where: { username } })) {
+              username = `${emailUsername}${counter}`;
+              counter++;
+            }
+            updateData.username = username;
           }
 
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: { username },
-          });
+          // Auto-verify email for OAuth users (Discord verifies emails)
+          if (!dbUser.emailVerified) {
+            updateData.emailVerified = new Date();
+          }
+
+          if (Object.keys(updateData).length > 0) {
+            await prisma.user.update({
+              where: { id: dbUser.id },
+              data: updateData,
+            });
+          }
         }
       }
     },
