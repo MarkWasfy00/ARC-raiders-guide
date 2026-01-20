@@ -25,29 +25,24 @@ services:
       - arcraiders-network
 
   pgbouncer:
-    image: bitnami/pgbouncer:latest
+    image: edoburu/pgbouncer:latest
     container_name: arcraiders-pgbouncer
     restart: unless-stopped
     ports:
       - '6432:6432'
     environment:
       # Explicit connection to remote Postgres (not wildcard)
-      POSTGRESQL_HOST: 145.223.116.42
-      POSTGRESQL_PORT: 5432
-      POSTGRESQL_DATABASE: ${POSTGRES_DB:-arcraiders}
-      POSTGRESQL_USERNAME: ${POSTGRES_USER:-postgres}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@145.223.116.42:5432/${POSTGRES_DB:-arcraiders}
       # PgBouncer settings
-      PGBOUNCER_DATABASE: ${POSTGRES_DB:-arcraiders}
-      PGBOUNCER_POOL_MODE: transaction
-      PGBOUNCER_AUTH_TYPE: md5
+      POOL_MODE: transaction
+      AUTH_TYPE: md5
       # Increased limits for 30k+ concurrent users
-      PGBOUNCER_MAX_CLIENT_CONN: 5000
-      PGBOUNCER_DEFAULT_POOL_SIZE: 50
-      PGBOUNCER_MIN_POOL_SIZE: 20
-      PGBOUNCER_RESERVE_POOL_SIZE: 25
-      PGBOUNCER_SERVER_IDLE_TIMEOUT: 600
-      PGBOUNCER_MAX_DB_CONNECTIONS: 100
+      MAX_CLIENT_CONN: 5000
+      DEFAULT_POOL_SIZE: 50
+      MIN_POOL_SIZE: 20
+      RESERVE_POOL_SIZE: 25
+      SERVER_IDLE_TIMEOUT: 600
+      MAX_DB_CONNECTIONS: 100
     deploy:
       resources:
         limits:
