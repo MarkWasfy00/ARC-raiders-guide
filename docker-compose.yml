@@ -25,19 +25,22 @@ services:
       - arcraiders-network
 
   pgbouncer:
-    image: pgbouncer/pgbouncer:latest
+    image: bitnami/pgbouncer:latest
     container_name: arcraiders-pgbouncer
     restart: unless-stopped
     ports:
       - '6432:6432'
     environment:
-      # Connect to remote database server (not local Docker postgres)
-      DATABASES_HOST: 145.223.116.42
-      DATABASES_PORT: 5432
-      DATABASES_USER: ${POSTGRES_USER:-postgres}
-      DATABASES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      DATABASES_DBNAME: ${POSTGRES_DB:-arcraiders}
+      # Explicit connection to remote Postgres (not wildcard)
+      POSTGRESQL_HOST: 145.223.116.42
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_DATABASE: ${POSTGRES_DB:-arcraiders}
+      POSTGRESQL_USERNAME: ${POSTGRES_USER:-postgres}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # PgBouncer settings
+      PGBOUNCER_DATABASE: ${POSTGRES_DB:-arcraiders}
       PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_AUTH_TYPE: md5
       # Increased limits for 30k+ concurrent users
       PGBOUNCER_MAX_CLIENT_CONN: 5000
       PGBOUNCER_DEFAULT_POOL_SIZE: 50
@@ -132,6 +135,9 @@ services:
       "
     environment:
       NODE_ENV: production
+      # Migrations connect DIRECTLY to Postgres (not through PgBouncer)
+      # PgBouncer in transaction mode doesn't support DDL/migrations
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@145.223.116.42:5432/${POSTGRES_DB:-arcraiders}?schema=public
     volumes:
       - ./prisma:/app/prisma
     networks:

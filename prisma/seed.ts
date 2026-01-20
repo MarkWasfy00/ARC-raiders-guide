@@ -4,7 +4,6 @@ import { seedItems } from '@/lib/seedItems'
 import { seedArcs } from '@/lib/seedArcs'
 import { seedQuests } from '@/lib/seedQuests'
 import { seedWorkbenches } from '@/lib/workbenchesSeed'
-import { seedLoadouts } from '@/lib/seedLoadouts'
 import { seedDamMap } from '@/lib/damMapSeed'
 import { seedStellaMontisMap } from '@/lib/stellaMontisMapSeed'
 import { seedSpaceportMap } from '@/lib/spaceportMapSeed'
@@ -32,7 +31,7 @@ async function main() {
     await seedWorkbenches()
 
     // Seed Loadouts
-    await seedLoadouts()
+    // await seedLoadouts()
 
     // Seed Dam map markers
     await seedDamMap()
