@@ -14,15 +14,19 @@ export async function POST(
     }
 
     const { chatId } = await params;
+    const userId = session.user.id;
 
-    // Get the chat and verify user is a participant
+    // Get the chat with listing info and verify user is a participant
     const chat = await prisma.chat.findFirst({
       where: {
         id: chatId,
         OR: [
-          { participant1Id: session.user.id },
-          { participant2Id: session.user.id },
+          { participant1Id: userId },
+          { participant2Id: userId },
         ],
+      },
+      include: {
+        listing: true,
       },
     });
 
@@ -33,11 +37,64 @@ export async function POST(
       );
     }
 
-    // Mark chat as cancelled
-    await prisma.chat.update({
-      where: { id: chatId },
-      data: { status: "CANCELLED" },
-    });
+    // Check if this chat is the active trader - if so, reactivate the queue
+    const isActiveTrader = chat.listing.activeTraderChatId === chatId;
+    let reactivatedChats: { id: string; participant1Id: string; participant2Id: string }[] = [];
+
+    if (isActiveTrader) {
+      // Use transaction to handle both cancellation and queue reactivation
+      const result = await prisma.$transaction(async (tx) => {
+        // Clear the active trader from the listing
+        await tx.listing.update({
+          where: { id: chat.listingId },
+          data: {
+            activeTraderChatId: null,
+            activeTraderUserId: null,
+          },
+        });
+
+        // Mark this chat as cancelled
+        await tx.chat.update({
+          where: { id: chatId },
+          data: { status: "CANCELLED" },
+        });
+
+        // Reactivate all OWNER_TRADING chats back to ACTIVE
+        await tx.chat.updateMany({
+          where: {
+            listingId: chat.listingId,
+            status: "OWNER_TRADING",
+          },
+          data: {
+            status: "ACTIVE",
+          },
+        });
+
+        // Fetch all reactivated chats for Socket.IO notifications
+        const reactivated = await tx.chat.findMany({
+          where: {
+            listingId: chat.listingId,
+            status: "ACTIVE",
+            id: { not: chatId },
+          },
+          select: {
+            id: true,
+            participant1Id: true,
+            participant2Id: true,
+          },
+        });
+
+        return { reactivated };
+      });
+
+      reactivatedChats = result.reactivated;
+    } else {
+      // Just cancel this chat normally
+      await prisma.chat.update({
+        where: { id: chatId },
+        data: { status: "CANCELLED" },
+      });
+    }
 
     // Fetch updated chat with all relations for Socket.IO broadcast
     const fullChat = await prisma.chat.findUnique({
@@ -75,14 +132,48 @@ export async function POST(
       },
     });
 
-    // Emit Socket.IO event to notify both participants
+    // Emit Socket.IO events
     if (global.io && fullChat) {
+      // Notify this chat that it's been cancelled
       global.io.to(chatId).emit("chat-updated", fullChat);
+
+      // If this was the active trader, notify reactivated chats
+      if (isActiveTrader && reactivatedChats.length > 0) {
+        const listingOwnerId = chat.listing.userId;
+
+        for (const reactivatedChat of reactivatedChats) {
+          global.io.to(reactivatedChat.id).emit("chat-updated", {
+            id: reactivatedChat.id,
+            status: "ACTIVE",
+            isSelectedTrader: false,
+          });
+
+          // Notify each non-owner participant
+          const otherUserId = reactivatedChat.participant1Id === listingOwnerId
+            ? reactivatedChat.participant2Id
+            : reactivatedChat.participant1Id;
+
+          global.io.to(`notifications:${otherUserId}`).emit("queue-reactivated", {
+            chatId: reactivatedChat.id,
+            listingId: chat.listingId,
+            message: "You can now continue negotiating",
+          });
+        }
+
+        // Emit to the listing room
+        global.io.to(`listing:${chat.listingId}`).emit("queue-reactivated", {
+          listingId: chat.listingId,
+          releasedChatId: chatId,
+          reactivatedCount: reactivatedChats.length,
+        });
+      }
     }
 
     return NextResponse.json({
       success: true,
       status: "CANCELLED",
+      queueReactivated: isActiveTrader,
+      reactivatedChatsCount: reactivatedChats.length,
     });
   } catch (error) {
     console.error("Error leaving chat:", error);

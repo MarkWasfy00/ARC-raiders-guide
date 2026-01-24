@@ -156,22 +156,24 @@ model Comment {
 }
 
 model Listing {
-  id           String        @id @default(cuid())
-  type         ListingType
-  status       ListingStatus @default(ACTIVE)
-  userId       String
-  itemId       String
-  quantity     Int
-  paymentType  PaymentType
-  seedsAmount  Int?
-  description  String
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
-  chats        Chat[]
-  item         Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymentItems ListingItem[]
-  trades       Trade[]
+  id                 String        @id @default(cuid())
+  type               ListingType
+  status             ListingStatus @default(ACTIVE)
+  userId             String
+  itemId             String
+  quantity           Int
+  paymentType        PaymentType
+  seedsAmount        Int?
+  description        String
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+  activeTraderChatId String?       // ID of the chat where trade is in progress
+  activeTraderUserId String?       // ID of the user owner selected to trade with
+  chats              Chat[]
+  item               Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentItems       ListingItem[]
+  trades             Trade[]
 
   @@index([userId])
   @@index([itemId])
@@ -180,6 +182,7 @@ model Listing {
   @@index([created_at])
   @@index([status, created_at])
   @@index([type, status])
+  @@index([activeTraderChatId])
 }
 
 model ListingItem {
@@ -258,6 +261,7 @@ model Chat {
   @@index([status])
   @@index([participant1Id, status])
   @@index([participant2Id, status])
+  @@index([listingId, status])
 }
 
 model Message {
@@ -783,6 +787,7 @@ enum AmmoType {
 
 enum UserRole {
   USER
+  MODERATOR
   ADMIN
 }
 
@@ -835,6 +840,7 @@ enum ChatStatus {
   ACTIVE
   COMPLETED
   CANCELLED
+  OWNER_TRADING    // Owner is trading with another user (waiting in queue)
 }
 
 enum VoteCategory {

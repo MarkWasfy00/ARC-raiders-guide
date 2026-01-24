@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sparkles, MessageSquare, LayoutList, LayoutGrid } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { ChatListGrouped } from "./ChatListGrouped";
 
 interface User {
   id: string;
@@ -53,10 +55,7 @@ interface ChatListProps {
 export function ChatList({ currentUserId, selectedChatId, onChatSelect, refreshKey }: ChatListProps) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadChats();
-  }, [refreshKey]);
+  const [viewMode, setViewMode] = useState<"flat" | "grouped">("grouped");
 
   const loadChats = async () => {
     try {
@@ -73,6 +72,43 @@ export function ChatList({ currentUserId, selectedChatId, onChatSelect, refreshK
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (viewMode === "flat") {
+      loadChats();
+    }
+  }, [refreshKey, viewMode]);
+
+  // If grouped view is selected, render the ChatListGrouped component
+  if (viewMode === "grouped") {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="p-4 border-b border-border/50 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold">المحادثات</h2>
+            <p className="text-sm text-muted-foreground">عرض مجمع</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode("flat")}
+            title="عرض عادي"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <LayoutList className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <ChatListGrouped
+            currentUserId={currentUserId}
+            selectedChatId={selectedChatId}
+            onChatSelect={onChatSelect}
+            refreshKey={refreshKey}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const getOtherUser = (chat: Chat): User => {
     return chat.participant1.id === currentUserId
@@ -121,11 +157,22 @@ export function ChatList({ currentUserId, selectedChatId, onChatSelect, refreshK
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-4 border-b border-border/50">
-        <h2 className="text-xl font-bold">المحادثات</h2>
-        <p className="text-sm text-muted-foreground">
-          {chats.length} محادثة
-        </p>
+      <div className="p-4 border-b border-border/50 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold">المحادثات</h2>
+          <p className="text-sm text-muted-foreground">
+            {chats.length} محادثة
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setViewMode("grouped")}
+          title="عرض مجمع"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <LayoutGrid className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="divide-y divide-border/50">

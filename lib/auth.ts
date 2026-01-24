@@ -135,30 +135,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true, // Allow Discord to link with existing accounts via email
       async profile(profile) {
-        // Check if user exists and get their banned status
-        const existingUser = await prisma.user.findUnique({
-          where: { email: profile.email },
-          select: { id: true, banned: true, sessionVersion: true, role: true },
-        });
+        try {
+          console.log('Discord profile callback - email:', profile.email);
 
-        // If user is banned, prevent login
-        if (existingUser?.banned) {
-          throw new Error("BANNED");
+          // Check if user exists and get their banned status
+          let existingUser = null;
+          if (profile.email) {
+            existingUser = await prisma.user.findUnique({
+              where: { email: profile.email },
+              select: { id: true, banned: true, sessionVersion: true, role: true },
+            });
+            console.log('Discord profile callback - existingUser:', existingUser);
+          }
+
+          // If user is banned, prevent login
+          if (existingUser?.banned) {
+            throw new Error("BANNED");
+          }
+
+          const userRole = existingUser?.role ?? 'USER';
+          console.log('Discord profile callback - returning role:', userRole);
+
+          return {
+            id: profile.id,
+            name: profile.global_name ?? profile.username,
+            email: profile.email,
+            image: profile.avatar
+              ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+              : null,
+            username: profile.username,
+            discord_username: `${profile.username}${profile.discriminator !== "0" ? `#${profile.discriminator}` : ""}`,
+            banned: existingUser?.banned ?? false,
+            sessionVersion: existingUser?.sessionVersion ?? 0,
+            role: userRole,
+          };
+        } catch (error) {
+          console.error('Discord profile callback error:', error);
+          throw error;
         }
-
-        return {
-          id: profile.id,
-          name: profile.global_name ?? profile.username,
-          email: profile.email,
-          image: profile.avatar
-            ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
-            : null,
-          username: profile.username,
-          discord_username: `${profile.username}${profile.discriminator !== "0" ? `#${profile.discriminator}` : ""}`,
-          banned: existingUser?.banned ?? false,
-          sessionVersion: existingUser?.sessionVersion ?? 0,
-          role: existingUser?.role ?? 'USER',
-        };
       },
     }),
     Credentials({

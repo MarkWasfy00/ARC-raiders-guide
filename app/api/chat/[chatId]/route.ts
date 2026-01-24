@@ -24,7 +24,15 @@ export async function GET(
       where: { id: chatId },
       include: {
         listing: {
-          include: {
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            quantity: true,
+            paymentType: true,
+            seedsAmount: true,
+            activeTraderChatId: true,
+            activeTraderUserId: true,
             item: {
               select: {
                 id: true,

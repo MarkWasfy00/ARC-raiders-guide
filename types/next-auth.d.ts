@@ -11,7 +11,7 @@ declare module "next-auth" {
       username?: string | null;
       embark_id?: string | null;
       discord_username?: string | null;
-      role?: 'USER' | 'ADMIN';
+      role?: 'USER' | 'MODERATOR' | 'ADMIN';
     };
   }
 
@@ -23,7 +23,7 @@ declare module "next-auth" {
     username?: string | null;
     embark_id?: string | null;
     discord_username?: string | null;
-    role?: 'USER' | 'ADMIN';
+    role?: 'USER' | 'MODERATOR' | 'ADMIN';
   }
 }
 
@@ -31,5 +31,8 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     email?: string | null;
+    role?: 'USER' | 'MODERATOR' | 'ADMIN';
+    sessionVersion?: number;
+    banned?: boolean;
   }
 }

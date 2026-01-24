@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,9 @@ interface Pagination {
 }
 
 export function UsersList() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'ADMIN';
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -65,6 +69,7 @@ export function UsersList() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [banReason, setBanReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [promoteToRole, setPromoteToRole] = useState<"ADMIN" | "MODERATOR">("MODERATOR");
 
   const { toast } = useToast();
 
@@ -208,18 +213,22 @@ export function UsersList() {
     try {
       const response = await fetch(`/api/admin/users/${selectedUser.id}/promote`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetRole: promoteToRole }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        const roleLabel = promoteToRole === "ADMIN" ? "مشرف" : "مراقب";
         toast({
           title: "تمت الترقية",
-          description: "تم ترقية المستخدم إلى مشرف بنجاح",
+          description: `تم ترقية المستخدم إلى ${roleLabel} بنجاح`,
         });
         fetchUsers();
         setPromoteDialogOpen(false);
         setSelectedUser(null);
+        setPromoteToRole("MODERATOR"); // Reset to default
       } else {
         toast({
           title: "خطأ",
@@ -333,10 +342,12 @@ export function UsersList() {
             </p>
           </div>
         </div>
-        <Button onClick={handleExport} variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          <span>تصدير (Export)</span>
-        </Button>
+        {isAdmin && (
+          <Button onClick={handleExport} variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            <span>تصدير (Export)</span>
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -368,6 +379,7 @@ export function UsersList() {
               <UserTable
                 users={users}
                 selectedUserIds={selectedUserIds}
+                isAdmin={isAdmin}
                 onSelectUser={handleSelectUser}
                 onSelectAll={handleSelectAll}
                 onBanUser={(user) => {
@@ -417,8 +429,8 @@ export function UsersList() {
         </CardContent>
       </Card>
 
-      {/* Bulk Actions Bar */}
-      {selectedUserIds.length > 0 && (
+      {/* Bulk Actions Bar - Admin only */}
+      {isAdmin && selectedUserIds.length > 0 && (
         <BulkActionsBar
           selectedCount={selectedUserIds.length}
           selectedUserIds={selectedUserIds}
@@ -489,12 +501,41 @@ export function UsersList() {
       <Dialog open={promoteDialogOpen} onOpenChange={setPromoteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>ترقية إلى مشرف</DialogTitle>
+            <DialogTitle>ترقية المستخدم</DialogTitle>
             <DialogDescription>
-              هل أنت متأكد من ترقية {selectedUser?.username || selectedUser?.email} إلى مشرف؟
-              سيحصل المستخدم على صلاحيات كاملة لإدارة النظام.
+              اختر الدور الجديد لـ {selectedUser?.username || selectedUser?.email}
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col gap-3">
+              <label className="text-sm font-medium">اختر الدور</label>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant={promoteToRole === "MODERATOR" ? "default" : "outline"}
+                  onClick={() => setPromoteToRole("MODERATOR")}
+                  className="flex-1"
+                >
+                  <Shield className="ml-2 h-4 w-4" />
+                  مراقب (Moderator)
+                </Button>
+                <Button
+                  type="button"
+                  variant={promoteToRole === "ADMIN" ? "default" : "outline"}
+                  onClick={() => setPromoteToRole("ADMIN")}
+                  className="flex-1"
+                >
+                  <Shield className="ml-2 h-4 w-4" />
+                  مشرف (Admin)
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {promoteToRole === "MODERATOR"
+                  ? "المراقب يمكنه إدارة الأدلة والخرائط والإعدادات، لكن لا يمكنه حظر المستخدمين أو ترقيتهم."
+                  : "المشرف لديه صلاحيات كاملة لإدارة النظام بالكامل."}
+              </p>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPromoteDialogOpen(false)}>
               إلغاء

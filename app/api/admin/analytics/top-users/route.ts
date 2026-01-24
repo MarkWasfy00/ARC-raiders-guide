@@ -3,9 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  // Check admin authorization
+  // Check staff authorization (admin or moderator)
   const session = await auth();
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
+  const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "MODERATOR";
+  if (!session?.user?.id || !isStaff) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
