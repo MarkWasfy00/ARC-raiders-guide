@@ -38,7 +38,7 @@ export function FullscreenButton({ containerRef }: FullscreenButtonProps) {
   return (
     <button
       onClick={toggleFullscreen}
-      className="absolute top-4 left-4 z-[1001] bg-background/80 backdrop-blur-sm p-2.5 rounded-lg shadow-lg border border-border/50 hover:bg-background transition-colors"
+      className="absolute top-4 start-4 z-[1001] bg-background/80 backdrop-blur-sm p-2.5 rounded-lg shadow-lg border border-border/50 hover:bg-background transition-colors"
       title={isFullscreen ? 'خروج من ملء الشاشة' : 'ملء الشاشة'}
       aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
     >

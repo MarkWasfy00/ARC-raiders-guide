@@ -82,6 +82,20 @@ app.prepare().then(async () => {
       console.log(`[${instanceId}] Socket ${socket.id} left chat: ${chatId}`);
     });
 
+    // Join a listing room (for listing owners to receive all chat updates for a listing)
+    socket.on("join-listing", (listingId) => {
+      const room = `listing:${listingId}`;
+      socket.join(room);
+      console.log(`[${instanceId}] Socket ${socket.id} joined listing: ${room}`);
+    });
+
+    // Leave a listing room
+    socket.on("leave-listing", (listingId) => {
+      const room = `listing:${listingId}`;
+      socket.leave(room);
+      console.log(`[${instanceId}] Socket ${socket.id} left listing: ${room}`);
+    });
+
     // Handle disconnection
     socket.on("disconnect", () => {
       console.log(`[${instanceId}] Client disconnected:`, socket.id);

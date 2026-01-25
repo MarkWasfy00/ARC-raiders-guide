@@ -1,4 +1,4 @@
-import { ItemCard } from './ItemCard';
+import { ItemsCarousel } from './ItemsCarousel';
 import { ItemData } from '../types';
 
 interface ItemsGridProps {
@@ -14,11 +14,5 @@ export function ItemsGrid({ items }: ItemsGridProps) {
     );
   }
 
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-      {items.map((item) => (
-        <ItemCard key={item.id} item={item} />
-      ))}
-    </div>
-  );
+  return <ItemsCarousel items={items} />;
 }

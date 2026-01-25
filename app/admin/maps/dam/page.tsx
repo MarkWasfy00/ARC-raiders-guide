@@ -5,7 +5,8 @@ import { AdminDamClient } from './AdminDamClient';
 export default async function AdminDamPage() {
   const session = await auth();
 
-  if (!session?.user?.role || session.user.role !== 'ADMIN') {
+  const isStaff = session?.user?.role === 'ADMIN' || session?.user?.role === 'MODERATOR';
+  if (!session?.user?.role || !isStaff) {
     redirect('/login');
   }
 

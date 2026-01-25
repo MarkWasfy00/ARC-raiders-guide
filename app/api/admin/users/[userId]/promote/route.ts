@@ -2,8 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { logAdminAction } from "@/lib/services/activity-logger";
+import { UserRole } from "@/lib/generated/prisma/client";
 
-// Promote user to ADMIN
+// Promote user to ADMIN or MODERATOR
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
@@ -16,6 +17,17 @@ export async function POST(
 
   try {
     const { userId } = await params;
+
+    // Parse request body for target role
+    let targetRole: UserRole = UserRole.ADMIN; // Default to ADMIN for backwards compatibility
+    try {
+      const body = await request.json();
+      if (body.targetRole && ["ADMIN", "MODERATOR"].includes(body.targetRole)) {
+        targetRole = body.targetRole as UserRole;
+      }
+    } catch {
+      // If no body or invalid JSON, use default (ADMIN)
+    }
 
     // Check if trying to modify self
     if (userId === session.user.id) {
@@ -40,40 +52,42 @@ export async function POST(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (user.role === "ADMIN") {
+    if (user.role === targetRole) {
       return NextResponse.json(
-        { error: "User is already an admin" },
+        { error: `User is already a ${targetRole.toLowerCase()}` },
         { status: 400 }
       );
     }
 
-    // Promote to admin
+    // Promote to target role
     await prisma.user.update({
       where: { id: userId },
       data: {
-        role: "ADMIN",
+        role: targetRole,
         sessionVersion: {
           increment: 1, // Force re-login to get new role
         },
       },
     });
 
+    const roleLabel = targetRole === "ADMIN" ? "مشرف (Admin)" : "مراقب (Moderator)";
+
     // Log admin action
     await logAdminAction(
       session.user.id,
-      `Promoted user to admin: ${user.username || user.email}`,
-      `ترقية المستخدم إلى مشرف: ${user.username || user.email}`,
-      { targetUserId: userId, targetUsername: user.username }
+      `Promoted user to ${targetRole.toLowerCase()}: ${user.username || user.email}`,
+      `ترقية المستخدم إلى ${roleLabel}: ${user.username || user.email}`,
+      { targetUserId: userId, targetUsername: user.username, targetRole }
     );
 
     return NextResponse.json({
       success: true,
-      message: `User ${user.username || user.email} promoted to ADMIN`,
+      message: `User ${user.username || user.email} promoted to ${targetRole}`,
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: "ADMIN",
+        role: targetRole,
       },
     });
   } catch (error) {
@@ -85,7 +99,7 @@ export async function POST(
   }
 }
 
-// Demote ADMIN to USER
+// Demote ADMIN or MODERATOR to USER
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
@@ -122,12 +136,15 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (user.role !== "ADMIN") {
+    if (user.role === "USER") {
       return NextResponse.json(
-        { error: "User is not an admin" },
+        { error: "User is already a regular user" },
         { status: 400 }
       );
     }
+
+    const previousRole = user.role;
+    const previousRoleLabel = previousRole === "ADMIN" ? "مشرف (Admin)" : "مراقب (Moderator)";
 
     // Demote to user
     await prisma.user.update({
@@ -143,14 +160,14 @@ export async function DELETE(
     // Log admin action
     await logAdminAction(
       session.user.id,
-      `Demoted admin to user: ${user.username || user.email}`,
-      `تخفيض رتبة المشرف إلى مستخدم: ${user.username || user.email}`,
-      { targetUserId: userId, targetUsername: user.username }
+      `Demoted ${previousRole.toLowerCase()} to user: ${user.username || user.email}`,
+      `تخفيض رتبة ${previousRoleLabel} إلى مستخدم: ${user.username || user.email}`,
+      { targetUserId: userId, targetUsername: user.username, previousRole }
     );
 
     return NextResponse.json({
       success: true,
-      message: `Admin ${user.username || user.email} demoted to USER`,
+      message: `${previousRole} ${user.username || user.email} demoted to USER`,
       user: {
         id: user.id,
         username: user.username,

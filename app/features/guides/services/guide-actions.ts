@@ -24,11 +24,12 @@ export async function createGuide(data: CreateGuideInput): Promise<GuideResponse
       };
     }
 
-    // Check if user is admin
-    if (session.user.role !== 'ADMIN') {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    if (!isStaff) {
       return {
         success: false,
-        error: { message: "Only admins can create guides" },
+        error: { message: "Only staff members can create guides" },
       };
     }
 
@@ -110,11 +111,12 @@ export async function updateGuide(
       };
     }
 
-    // Check if user is admin
-    if (session.user.role !== 'ADMIN') {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    if (!isStaff) {
       return {
         success: false,
-        error: { message: "Only admins can update guides" },
+        error: { message: "Only staff members can update guides" },
       };
     }
 
@@ -221,11 +223,12 @@ export async function deleteGuide(guideId: string): Promise<GuideResponse> {
       };
     }
 
-    // Check if user is admin
-    if (session.user.role !== 'ADMIN') {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    if (!isStaff) {
       return {
         success: false,
-        error: { message: "Only admins can delete guides" },
+        error: { message: "Only staff members can delete guides" },
       };
     }
 
@@ -315,11 +318,12 @@ export async function togglePublishGuide(guideId: string): Promise<GuideResponse
       };
     }
 
-    // Check if user is admin
-    if (session.user.role !== 'ADMIN') {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    if (!isStaff) {
       return {
         success: false,
-        error: { message: "Only admins can publish guides" },
+        error: { message: "Only staff members can publish guides" },
       };
     }
 

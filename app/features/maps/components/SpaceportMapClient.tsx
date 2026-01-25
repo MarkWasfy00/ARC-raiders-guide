@@ -53,16 +53,20 @@ const MAX_ZOOM = 5;
 const MIN_ZOOM = 0;
 
 // The game world is 8192x8192 units at max zoom
+// Spaceport tiles show a cropped region starting at different coordinates
+// Offset adjustments align marker coordinates with map tile features
 const WORLD_SIZE = 8192;
 const SCALE = WORLD_SIZE / TILE_SIZE; // 32
 
-const CustomCRS = L.extend({}, L.CRS.Simple, {
-  transformation: new L.Transformation(1/SCALE, 0, 1/SCALE, 0)
-});
+// Adjust these values to align markers with map features
+// Positive X = shift markers right, Negative X = shift left
+// Positive Y = shift markers down, Negative Y = shift up
+const X_OFFSET = -70; // Fine-tune horizontal alignment
+const Y_OFFSET = -27; // Fine-tune vertical alignment
 
-// Define tile bounds to match actual map content area (excludes white/empty regions)
-// The spaceport map content is positioned in the upper portion of the tile grid
-const TILE_BOUNDS = L.latLngBounds([0, 0], [5500, WORLD_SIZE]);
+const CustomCRS = L.extend({}, L.CRS.Simple, {
+  transformation: new L.Transformation(1/SCALE, X_OFFSET, 1/SCALE, Y_OFFSET)
+});
 
 // Default center coordinates for perfect map positioning
 // This will be overridden by saved configuration if available
@@ -1025,7 +1029,7 @@ export const SpaceportMapClient = memo(function SpaceportMapClient({ isAdminMode
           maxNativeZoom={MAX_ZOOM}
           noWrap={true}
           keepBuffer={12}
-          bounds={TILE_BOUNDS}
+          bounds={undefined}
           updateWhenIdle={false}
           updateWhenZooming={true}
           updateInterval={100}
