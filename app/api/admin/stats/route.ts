@@ -6,8 +6,9 @@ export async function GET(request: Request) {
   try {
     const session = await auth();
 
-    // Check admin role
-    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+    // Check staff role (admin or moderator)
+    const isStaff = session?.user?.role === 'ADMIN' || session?.user?.role === 'MODERATOR';
+    if (!session?.user?.id || !isStaff) {
       return NextResponse.json(
         { success: false, error: 'غير مصرح بالوصول' },
         { status: 403 }

@@ -12,6 +12,8 @@ export const authConfig = {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
       const isAdmin = auth?.user?.role === 'ADMIN';
+      const isModerator = auth?.user?.role === 'MODERATOR';
+      const isStaff = isAdmin || isModerator;
 
       const isOnProtected = nextUrl.pathname.startsWith("/dashboard") ||
                            nextUrl.pathname.startsWith("/events");
@@ -21,8 +23,8 @@ export const authConfig = {
         return false; // Redirect to login page
       }
 
-      // Redirect non-admin users to unauthorized page when trying to access /admin routes
-      if (isOnAdmin && !isAdmin) {
+      // Redirect non-staff users to unauthorized page when trying to access /admin routes
+      if (isOnAdmin && !isStaff) {
         return Response.redirect(new URL('/unauthorized', nextUrl.origin));
       }
 
@@ -44,6 +46,12 @@ export const authConfig = {
         }
         // Store banned status (will be checked on every request in proxy.ts)
         token.banned = (user as any).banned || false;
+        // Store role in token for middleware authorization
+        const role = (user as any).role;
+        if (role) {
+          token.role = role;
+          console.log('JWT callback - token.role set to:', token.role);
+        }
       }
       return token;
     },
@@ -53,6 +61,10 @@ export const authConfig = {
         // Ensure email is included in session for profile lookups
         if (token.email) {
           session.user.email = token.email as string;
+        }
+        // Include role from token for middleware (Edge runtime can't access database)
+        if (token.role) {
+          (session.user as any).role = token.role;
         }
       }
       return session;

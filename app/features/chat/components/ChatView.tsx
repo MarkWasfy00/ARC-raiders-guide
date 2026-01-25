@@ -5,7 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Star, Send, Gamepad2, MessageSquare, Sparkles, ArrowLeft, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { Star, Send, Gamepad2, MessageSquare, Sparkles, ArrowLeft, CheckCircle2, XCircle, AlertCircle, UserCheck } from "lucide-react";
+import { OwnerTradingBanner } from "./OwnerTradingBanner";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { getSocket } from "@/lib/socket";
@@ -39,6 +40,8 @@ interface Listing {
   paymentType: string;
   seedsAmount: number | null;
   quantity: number;
+  activeTraderChatId?: string | null;
+  activeTraderUserId?: string | null;
   item: {
     id: string;
     name: string;
@@ -57,7 +60,7 @@ interface Chat {
   participant2LockedIn: boolean;
   participant1Approved: boolean;
   participant2Approved: boolean;
-  status: "ACTIVE" | "COMPLETED" | "CANCELLED";
+  status: "ACTIVE" | "COMPLETED" | "CANCELLED" | "OWNER_TRADING";
   messages: Message[];
 }
 
@@ -80,6 +83,15 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
   const [tradeId, setTradeId] = useState<string | null>(null);
   const [hasRated, setHasRated] = useState(false);
   const [showDiscordDialog, setShowDiscordDialog] = useState(false);
+  const [selectingTrader, setSelectingTrader] = useState(false);
+
+  // Check if current user is the listing owner
+  const isListingOwner = chat?.listing.user.id === currentUserId;
+
+  // Check if this chat is the active trader for the listing
+  const isActiveTrader = chat?.listing &&
+    'activeTraderChatId' in chat.listing &&
+    (chat.listing as { activeTraderChatId?: string }).activeTraderChatId === chat?.id;
 
   const otherUser = chat
     ? chat.participant1.id === currentUserId
@@ -312,6 +324,30 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
     }
   };
 
+  const handleSelectTrader = async () => {
+    if (!chat) return;
+
+    setSelectingTrader(true);
+    try {
+      const res = await fetch(`/api/chat/${chat.id}/select-trader`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        // Refresh chat data to get updated status
+        await loadMessages();
+      } else {
+        const error = await res.json();
+        alert(error.error || "فشل في اختيار المتداول");
+      }
+    } catch (error) {
+      console.error("Error selecting trader:", error);
+      alert("فشل في اختيار المتداول");
+    } finally {
+      setSelectingTrader(false);
+    }
+  };
+
   const handleSubmitRating = async (ratingData: {
     score: number;
     honest: boolean;
@@ -468,14 +504,42 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
               )}
             </div>
           </div>
-          <Button
-            onClick={() => setShowDiscordDialog(true)}
-            size="sm"
-            className="bg-[#5865F2] hover:bg-[#4752C4] text-white shrink-0"
-            title="مشاركة على Discord"
-          >
-            <DiscordIcon className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Select for Trade button - only for listing owners */}
+            {isListingOwner && chat.status === "ACTIVE" && !chat.listing.activeTraderChatId && (
+              <Button
+                onClick={handleSelectTrader}
+                disabled={selectingTrader}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                title="اختيار للتداول"
+              >
+                {selectingTrader ? (
+                  "جاري الاختيار..."
+                ) : (
+                  <>
+                    <UserCheck className="h-4 w-4 ml-1" />
+                    اختيار للتداول
+                  </>
+                )}
+              </Button>
+            )}
+            {/* Show selected trader badge */}
+            {isActiveTrader && (
+              <Badge className="bg-green-600/20 text-green-400">
+                <CheckCircle2 className="h-3 w-3 ml-1" />
+                المتداول المختار
+              </Badge>
+            )}
+            <Button
+              onClick={() => setShowDiscordDialog(true)}
+              size="sm"
+              className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+              title="مشاركة على Discord"
+            >
+              <DiscordIcon className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -502,6 +566,14 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
             أحد المستخدمين غادر المحادثة
           </p>
         </div>
+      )}
+
+      {chat.status === "OWNER_TRADING" && (
+        <OwnerTradingBanner
+          itemName={chat.listing.item?.name || "عنصر محذوف"}
+          onLeaveQueue={handleLeave}
+          isLeaving={leaving}
+        />
       )}
 
       {chat.status === "ACTIVE" && (
@@ -757,6 +829,12 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
               اضغط Enter للإرسال، Shift+Enter لسطر جديد
             </p>
           </>
+        ) : chat.status === "OWNER_TRADING" ? (
+          <div className="text-center text-amber-400/80 py-3">
+            <p className="text-sm">
+              لا يمكنك إرسال رسائل حتى يتم اختيارك للتداول
+            </p>
+          </div>
         ) : (
           <div className="text-center text-muted-foreground py-3">
             <p className="text-sm">

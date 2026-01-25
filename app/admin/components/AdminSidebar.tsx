@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -61,6 +62,9 @@ const navItems: NavItem[] = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'ADMIN';
+  const isModerator = session?.user?.role === 'MODERATOR';
 
   return (
     <aside className="flex h-screen w-64 flex-col border-l border-border bg-gradient-to-b from-background to-muted/20">
@@ -110,13 +114,21 @@ export function AdminSidebar() {
 
       {/* Footer */}
       <div className="border-t border-border p-4">
-        <div className="rounded-lg bg-primary/10 p-3">
-          <div className="flex items-center gap-2 text-primary">
+        <div className={cn(
+          "rounded-lg p-3",
+          isAdmin ? "bg-primary/10" : "bg-blue-500/10"
+        )}>
+          <div className={cn(
+            "flex items-center gap-2",
+            isAdmin ? "text-primary" : "text-blue-600 dark:text-blue-400"
+          )}>
             <Shield className="h-4 w-4" />
-            <span className="text-xs font-medium">وضع المسؤول النشط</span>
+            <span className="text-xs font-medium">
+              {isAdmin ? "وضع المسؤول النشط" : "وضع المراقب النشط"}
+            </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Admin Mode Active
+            {isAdmin ? "Admin Mode Active" : "Moderator Mode Active"}
           </p>
         </div>
       </div>

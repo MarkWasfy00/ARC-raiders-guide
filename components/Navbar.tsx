@@ -260,7 +260,7 @@ export function Navbar({ session }: NavbarProps) {
                       الرسائل
                     </Link>
                   </DropdownMenuItem>
-                  {session.user.role === 'ADMIN' && (
+                  {(session.user.role === 'ADMIN' || session.user.role === 'MODERATOR') && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>

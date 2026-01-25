@@ -47,6 +47,7 @@ interface User {
 interface UserTableProps {
   users: User[];
   selectedUserIds: string[];
+  isAdmin?: boolean;
   onSelectUser: (userId: string, selected: boolean) => void;
   onSelectAll: (selected: boolean) => void;
   onBanUser: (user: User) => void;
@@ -58,6 +59,7 @@ interface UserTableProps {
 export function UserTable({
   users,
   selectedUserIds,
+  isAdmin = false,
   onSelectUser,
   onSelectAll,
   onBanUser,
@@ -167,6 +169,11 @@ export function UserTable({
                         <Shield className="h-3 w-3" />
                         مشرف
                       </Badge>
+                    ) : user.role === "MODERATOR" ? (
+                      <Badge className="gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+                        <Shield className="h-3 w-3" />
+                        مراقب
+                      </Badge>
                     ) : (
                       <Badge variant="secondary">مستخدم</Badge>
                     )}
@@ -227,37 +234,41 @@ export function UserTable({
                     )}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {user.banned ? (
-                          <DropdownMenuItem onClick={() => onUnbanUser(user)}>
-                            <CheckCircle className="ml-2 h-4 w-4" />
-                            إلغاء الحظر
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => onBanUser(user)}>
-                            <Ban className="ml-2 h-4 w-4 text-destructive" />
-                            حظر المستخدم
-                          </DropdownMenuItem>
-                        )}
-                        {user.role === "USER" ? (
-                          <DropdownMenuItem onClick={() => onPromoteUser(user)}>
-                            <Shield className="ml-2 h-4 w-4 text-primary" />
-                            ترقية إلى مشرف
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => onDemoteUser(user)}>
-                            <ShieldOff className="ml-2 h-4 w-4 text-muted-foreground" />
-                            إلغاء صلاحيات المشرف
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {isAdmin ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {user.banned ? (
+                            <DropdownMenuItem onClick={() => onUnbanUser(user)}>
+                              <CheckCircle className="ml-2 h-4 w-4" />
+                              إلغاء الحظر
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => onBanUser(user)}>
+                              <Ban className="ml-2 h-4 w-4 text-destructive" />
+                              حظر المستخدم
+                            </DropdownMenuItem>
+                          )}
+                          {user.role === "USER" ? (
+                            <DropdownMenuItem onClick={() => onPromoteUser(user)}>
+                              <Shield className="ml-2 h-4 w-4 text-primary" />
+                              ترقية إلى مشرف
+                            </DropdownMenuItem>
+                          ) : user.role !== "ADMIN" && (
+                            <DropdownMenuItem onClick={() => onDemoteUser(user)}>
+                              <ShieldOff className="ml-2 h-4 w-4 text-muted-foreground" />
+                              إلغاء صلاحيات المشرف
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">للمشرف فقط</span>
+                    )}
                   </TableCell>
                 </TableRow>
               );

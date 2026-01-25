@@ -25,10 +25,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    if (session.user.role !== 'ADMIN') {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    if (!isStaff) {
       return NextResponse.json(
-        { error: "Only admins can upload guide images" },
+        { error: "Only staff members can upload guide images" },
         { status: 403 }
       );
     }

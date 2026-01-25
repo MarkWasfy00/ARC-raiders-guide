@@ -16,8 +16,9 @@ export async function GET() {
   try {
     const session = await auth();
 
-    // Check if user is admin
-    if (!session?.user?.role || session.user.role !== "ADMIN") {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "MODERATOR";
+    if (!session?.user?.role || !isStaff) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
@@ -53,8 +54,9 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await auth();
 
-    // Check if user is admin
-    if (!session?.user?.role || session.user.role !== "ADMIN") {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "MODERATOR";
+    if (!session?.user?.role || !isStaff) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
@@ -121,8 +123,9 @@ export async function POST() {
   try {
     const session = await auth();
 
-    // Check if user is admin
-    if (!session?.user?.role || session.user.role !== "ADMIN") {
+    // Check if user is staff (admin or moderator)
+    const isStaff = session?.user?.role === "ADMIN" || session?.user?.role === "MODERATOR";
+    if (!session?.user?.role || !isStaff) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }

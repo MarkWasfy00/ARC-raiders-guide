@@ -120,9 +120,20 @@ export function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-6 border-t flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            © {currentYear} 3RB. جميع الحقوق محفوظة.
-          </p>
+          <div className="text-sm text-muted-foreground text-center md:text-start">
+            <p>© {currentYear} 3RB. جميع الحقوق محفوظة.</p>
+            <p className="mt-1">
+              البيانات مقدمة من{" "}
+              <a
+                href="https://metaforge.app/arc-raiders"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground hover:underline"
+              >
+                MetaForge
+              </a>
+            </p>
+          </div>
 
           {/* Social Links */}
           <div className="flex items-center gap-4">

@@ -20,6 +20,8 @@ const maintenanceBypassRoutes = [
 export default auth(async (req) => {
   const isLoggedIn = !!req.auth;
   const isAdmin = req.auth?.user?.role === 'ADMIN';
+  const isModerator = req.auth?.user?.role === 'MODERATOR';
+  const isStaff = isAdmin || isModerator;
   const isBanned = (req.auth?.user as any)?.banned === true;
   const { pathname } = req.nextUrl;
 
@@ -68,8 +70,8 @@ export default auth(async (req) => {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Redirect non-admin users to unauthorized page when trying to access /admin routes
-  if (isAdminRoute && !isAdmin) {
+  // Redirect non-staff users to unauthorized page when trying to access /admin routes
+  if (isAdminRoute && !isStaff) {
     return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
 
