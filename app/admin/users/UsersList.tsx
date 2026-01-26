@@ -392,6 +392,8 @@ export function UsersList() {
                 }}
                 onPromoteUser={(user) => {
                   setSelectedUser(user);
+                  // If user is already a MODERATOR, default to ADMIN
+                  setPromoteToRole(user.role === "MODERATOR" ? "ADMIN" : "MODERATOR");
                   setPromoteDialogOpen(true);
                 }}
                 onDemoteUser={(user) => {
@@ -510,29 +512,33 @@ export function UsersList() {
             <div className="flex flex-col gap-3">
               <label className="text-sm font-medium">اختر الدور</label>
               <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant={promoteToRole === "MODERATOR" ? "default" : "outline"}
-                  onClick={() => setPromoteToRole("MODERATOR")}
-                  className="flex-1"
-                >
-                  <Shield className="ml-2 h-4 w-4" />
-                  مراقب (Moderator)
-                </Button>
+                {selectedUser?.role === "USER" && (
+                  <Button
+                    type="button"
+                    variant={promoteToRole === "MODERATOR" ? "default" : "outline"}
+                    onClick={() => setPromoteToRole("MODERATOR")}
+                    className="flex-1"
+                  >
+                    <Shield className="ml-2 h-4 w-4" />
+                    مراقب (Moderator)
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant={promoteToRole === "ADMIN" ? "default" : "outline"}
                   onClick={() => setPromoteToRole("ADMIN")}
-                  className="flex-1"
+                  className={selectedUser?.role === "MODERATOR" ? "w-full" : "flex-1"}
                 >
                   <Shield className="ml-2 h-4 w-4" />
                   مشرف (Admin)
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {promoteToRole === "MODERATOR"
-                  ? "المراقب يمكنه إدارة الأدلة والخرائط والإعدادات، لكن لا يمكنه حظر المستخدمين أو ترقيتهم."
-                  : "المشرف لديه صلاحيات كاملة لإدارة النظام بالكامل."}
+                {selectedUser?.role === "MODERATOR"
+                  ? "سيتم ترقية المراقب إلى مشرف بصلاحيات كاملة لإدارة النظام."
+                  : promoteToRole === "MODERATOR"
+                    ? "المراقب يمكنه إدارة الأدلة والخرائط والإعدادات، لكن لا يمكنه حظر المستخدمين أو ترقيتهم."
+                    : "المشرف لديه صلاحيات كاملة لإدارة النظام بالكامل."}
               </p>
             </div>
           </div>

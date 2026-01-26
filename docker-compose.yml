@@ -85,6 +85,32 @@ services:
     networks:
       - arcraiders-network
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: arcraiders-mailpit
+    restart: unless-stopped
+    ports:
+      - '1025:1025'   # SMTP server
+      - '8025:8025'   # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:8025']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+    networks:
+      - arcraiders-network
+
   minio:
     image: minio/minio:latest
     container_name: arcraiders-minio

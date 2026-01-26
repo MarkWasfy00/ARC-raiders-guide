@@ -182,7 +182,13 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
 
     // Generate verification token and send email
     const token = await createVerificationToken(credentials.email);
-    await sendVerificationEmail(credentials.email, token);
+    try {
+      await sendVerificationEmail(credentials.email, token);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      // In development, continue without email - user can be verified manually
+      // In production, you should configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+    }
 
     return {
       success: true,
