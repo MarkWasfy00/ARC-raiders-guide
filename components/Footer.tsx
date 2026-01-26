@@ -33,10 +33,10 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/maps"
+                  href="/quests"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  الخرائط
+                  المهام
                 </Link>
               </li>
               <li>
@@ -80,10 +80,18 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/dashboard"
+                  href="/guides"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  لوحة التحكم
+                   الأدلة
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/loadouts"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                   الحمولات
                 </Link>
               </li>
             </ul>
@@ -91,28 +99,39 @@ export function Footer() {
 
           {/* Resources */}
           <div className="space-y-3">
-            <h4 className="font-semibold">الموارد</h4>
+            <h4 className="font-semibold">الخرائط</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a
-                  href="https://www.overwolf.com/app/metaforge"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/maps/dam-battlegrounds"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  تطبيق التراكب
-                </a>
+                  السد
+                </Link>
               </li>
               <li>
-                <a
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                <Link
+                  href="/maps/the-spaceport"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Github className="h-3 w-3" />
-                  GitHub
-                </a>
+                  الميناء الفضائى
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/maps/the-spaceport"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  المدينة المدفونة
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/maps/blue-gate"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  البوابة الزرقاء
+                </Link>
               </li>
             </ul>
           </div>
@@ -133,28 +152,9 @@ export function Footer() {
                 MetaForge
               </a>
             </p>
-          </div>
-
-          {/* Social Links */}
-          <div className="flex items-center gap-4">
-            <a
-              href="https://twitter.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Twitter"
-            >
-              <Twitter className="h-5 w-5" />
-            </a>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="GitHub"
-            >
-              <Github className="h-5 w-5" />
-            </a>
+            <p className="mt-1 text-xs text-muted-foreground">
+              © {currentYear} 3RB – حقوق الملكية الفكرية وجميع المحتويات الخاصة بلعبة ARC Raiders تعود إلى Embark Studios. هذا الموقع هو مشروع من صنع المعجبين فقط، ولا يمثل أو يتبع شركة Embark Studios بأي شكل من الأشكال.
+            </p>
           </div>
         </div>
       </div>

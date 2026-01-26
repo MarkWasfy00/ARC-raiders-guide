@@ -241,18 +241,8 @@ export function Navbar({ session }: NavbarProps) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/profile/edit" className="w-full text-right cursor-pointer justify-end">
-                      تعديل الملف الشخصي
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
                     <Link href="/listings" className="w-full text-right cursor-pointer justify-end">
                       قوائمي
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/trades" className="w-full text-right cursor-pointer justify-end">
-                      صفقاتي
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
