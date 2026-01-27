@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, AlertCircle, Filter, Search, ArrowDownUp, ChevronLeft, ChevronRight, HelpCircle } from "lucide-react";
+import { Plus, AlertCircle, Filter, Search, ArrowDownUp, ChevronLeft, ChevronRight, HelpCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { CreateListingDialog } from "./CreateListingDialog";
 import { ListingCard } from "./ListingCard";
@@ -81,6 +81,7 @@ const rarityOrder: Record<string, number> = {
 export function Marketplace({ session, userProfile }: MarketplaceProps) {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   // Rules dialog state
@@ -107,8 +108,9 @@ export function Marketplace({ session, userProfile }: MarketplaceProps) {
   const [visibleWTB, setVisibleWTB] = useState(4);
   const itemsPerPage = 10;
 
-  const fetchListings = async () => {
+  const fetchListings = async (isRefresh = false) => {
     try {
+      if (isRefresh) setRefreshing(true);
       const response = await fetch("/api/marketplace/listings");
       const data = await response.json();
       setListings(data.listings || []);
@@ -116,11 +118,25 @@ export function Marketplace({ session, userProfile }: MarketplaceProps) {
       console.error("Error fetching listings:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    fetchListings(true);
   };
 
   useEffect(() => {
     fetchListings();
+  }, []);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchListings(true);
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
   }, []);
 
   // Debounced search
@@ -308,6 +324,16 @@ export function Marketplace({ session, userProfile }: MarketplaceProps) {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="h-9 w-9 border-border"
+              title="تحديث القوائم"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
             <Button
               variant="outline"
               size="icon"

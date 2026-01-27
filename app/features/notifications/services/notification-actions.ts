@@ -5,7 +5,29 @@ import { prisma } from "@/lib/prisma";
 import { NotificationType, Prisma } from "@/lib/generated/prisma/client";
 
 /**
+ * Emit notification via internal API endpoint
+ * This is used to emit notifications via Socket.IO from server actions
+ */
+async function emitNotificationViaApi(userId: string, notification: unknown) {
+  try {
+    const baseUrl = process.env.AUTH_URL || "http://localhost:3000";
+    await fetch(`${baseUrl}/api/notifications/emit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": process.env.AUTH_SECRET || "",
+      },
+      body: JSON.stringify({ userId, notification }),
+    });
+  } catch (error) {
+    // Log but don't fail the notification creation
+    console.error("Failed to emit notification via API:", error);
+  }
+}
+
+/**
  * Create a notification for a user
+ * Automatically emits via Socket.IO for real-time updates
  */
 export async function createNotification({
   userId,
@@ -34,16 +56,38 @@ export async function createNotification({
       },
     });
 
-    // Emit Socket.IO event for real-time notification
-    if (global.io) {
-      global.io.to(`notifications:${userId}`).emit("new-notification", notification);
-    }
+    // Emit notification via internal API for real-time Socket.IO updates
+    // This works even when called from server actions
+    emitNotificationViaApi(userId, notification);
 
     return { success: true, data: notification };
   } catch (error) {
     console.error("Error creating notification:", error);
     return { success: false, error: "فشل إنشاء الإشعار" };
   }
+}
+
+/**
+ * Emit a notification via Socket.IO
+ * This should be called from API routes where global.io is available
+ */
+export function emitNotification(userId: string, notification: {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  link: string | null;
+  metadata: Prisma.JsonValue;
+  created_at: Date;
+  updated_at: Date;
+}) {
+  if (global.io) {
+    global.io.to(`notifications:${userId}`).emit("new-notification", notification);
+    return true;
+  }
+  return false;
 }
 
 /**

@@ -83,46 +83,51 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Fetch fresh user data from database
         if (token.email) {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email as string },
-            select: {
-              id: true,
-              email: true,
-              name: true,
-              image: true,
-              username: true,
-              embark_id: true,
-              discord_username: true,
-              sessionVersion: true,
-              role: true,
-              banned: true,
-            },
-          });
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { email: token.email as string },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                image: true,
+                username: true,
+                embark_id: true,
+                discord_username: true,
+                sessionVersion: true,
+                role: true,
+                banned: true,
+              },
+            });
 
-          // Debug logging
-          console.log('Session callback - token.sessionVersion:', token.sessionVersion);
-          console.log('Session callback - dbUser.sessionVersion:', dbUser?.sessionVersion);
-
-          // Validate session version - if mismatch, session is invalidated
-          if (dbUser && typeof token.sessionVersion === 'number' && typeof dbUser.sessionVersion === 'number') {
-            if (dbUser.sessionVersion !== token.sessionVersion) {
-              console.log('🔴 SESSION INVALIDATED - Version mismatch!');
-              // Session has been invalidated - throw error to force re-login
-              throw new Error('Session invalidated');
+            // Validate session version - if mismatch, mark session as invalid
+            if (dbUser && typeof token.sessionVersion === 'number' && typeof dbUser.sessionVersion === 'number') {
+              if (dbUser.sessionVersion !== token.sessionVersion) {
+                // Return empty session to indicate invalid session without throwing
+                return { ...session, user: undefined } as any;
+              }
             }
-          }
 
-          // Update session with fresh data from database
-          if (dbUser) {
-            session.user.email = dbUser.email || '';
-            session.user.name = dbUser.name || '';
-            session.user.image = dbUser.image || '';
-            // Add custom fields to session
-            (session.user as any).username = dbUser.username;
-            (session.user as any).embark_id = dbUser.embark_id;
-            (session.user as any).discord_username = dbUser.discord_username;
-            (session.user as any).role = dbUser.role;
-            (session.user as any).banned = dbUser.banned;
+            // Check if user is banned
+            if (dbUser?.banned) {
+              return { ...session, user: undefined } as any;
+            }
+
+            // Update session with fresh data from database
+            if (dbUser) {
+              session.user.email = dbUser.email || '';
+              session.user.name = dbUser.name || '';
+              session.user.image = dbUser.image || '';
+              // Add custom fields to session
+              (session.user as any).username = dbUser.username;
+              (session.user as any).embark_id = dbUser.embark_id;
+              (session.user as any).discord_username = dbUser.discord_username;
+              (session.user as any).role = dbUser.role;
+              (session.user as any).banned = dbUser.banned;
+            }
+          } catch (error) {
+            // On database error, return session with token data only (don't invalidate)
+            console.error('Session callback database error:', error);
           }
         }
       }
@@ -135,44 +140,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true, // Allow Discord to link with existing accounts via email
       async profile(profile) {
-        try {
-          console.log('Discord profile callback - email:', profile.email);
-
-          // Check if user exists and get their banned status
-          let existingUser = null;
-          if (profile.email) {
-            existingUser = await prisma.user.findUnique({
-              where: { email: profile.email },
-              select: { id: true, banned: true, sessionVersion: true, role: true },
-            });
-            console.log('Discord profile callback - existingUser:', existingUser);
-          }
-
-          // If user is banned, prevent login
-          if (existingUser?.banned) {
-            throw new Error("BANNED");
-          }
-
-          const userRole = existingUser?.role ?? 'USER';
-          console.log('Discord profile callback - returning role:', userRole);
-
-          return {
-            id: profile.id,
-            name: profile.global_name ?? profile.username,
-            email: profile.email,
-            image: profile.avatar
-              ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
-              : null,
-            username: profile.username,
-            discord_username: `${profile.username}${profile.discriminator !== "0" ? `#${profile.discriminator}` : ""}`,
-            banned: existingUser?.banned ?? false,
-            sessionVersion: existingUser?.sessionVersion ?? 0,
-            role: userRole,
-          };
-        } catch (error) {
-          console.error('Discord profile callback error:', error);
-          throw error;
+        // Check if user exists and get their banned status
+        let existingUser = null;
+        if (profile.email) {
+          existingUser = await prisma.user.findUnique({
+            where: { email: profile.email },
+            select: { id: true, banned: true, sessionVersion: true, role: true },
+          });
         }
+
+        // If user is banned, prevent login
+        if (existingUser?.banned) {
+          throw new Error("BANNED");
+        }
+
+        const userRole = existingUser?.role ?? 'USER';
+
+        return {
+          id: profile.id,
+          name: profile.global_name ?? profile.username,
+          email: profile.email,
+          image: profile.avatar
+            ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+            : null,
+          username: profile.username,
+          discord_username: `${profile.username}${profile.discriminator !== "0" ? `#${profile.discriminator}` : ""}`,
+          banned: existingUser?.banned ?? false,
+          sessionVersion: existingUser?.sessionVersion ?? 0,
+          role: userRole,
+        };
       },
     }),
     Credentials({
@@ -210,7 +206,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Invalid credentials");
         }
 
-        const userResponse = {
+        return {
           id: user.id,
           email: user.email,
           name: user.name,
@@ -218,10 +214,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           sessionVersion: user.sessionVersion,
           role: user.role,
         };
-
-        console.log('Authorize callback - returning user with sessionVersion:', user.sessionVersion);
-
-        return userResponse;
       },
     }),
   ],

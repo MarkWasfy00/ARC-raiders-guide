@@ -39,10 +39,8 @@ export const authConfig = {
         }
         // Store sessionVersion in token for validation
         const sessionVersion = (user as any).sessionVersion;
-        console.log('JWT callback - user.sessionVersion:', sessionVersion);
         if (sessionVersion !== undefined) {
           token.sessionVersion = sessionVersion;
-          console.log('JWT callback - token.sessionVersion set to:', token.sessionVersion);
         }
         // Store banned status (will be checked on every request in proxy.ts)
         token.banned = (user as any).banned || false;
@@ -50,7 +48,6 @@ export const authConfig = {
         const role = (user as any).role;
         if (role) {
           token.role = role;
-          console.log('JWT callback - token.role set to:', token.role);
         }
       }
       return token;
