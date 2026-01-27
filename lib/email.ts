@@ -1,6 +1,16 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY environment variable is not set');
+    }
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
   const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -116,7 +126,7 @@ ${verificationUrl}
 إذا لم تقم بإنشاء حساب، يمكنك تجاهل هذا البريد الإلكتروني.
   `;
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResendClient().emails.send({
     from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
     to: email,
     subject: 'تأكيد البريد الإلكتروني - 3RB',
