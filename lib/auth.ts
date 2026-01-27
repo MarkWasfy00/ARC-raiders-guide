@@ -164,7 +164,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
             : null,
           username: profile.username,
-          discord_username: `${profile.username}${profile.discriminator !== "0" ? `#${profile.discriminator}` : ""}`,
+          discord_username: `${profile.username}${profile.discriminator && profile.discriminator !== "0" ? `#${profile.discriminator}` : ""}`,
           banned: existingUser?.banned ?? false,
           sessionVersion: existingUser?.sessionVersion ?? 0,
           role: userRole,
@@ -260,7 +260,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // When an account is linked (e.g., Discord), update user with provider-specific info
       if (account.provider === "discord" && profile && user.email) {
         const discordProfile = profile as any;
-        const discord_username = `${discordProfile.username}${discordProfile.discriminator !== "0" ? `#${discordProfile.discriminator}` : ""}`;
+        const discord_username = `${discordProfile.username}${discordProfile.discriminator && discordProfile.discriminator !== "0" ? `#${discordProfile.discriminator}` : ""}`;
 
         const dbUser = await prisma.user.findUnique({
           where: { email: user.email },
