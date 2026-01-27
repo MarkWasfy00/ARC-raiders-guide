@@ -1,14 +1,6 @@
-import nodemailer from "nodemailer";
+import { Resend } from 'resend';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
   const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -124,11 +116,15 @@ ${verificationUrl}
 إذا لم تقم بإنشاء حساب، يمكنك تجاهل هذا البريد الإلكتروني.
   `;
 
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || "noreply@3rb.com",
+  const { error } = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
     to: email,
-    subject: "تأكيد البريد الإلكتروني - 3RB",
+    subject: 'تأكيد البريد الإلكتروني - 3RB',
     text,
     html,
   });
+
+  if (error) {
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
 }

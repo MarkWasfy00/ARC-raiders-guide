@@ -46,7 +46,7 @@ model User {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
   discord_username     String?
-  embark_id            String?
+  embark_id            String?        @unique
   username             String?        @unique
   sessionVersion       Int            @default(0)
   role                 UserRole       @default(USER)
@@ -96,11 +96,13 @@ model VerificationToken {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
-  email     String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  resendCount  Int      @default(0)
+  lastResentAt DateTime?
 
   @@index([email])
   @@index([token])

@@ -122,10 +122,20 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
       };
     }
 
-    // Normalize embark_id - add # prefix if not present
-    let embark_id = credentials.embark_id;
-    if (embark_id && !embark_id.startsWith("#")) {
-      embark_id = `#${embark_id}`;
+    // Validate and normalize embark_id
+    let embark_id = credentials.embark_id?.trim() || null;
+    if (embark_id) {
+      // Validate embark_id pattern: Username#0000 (letters, numbers, underscores followed by # and 1-6 digits)
+      const embarkIdRegex = /^[a-zA-Z0-9_]{1,32}#\d{1,6}$/;
+      if (!embarkIdRegex.test(embark_id)) {
+        return {
+          success: false,
+          error: {
+            message: "معرف إمبارك غير صالح. يجب أن يكون بالصيغة: Username#0000",
+            field: "embark_id",
+          },
+        };
+      }
     }
 
     // Check if email already exists
@@ -160,6 +170,25 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
           field: "username",
         },
       };
+    }
+
+    // Check if embark_id already exists
+    if (embark_id) {
+      const existingEmbarkId = await prisma.user.findFirst({
+        where: {
+          embark_id: embark_id,
+        },
+      });
+
+      if (existingEmbarkId) {
+        return {
+          success: false,
+          error: {
+            message: "معرف إمبارك هذا مستخدم بالفعل",
+            field: "embark_id",
+          },
+        };
+      }
     }
 
     // Hash password
@@ -242,4 +271,8 @@ export async function logoutAndInvalidateAllSessions(userId: string) {
 
 export async function discordSignInAction() {
   await signIn("discord", { redirectTo: "/" });
+}
+
+export async function linkDiscordAction() {
+  await signIn("discord", { redirectTo: "/profile" });
 }

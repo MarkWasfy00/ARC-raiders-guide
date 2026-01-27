@@ -21,7 +21,6 @@ export function RegisterForm() {
     password: "",
     confirmPassword: "",
     embark_id: "",
-    discord_username: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,31 +200,17 @@ export function RegisterForm() {
                 id="embark_id"
                 name="embark_id"
                 type="text"
-                placeholder="12345678 or #12345678"
+                placeholder="Username#0000"
                 value={formData.embark_id}
                 onChange={handleChange}
                 disabled={isPending}
+                dir="ltr"
               />
+              {fieldErrors.embark_id && (
+                <p className="text-sm text-red-500">{fieldErrors.embark_id}</p>
+              )}
               <p className="text-xs text-muted-foreground">
-                معرف Embark الخاص بك في اللعبة (# اختياري)
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="discord_username">
-                اسم المستخدم على ديسكورد <span className="text-muted-foreground text-xs">(اختياري)</span>
-              </Label>
-              <Input
-                id="discord_username"
-                name="discord_username"
-                type="text"
-                placeholder="username#1234"
-                value={formData.discord_username}
-                onChange={handleChange}
-                disabled={isPending}
-              />
-              <p className="text-xs text-muted-foreground">
-                يتم ملؤه تلقائيًا إذا سجلت باستخدام ديسكورد
+                مثال: NullPlayer77#7351
               </p>
             </div>
 

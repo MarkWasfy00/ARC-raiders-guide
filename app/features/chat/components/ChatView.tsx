@@ -176,7 +176,7 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
         chatRes.json()
       ]);
 
-      setMessages(messagesData);
+      setMessages(messagesData.messages || []);
       setChat(chatData);
     } catch (error) {
       console.error("Error loading messages:", error);
