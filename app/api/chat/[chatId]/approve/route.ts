@@ -142,11 +142,6 @@ export async function POST(
       },
     });
 
-    // Emit Socket.IO event to notify both participants
-    if (global.io && fullChat) {
-      global.io.to(chatId).emit("chat-updated", fullChat);
-    }
-
     // Fetch the trade if both approved
     let tradeId = null;
     if (bothApproved) {
@@ -155,6 +150,14 @@ export async function POST(
         orderBy: { created_at: "desc" },
       });
       tradeId = trade?.id || null;
+    }
+
+    // Emit Socket.IO event to notify both participants (include tradeId for rating dialog)
+    if (global.io && fullChat) {
+      global.io.to(chatId).emit("chat-updated", {
+        ...fullChat,
+        tradeId,
+      });
     }
 
     return NextResponse.json({

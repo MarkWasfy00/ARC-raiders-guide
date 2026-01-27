@@ -86,7 +86,7 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
   const [selectingTrader, setSelectingTrader] = useState(false);
 
   // Check if current user is the listing owner
-  const isListingOwner = chat?.listing.user.id === currentUserId;
+  const isListingOwner = chat?.listing?.user?.id === currentUserId;
 
   // Check if this chat is the active trader for the listing
   const isActiveTrader = chat?.listing &&
@@ -130,17 +130,39 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
     };
 
     // Listen for chat status updates (approvals, completion, cancellation, lock-in)
-    const handleChatUpdate = (updatedChat: Partial<Chat>) => {
+    const handleChatUpdate = (updatedChat: Partial<Chat> & { tradeId?: string }) => {
+      // Check if trade was just completed (status changed to COMPLETED with tradeId)
+      // Show rating dialog for both participants
+      if (updatedChat.status === "COMPLETED" && updatedChat.tradeId) {
+        // Use functional updates to check current state and prevent duplicates
+        setTradeId((prevTradeId) => prevTradeId || updatedChat.tradeId!);
+        setShowRatingDialog((prev) => {
+          // Only show if not already showing
+          if (!prev) return true;
+          return prev;
+        });
+      }
+
       setChat((prev) => {
         if (!prev) return prev;
 
-        // Merge the update, ensuring we properly update participant data
+        // Merge the update, ensuring we properly update participant data and listing
         return {
           ...prev,
           ...updatedChat,
           // Preserve participant data with updates if provided
           participant1: updatedChat.participant1 ? { ...prev.participant1, ...updatedChat.participant1 } : prev.participant1,
           participant2: updatedChat.participant2 ? { ...prev.participant2, ...updatedChat.participant2 } : prev.participant2,
+          // Preserve listing data with updates if provided
+          listing: updatedChat.listing
+            ? {
+                ...prev.listing,
+                ...updatedChat.listing,
+                // Preserve nested user and item data
+                user: updatedChat.listing.user ? { ...prev.listing.user, ...updatedChat.listing.user } : prev.listing.user,
+                item: updatedChat.listing.item ? { ...prev.listing.item, ...updatedChat.listing.item } : prev.listing.item,
+              }
+            : prev.listing,
         };
       });
     };
@@ -367,19 +389,17 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
 
       if (res.ok) {
         setHasRated(true);
-        alert("شكراً لتقييمك!"); // Thank you for your rating!
+        setShowRatingDialog(false);
 
         // Trigger chat list refresh to remove completed chat
         if (onChatListUpdate) {
           onChatListUpdate();
         }
 
-        // Navigate back to chat list after a brief delay
-        setTimeout(() => {
-          if (onBack) {
-            onBack();
-          }
-        }, 1000);
+        // Navigate back to chat list immediately
+        if (onBack) {
+          onBack();
+        }
       } else {
         const error = await res.json();
         alert(error.error || "فشل إرسال التقييم"); // Failed to submit rating
@@ -855,16 +875,17 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
           otherUser={otherUser}
           onSubmit={handleSubmitRating}
           onSkip={() => {
+            setShowRatingDialog(false);
+
             // Trigger chat list refresh even when skipped
             if (onChatListUpdate) {
               onChatListUpdate();
             }
-            // Navigate back to chat list after a brief delay
-            setTimeout(() => {
-              if (onBack) {
-                onBack();
-              }
-            }, 500);
+
+            // Navigate back to chat list immediately
+            if (onBack) {
+              onBack();
+            }
           }}
         />
       )}
