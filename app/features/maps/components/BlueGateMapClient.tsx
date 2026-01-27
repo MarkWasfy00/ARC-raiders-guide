@@ -475,16 +475,16 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
     fetchMapConfig();
   }, [currentFloor]);
 
-  // Fetch area labels from API
+  // Fetch area labels from API (floor-filtered)
   useEffect(() => {
     async function fetchAreaLabels() {
       try {
-        const response = await fetch('/api/maps/blue-gate/labels');
+        const response = await fetch(`/api/maps/blue-gate/labels?floor=${currentFloor}`);
         const data = await response.json();
 
         if (data.success) {
           setAreaLabels(data.labels);
-          console.log(`✅ Loaded ${data.labels.length} area labels for Blue Gate`);
+          console.log(`✅ Loaded ${data.labels.length} area labels for Blue Gate (${currentFloor} floor)`);
         }
       } catch (error) {
         console.error('❌ Failed to fetch Blue Gate area labels:', error);
@@ -492,7 +492,7 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
     }
 
     fetchAreaLabels();
-  }, []);
+  }, [currentFloor]);
 
   // Fetch regions from API
   useEffect(() => {
@@ -825,8 +825,9 @@ export const BlueGateMapClient = memo(function BlueGateMapClient({ isAdminMode =
   };
 
   const handleLabelAdded = async () => {
+    // Refetch labels for current floor
     try {
-      const response = await fetch('/api/maps/blue-gate/labels');
+      const response = await fetch(`/api/maps/blue-gate/labels?floor=${currentFloor}`);
       const data = await response.json();
       if (data.success) {
         setAreaLabels(data.labels);
