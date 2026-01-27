@@ -68,29 +68,6 @@ export async function createNotification({
 }
 
 /**
- * Emit a notification via Socket.IO
- * This should be called from API routes where global.io is available
- */
-export function emitNotification(userId: string, notification: {
-  id: string;
-  userId: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  read: boolean;
-  link: string | null;
-  metadata: Prisma.JsonValue;
-  created_at: Date;
-  updated_at: Date;
-}) {
-  if (global.io) {
-    global.io.to(`notifications:${userId}`).emit("new-notification", notification);
-    return true;
-  }
-  return false;
-}
-
-/**
  * Get all notifications for the current user
  */
 export async function getUserNotifications() {
