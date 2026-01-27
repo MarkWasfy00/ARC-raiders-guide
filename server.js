@@ -70,6 +70,20 @@ app.prepare().then(async () => {
       console.log(`[${instanceId}] Socket ${socket.id} left notifications: ${room}`);
     });
 
+    // Join a user's personal room (for new chat notifications)
+    socket.on("join-user", (userId) => {
+      const room = `user:${userId}`;
+      socket.join(room);
+      console.log(`[${instanceId}] Socket ${socket.id} joined user room: ${room}`);
+    });
+
+    // Leave a user's personal room
+    socket.on("leave-user", (userId) => {
+      const room = `user:${userId}`;
+      socket.leave(room);
+      console.log(`[${instanceId}] Socket ${socket.id} left user room: ${room}`);
+    });
+
     // Join a chat room
     socket.on("join-chat", (chatId) => {
       socket.join(chatId);

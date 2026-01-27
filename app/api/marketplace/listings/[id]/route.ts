@@ -84,7 +84,7 @@ export async function DELETE(
 
     if (!existingListing) {
       return NextResponse.json(
-        { error: "Listing not found" },
+        { error: "الطلب غير موجود أو تم حذفه مسبقاً", alreadyDeleted: true },
         { status: 404 }
       );
     }
@@ -93,12 +93,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Delete related records first (due to foreign key constraints)
-    await prisma.listingItem.deleteMany({
-      where: { listingId: id },
-    });
-
-    // Delete the listing
+    // Delete the listing - cascade will handle related records (Chat, Trade, ListingItem, etc.)
     await prisma.listing.delete({
       where: { id },
     });
@@ -107,7 +102,7 @@ export async function DELETE(
   } catch (error) {
     console.error("Error deleting listing:", error);
     return NextResponse.json(
-      { error: "Failed to delete listing" },
+      { error: "فشل في حذف الطلب" },
       { status: 500 }
     );
   }
