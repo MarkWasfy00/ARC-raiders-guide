@@ -87,8 +87,9 @@ export default async function BlogPage({ params }: BlogPageProps) {
     notFound();
   }
 
-  // If unpublished, only author can view
-  if (!blog.published && blog.authorId !== session?.user?.id) {
+  // If unpublished, only author or staff can view
+  const isStaff = session?.user?.role === 'ADMIN' || session?.user?.role === 'MODERATOR';
+  if (!blog.published && blog.authorId !== session?.user?.id && !isStaff) {
     notFound();
   }
 
@@ -98,13 +99,14 @@ export default async function BlogPage({ params }: BlogPageProps) {
   return (
     <main className="min-h-screen">
       <article className="container mx-auto px-4 py-8 max-w-4xl">
-        <BlogContent blog={blog} currentUserId={session?.user?.id} />
+        <BlogContent blog={blog} currentUserId={session?.user?.id} currentUserRole={session?.user?.role} />
 
         <div className="mt-12 pt-8 border-t">
           <CommentSection
             blogId={blog.id}
             comments={blog.comments}
             currentUserId={session?.user?.id}
+            currentUserRole={session?.user?.role}
           />
         </div>
       </article>

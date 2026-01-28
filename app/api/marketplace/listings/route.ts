@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logListingCreated } from "@/lib/services/activity-logger";
 import { cache, cacheKeys } from "@/lib/redis";
+import { checkApiRateLimit } from "@/lib/api-utils";
 
 // Cache TTL: 1 minute (listings change frequently)
 const CACHE_TTL = 60;
@@ -11,6 +12,10 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
+  // Check rate limit
+  const rateLimitResponse = await checkApiRateLimit(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get("type") as "WTS" | "WTB" | null;
@@ -154,6 +159,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Check rate limit
+  const rateLimitResponse = await checkApiRateLimit(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
 

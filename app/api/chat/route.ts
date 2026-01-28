@@ -1,12 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkApiRateLimit } from "@/lib/api-utils";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // GET - Fetch user's chats
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  // Check rate limit
+  const rateLimitResponse = await checkApiRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -84,7 +89,11 @@ export async function GET(req: Request) {
 }
 
 // POST - Create or get existing chat
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Check rate limit
+  const rateLimitResponse = await checkApiRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {

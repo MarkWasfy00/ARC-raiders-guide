@@ -205,7 +205,10 @@ export async function updateComment(
       };
     }
 
-    if (existingComment.userId !== session.user.id) {
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    const isOwner = existingComment.userId === session.user.id;
+
+    if (!isOwner && !isStaff) {
       return {
         success: false,
         error: { message: "غير مصرح لك بتعديل هذا التعليق" },
@@ -264,7 +267,10 @@ export async function deleteComment(commentId: string): Promise<CommentResponse>
       };
     }
 
-    if (existingComment.userId !== session.user.id) {
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    const isOwner = existingComment.userId === session.user.id;
+
+    if (!isOwner && !isStaff) {
       return {
         success: false,
         error: { message: "غير مصرح لك بحذف هذا التعليق" },

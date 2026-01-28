@@ -12,12 +12,14 @@ interface CommentSectionProps {
   blogId: string;
   comments: CommentData[];
   currentUserId?: string;
+  currentUserRole?: string;
 }
 
 export function CommentSection({
   blogId,
   comments,
   currentUserId,
+  currentUserRole,
 }: CommentSectionProps) {
   const router = useRouter();
   const [content, setContent] = useState("");
@@ -124,6 +126,7 @@ export function CommentSection({
               key={comment.id}
               comment={comment}
               currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
               onReply={handleReply}
             />
           ))}

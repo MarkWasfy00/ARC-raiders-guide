@@ -11,11 +11,16 @@ const useSecureCookies = process.env.NODE_ENV === "production" &&
   !process.env.AUTH_URL?.startsWith("http://") &&
   process.env.NEXTAUTH_SECURE_COOKIES !== "false";
 
+// Session timeout in seconds (720 hours = 30 days)
+// Note: This value is read from environment or uses default.
+// The admin setting 'session_timeout_hours' requires server restart to take effect.
+const SESSION_MAX_AGE = parseInt(process.env.SESSION_TIMEOUT_SECONDS || String(720 * 60 * 60));
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: SESSION_MAX_AGE,
   },
   trustHost: true,
   cookies: {
@@ -182,10 +187,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Email and password are required");
         }
 
+        const email = credentials.email as string;
+
         const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email as string,
-          },
+          where: { email },
         });
 
         if (!user || !user.password) {
