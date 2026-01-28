@@ -321,6 +321,7 @@ services:
       - arcraiders-network
 
   # Uptime Kuma - Service monitoring and alerting
+  # Isolated on its own network to prevent conflicts with app routing
   uptime-kuma:
     image: louislam/uptime-kuma:1
     container_name: arcraiders-uptime-kuma
@@ -329,6 +330,8 @@ services:
       - '3002:3001'
     volumes:
       - uptime_kuma_data:/app/data
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     healthcheck:
       test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3001', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
       interval: 60s
@@ -343,10 +346,12 @@ services:
           cpus: '0.05'
           memory: 128M
     networks:
-      - arcraiders-network
+      - monitoring-network
 
 networks:
   arcraiders-network:
+    driver: bridge
+  monitoring-network:
     driver: bridge
 
 volumes:
