@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Marketplace } from "@/app/features/marketplace";
 import { StructuredData, getBreadcrumbSchema } from '@/components/StructuredData';
+import { isFeatureEnabledCached } from "@/lib/services/settings-cache";
+import { FeatureDisabled } from "@/components/common/FeatureDisabled";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
@@ -37,6 +39,11 @@ export const metadata: Metadata = {
 };
 
 export default async function MarketplacePage() {
+  const isEnabled = await isFeatureEnabledCached("enable_marketplace");
+  if (!isEnabled) {
+    return <FeatureDisabled featureName="Marketplace" featureNameAr="السوق" />;
+  }
+
   const session = await auth();
 
   let userProfile = null;

@@ -237,7 +237,7 @@ export function SkillTreeCanvas({
       {/* Canvas Area */}
       <div className="relative h-[700px] overflow-hidden">
         {/* Canvas Header - Points Used & Buttons */}
-        <div className="absolute left-5 top-4 z-20">
+        <div className="absolute right-5 top-4 z-20">
           <div className="text-sm font-medium text-white/70 uppercase tracking-wider">
             النقاط المستخدمة <span className="text-amber-400 font-bold">{totalPointsUsed}</span>
             <span className="text-white/40"> / {availablePoints}</span>
@@ -248,7 +248,7 @@ export function SkillTreeCanvas({
         </div>
 
         <div
-          className="absolute right-5 top-4 z-20 flex flex-col gap-2 rounded-lg border border-white/10 px-4 py-3"
+          className="absolute left-5 top-4 z-20 flex flex-col gap-2 rounded-lg border border-white/10 px-4 py-3"
           style={{ backgroundColor: 'rgba(12, 14, 17, 0.7)' }}
         >
           <div className="flex items-center gap-2">

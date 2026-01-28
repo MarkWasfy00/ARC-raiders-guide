@@ -16,7 +16,7 @@ export interface RegisterCredentials {
 export interface AuthError {
   message: string;
   field?: string;
-  code?: "EMAIL_NOT_VERIFIED" | "INVALID_CREDENTIALS" | "BANNED" | "GENERIC_ERROR";
+  code?: "EMAIL_NOT_VERIFIED" | "INVALID_CREDENTIALS" | "BANNED" | "ACCOUNT_LOCKED" | "GENERIC_ERROR";
 }
 
 export interface AuthResponse {

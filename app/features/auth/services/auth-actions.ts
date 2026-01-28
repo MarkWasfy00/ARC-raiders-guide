@@ -5,14 +5,65 @@ import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { LoginCredentials, RegisterCredentials, AuthResponse } from "../types";
 import { logUserRegistration } from "@/lib/services/activity-logger";
 import { createVerificationToken } from "@/lib/verification-token";
 import { sendVerificationEmail } from "@/lib/email";
+import {
+  isUserLockedOut,
+  recordFailedLogin,
+  resetFailedLogins,
+  isIpLockedOut,
+  recordIpFailedLogin,
+  resetIpFailedLogins,
+} from "@/lib/services/login-security";
+
+/**
+ * Get client IP from request headers
+ */
+async function getClientIp(): Promise<string> {
+  const headersList = await headers();
+  const forwarded = headersList.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIp = headersList.get("x-real-ip");
+  if (realIp) {
+    return realIp;
+  }
+  return "unknown";
+}
 
 export async function loginAction(credentials: LoginCredentials): Promise<AuthResponse> {
+  const clientIp = await getClientIp();
+
   try {
-    // First, check if the user exists and if their email is verified
+    // Check if IP is locked out FIRST
+    const ipLockout = await isIpLockedOut(clientIp);
+    if (ipLockout.locked) {
+      return {
+        success: false,
+        error: {
+          message: `تم قفل الوصول مؤقتاً بسبب كثرة المحاولات الفاشلة. حاول مرة أخرى بعد ${ipLockout.remainingMinutes} دقيقة`,
+          code: "ACCOUNT_LOCKED",
+        },
+      };
+    }
+
+    // Check if user account is locked out (by email)
+    const userLockout = await isUserLockedOut(credentials.email);
+    if (userLockout.locked) {
+      return {
+        success: false,
+        error: {
+          message: `تم قفل حسابك مؤقتاً. حاول مرة أخرى بعد ${userLockout.remainingMinutes} دقيقة`,
+          code: "ACCOUNT_LOCKED",
+        },
+      };
+    }
+
+    // Check if the user exists and if their email is verified
     const user = await prisma.user.findUnique({
       where: { email: credentials.email },
       select: { emailVerified: true, banned: true },
@@ -35,25 +86,46 @@ export async function loginAction(credentials: LoginCredentials): Promise<AuthRe
       redirect: false,
     });
 
+    // Reset failed login attempts on successful login (both IP and email)
+    resetIpFailedLogins(clientIp);
+    await resetFailedLogins(credentials.email);
+
     return { success: true };
   } catch (error) {
+    // Record failed login attempt for both IP and email
+    const ipResult = await recordIpFailedLogin(clientIp);
+    const emailResult = await recordFailedLogin(credentials.email);
+
+    // Use the lower of the two remaining attempts for the message
+    const attemptsRemaining = Math.min(ipResult.attemptsRemaining, emailResult.attemptsRemaining);
+    const isLocked = ipResult.locked || emailResult.locked;
+
+    if (isLocked) {
+      return {
+        success: false,
+        error: {
+          message: "تم قفل الوصول مؤقتاً بسبب كثرة المحاولات الفاشلة. حاول مرة أخرى بعد 15 دقيقة",
+          code: "ACCOUNT_LOCKED",
+        },
+      };
+    }
+
     // Check if user is banned
-    if (error instanceof Error && error.message === "BANNED") {
+    const errorMessage = error instanceof Error ? error.message : "";
+    const authErrorMessage = error instanceof AuthError ? error.cause?.err?.message : "";
+    const msg = authErrorMessage || errorMessage;
+
+    if (msg === "BANNED") {
       redirect("/banned");
     }
 
     if (error instanceof AuthError) {
-      // Check for banned error in AuthError
-      if (error.cause?.err?.message === "BANNED") {
-        redirect("/banned");
-      }
-
       switch (error.type) {
         case "CredentialsSignin":
           return {
             success: false,
             error: {
-              message: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+              message: `البريد الإلكتروني أو كلمة المرور غير صحيحة. المحاولات المتبقية: ${attemptsRemaining}`,
               code: "INVALID_CREDENTIALS",
             },
           };

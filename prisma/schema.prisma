@@ -56,6 +56,8 @@ model User {
   lastActivityAt       DateTime?
   lastLoginAt          DateTime?
   loginCount           Int            @default(0)
+  failedLoginAttempts  Int            @default(0)
+  lockedUntil          DateTime?
   accounts             Account[]
   targetedActivityLogs ActivityLog[]  @relation("ActivityLogTarget")
   activityLogs         ActivityLog[]  @relation("ActivityLogUser")

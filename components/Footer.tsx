@@ -133,6 +133,9 @@ export function Footer() {
                 MetaForge
               </a>
             </p>
+            <p className="mt-1">
+              © {currentYear} 3RB - حقوق الملكية الفكرية وجميع المحتويات الخاصة بلعبة ARC Raiders تعود إلى Embark Studios. هذا الموقع هو مشروع من صنع المعجبين فقط، ولا يمثل أو يتبع شركة Embark Studios بأي شكل من الأشكال.
+            </p>
           </div>
 
           {/* Social Links */}
