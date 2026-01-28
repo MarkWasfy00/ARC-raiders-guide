@@ -23,10 +23,27 @@ export async function getUserProfile(): Promise<UserProfile | null> {
       image: true,
       embark_id: true,
       discord_username: true,
+      accounts: {
+        where: { provider: "discord" },
+        select: { id: true },
+      },
     },
   });
 
-  return user;
+  if (!user) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    email: user.email,
+    image: user.image,
+    embark_id: user.embark_id,
+    discord_username: user.discord_username,
+    hasDiscordLinked: user.accounts.length > 0,
+  };
 }
 
 export async function updateProfile(
@@ -46,6 +63,12 @@ export async function updateProfile(
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      include: {
+        accounts: {
+          where: { provider: "discord" },
+          select: { id: true },
+        },
+      },
     });
 
     if (!user) {
@@ -74,14 +97,51 @@ export async function updateProfile(
       }
     }
 
+    // Validate and check embark_id uniqueness (if being updated)
+    let normalizedEmbarkId = data.embark_id?.trim() || null;
+    if (normalizedEmbarkId) {
+      // Validate embark_id pattern: Username#0000 (letters, numbers, underscores followed by # and 1-6 digits)
+      const embarkIdRegex = /^[a-zA-Z0-9_]{1,32}#\d{1,6}$/;
+      if (!embarkIdRegex.test(normalizedEmbarkId)) {
+        return {
+          success: false,
+          error: {
+            message: "معرف إمبارك غير صالح. يجب أن يكون بالصيغة: Username#0000",
+            field: "embark_id",
+          },
+        };
+      }
+
+      // Check if embark_id is taken by another user
+      if (normalizedEmbarkId !== user.embark_id) {
+        const existingEmbarkId = await prisma.user.findFirst({
+          where: { embark_id: normalizedEmbarkId },
+        });
+
+        if (existingEmbarkId) {
+          return {
+            success: false,
+            error: {
+              message: "معرف إمبارك هذا مستخدم بالفعل من قبل مستخدم آخر",
+              field: "embark_id",
+            },
+          };
+        }
+      }
+    }
+
+    // Check if user has Discord linked - if so, don't allow changing discord_username
+    const hasDiscordLinked = user.accounts.length > 0;
+
     // Update user profile
     await prisma.user.update({
       where: { id: user.id },
       data: {
         name: data.name,
         username: data.username,
-        embark_id: data.embark_id,
-        discord_username: data.discord_username,
+        embark_id: normalizedEmbarkId,
+        // Only update discord_username if user doesn't have Discord linked
+        ...(hasDiscordLinked ? {} : { discord_username: data.discord_username }),
       },
     });
 

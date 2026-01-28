@@ -1,12 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkApiRateLimit } from "@/lib/api-utils";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // GET - Fetch user's chats
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  // Check rate limit
+  const rateLimitResponse = await checkApiRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -84,7 +89,11 @@ export async function GET(req: Request) {
 }
 
 // POST - Create or get existing chat
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Check rate limit
+  const rateLimitResponse = await checkApiRateLimit(req);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -204,8 +213,12 @@ export async function POST(req: Request) {
       },
     });
 
+    // Track if this is a new chat
+    let isNewChat = false;
+
     // If chat doesn't exist, create it
     if (!chat) {
+      isNewChat = true;
       chat = await prisma.chat.create({
         data: {
           listingId,
@@ -284,6 +297,24 @@ export async function POST(req: Request) {
           },
         },
       });
+
+      // Emit Socket.IO event to notify the listing owner about the new chat
+      if (global.io) {
+        // Notify the listing owner (otherUserId) about the new chat
+        global.io.to(`user:${otherUserId}`).emit('new-chat', {
+          chatId: chat.id,
+          listingId: chat.listingId,
+          fromUserId: session.user.id,
+          fromUsername: chat.participant1.username || chat.participant1.name,
+        });
+
+        // Also emit to the listing room
+        global.io.to(`listing:${listingId}`).emit('new-chat', {
+          chatId: chat.id,
+          listingId: chat.listingId,
+          fromUserId: session.user.id,
+        });
+      }
     }
 
     // Calculate ratings for participants

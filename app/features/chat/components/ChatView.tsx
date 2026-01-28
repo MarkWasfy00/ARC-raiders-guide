@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Star, Send, Gamepad2, MessageSquare, Sparkles, ArrowLeft, CheckCircle2, XCircle, AlertCircle, UserCheck } from "lucide-react";
+import { Star, Send, Gamepad2, MessageSquare, Sparkles, ArrowLeft, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { OwnerTradingBanner } from "./OwnerTradingBanner";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -83,10 +83,9 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
   const [tradeId, setTradeId] = useState<string | null>(null);
   const [hasRated, setHasRated] = useState(false);
   const [showDiscordDialog, setShowDiscordDialog] = useState(false);
-  const [selectingTrader, setSelectingTrader] = useState(false);
 
   // Check if current user is the listing owner
-  const isListingOwner = chat?.listing.user.id === currentUserId;
+  const isListingOwner = chat?.listing?.user?.id === currentUserId;
 
   // Check if this chat is the active trader for the listing
   const isActiveTrader = chat?.listing &&
@@ -130,17 +129,39 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
     };
 
     // Listen for chat status updates (approvals, completion, cancellation, lock-in)
-    const handleChatUpdate = (updatedChat: Partial<Chat>) => {
+    const handleChatUpdate = (updatedChat: Partial<Chat> & { tradeId?: string }) => {
+      // Check if trade was just completed (status changed to COMPLETED with tradeId)
+      // Show rating dialog for both participants
+      if (updatedChat.status === "COMPLETED" && updatedChat.tradeId) {
+        // Use functional updates to check current state and prevent duplicates
+        setTradeId((prevTradeId) => prevTradeId || updatedChat.tradeId!);
+        setShowRatingDialog((prev) => {
+          // Only show if not already showing
+          if (!prev) return true;
+          return prev;
+        });
+      }
+
       setChat((prev) => {
         if (!prev) return prev;
 
-        // Merge the update, ensuring we properly update participant data
+        // Merge the update, ensuring we properly update participant data and listing
         return {
           ...prev,
           ...updatedChat,
           // Preserve participant data with updates if provided
           participant1: updatedChat.participant1 ? { ...prev.participant1, ...updatedChat.participant1 } : prev.participant1,
           participant2: updatedChat.participant2 ? { ...prev.participant2, ...updatedChat.participant2 } : prev.participant2,
+          // Preserve listing data with updates if provided
+          listing: updatedChat.listing
+            ? {
+                ...prev.listing,
+                ...updatedChat.listing,
+                // Preserve nested user and item data
+                user: updatedChat.listing.user ? { ...prev.listing.user, ...updatedChat.listing.user } : prev.listing.user,
+                item: updatedChat.listing.item ? { ...prev.listing.item, ...updatedChat.listing.item } : prev.listing.item,
+              }
+            : prev.listing,
         };
       });
     };
@@ -176,7 +197,7 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
         chatRes.json()
       ]);
 
-      setMessages(messagesData);
+      setMessages(messagesData.messages || []);
       setChat(chatData);
     } catch (error) {
       console.error("Error loading messages:", error);
@@ -324,30 +345,6 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
     }
   };
 
-  const handleSelectTrader = async () => {
-    if (!chat) return;
-
-    setSelectingTrader(true);
-    try {
-      const res = await fetch(`/api/chat/${chat.id}/select-trader`, {
-        method: "POST",
-      });
-
-      if (res.ok) {
-        // Refresh chat data to get updated status
-        await loadMessages();
-      } else {
-        const error = await res.json();
-        alert(error.error || "فشل في اختيار المتداول");
-      }
-    } catch (error) {
-      console.error("Error selecting trader:", error);
-      alert("فشل في اختيار المتداول");
-    } finally {
-      setSelectingTrader(false);
-    }
-  };
-
   const handleSubmitRating = async (ratingData: {
     score: number;
     honest: boolean;
@@ -367,19 +364,17 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
 
       if (res.ok) {
         setHasRated(true);
-        alert("شكراً لتقييمك!"); // Thank you for your rating!
+        setShowRatingDialog(false);
 
         // Trigger chat list refresh to remove completed chat
         if (onChatListUpdate) {
           onChatListUpdate();
         }
 
-        // Navigate back to chat list after a brief delay
-        setTimeout(() => {
-          if (onBack) {
-            onBack();
-          }
-        }, 1000);
+        // Navigate back to chat list immediately
+        if (onBack) {
+          onBack();
+        }
       } else {
         const error = await res.json();
         alert(error.error || "فشل إرسال التقييم"); // Failed to submit rating
@@ -505,25 +500,6 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {/* Select for Trade button - only for listing owners */}
-            {isListingOwner && chat.status === "ACTIVE" && !chat.listing.activeTraderChatId && (
-              <Button
-                onClick={handleSelectTrader}
-                disabled={selectingTrader}
-                size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white"
-                title="اختيار للتداول"
-              >
-                {selectingTrader ? (
-                  "جاري الاختيار..."
-                ) : (
-                  <>
-                    <UserCheck className="h-4 w-4 ml-1" />
-                    اختيار للتداول
-                  </>
-                )}
-              </Button>
-            )}
             {/* Show selected trader badge */}
             {isActiveTrader && (
               <Badge className="bg-green-600/20 text-green-400">
@@ -855,16 +831,17 @@ export function ChatView({ chatId, currentUserId, onBack, onChatListUpdate }: Ch
           otherUser={otherUser}
           onSubmit={handleSubmitRating}
           onSkip={() => {
+            setShowRatingDialog(false);
+
             // Trigger chat list refresh even when skipped
             if (onChatListUpdate) {
               onChatListUpdate();
             }
-            // Navigate back to chat list after a brief delay
-            setTimeout(() => {
-              if (onBack) {
-                onBack();
-              }
-            }, 500);
+
+            // Navigate back to chat list immediately
+            if (onBack) {
+              onBack();
+            }
           }}
         />
       )}

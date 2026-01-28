@@ -11,12 +11,14 @@ export {
   logoutAction,
   logoutAndInvalidateAllSessions,
   invalidateUserSessions,
-  discordSignInAction
+  discordSignInAction,
+  linkDiscordAction
 } from "./services/auth-actions";
 
 export {
   verifyEmailAction,
   resendVerificationAction,
+  getResendStatusAction,
 } from "./services/verification-actions";
 
 // Types

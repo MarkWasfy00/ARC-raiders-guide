@@ -46,7 +46,7 @@ model User {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
   discord_username     String?
-  embark_id            String?
+  embark_id            String?        @unique
   username             String?        @unique
   sessionVersion       Int            @default(0)
   role                 UserRole       @default(USER)
@@ -56,6 +56,8 @@ model User {
   lastActivityAt       DateTime?
   lastLoginAt          DateTime?
   loginCount           Int            @default(0)
+  failedLoginAttempts  Int            @default(0)
+  lockedUntil          DateTime?
   accounts             Account[]
   targetedActivityLogs ActivityLog[]  @relation("ActivityLogTarget")
   activityLogs         ActivityLog[]  @relation("ActivityLogUser")
@@ -96,11 +98,13 @@ model VerificationToken {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
-  email     String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  resendCount  Int      @default(0)
+  lastResentAt DateTime?
 
   @@index([email])
   @@index([token])
@@ -207,7 +211,7 @@ model Trade {
   status     TradeStatus @default(PENDING)
   created_at DateTime    @default(now())
   updated_at DateTime    @updatedAt
-  rating     Rating?
+  ratings    Rating[]
   buyer      User        @relation("BuyerTrades", fields: [buyerId], references: [id], onDelete: Cascade)
   listing    Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
   seller     User        @relation("SellerTrades", fields: [sellerId], references: [id], onDelete: Cascade)
@@ -220,7 +224,7 @@ model Trade {
 
 model Rating {
   id         String   @id @default(cuid())
-  tradeId    String   @unique
+  tradeId    String
   fromUserId String
   toUserId   String
   score      Int
@@ -231,6 +235,7 @@ model Rating {
   toUser     User     @relation("RatingsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
   trade      Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
 
+  @@unique([tradeId, fromUserId])
   @@index([fromUserId])
   @@index([toUserId])
   @@index([tradeId])

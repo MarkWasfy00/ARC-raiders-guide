@@ -83,28 +83,6 @@ const categories: ExploreCategory[] = [
       'أولوية الخانات المساندة',
     ],
   },
-  {
-    id: 'loot-value',
-    title: 'قيمة الغنائم',
-    href: '/loot-value',
-    imageUrl: '/images/categories/loot-value.webp',
-    highlights: [
-      'ترتيب القيمة لكل خانة',
-      'عائد إعادة التدوير',
-      'مقارنات البيع السريع',
-    ],
-  },
-  {
-    id: 'needed-items',
-    title: 'العناصر المطلوبة',
-    href: '/needed-items',
-    imageUrl: '/images/categories/needed-items.webp',
-    highlights: [
-      'تعقب عناصر المهام',
-      'قائمة مختصرة لما يجب الاحتفاظ به',
-      'تجهيزات جاهزة للمهام',
-    ],
-  },
 ];
 
 export function ExploreGrid() {

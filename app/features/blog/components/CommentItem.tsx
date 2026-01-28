@@ -12,6 +12,7 @@ import type { CommentData } from "../types";
 interface CommentItemProps {
   comment: CommentData;
   currentUserId?: string;
+  currentUserRole?: string;
   onReply?: (commentId: string) => void;
   isNested?: boolean;
 }
@@ -19,11 +20,14 @@ interface CommentItemProps {
 export function CommentItem({
   comment,
   currentUserId,
+  currentUserRole,
   onReply,
   isNested = false,
 }: CommentItemProps) {
   const [deleting, setDeleting] = useState(false);
   const isAuthor = currentUserId === comment.userId;
+  const isStaff = currentUserRole === 'ADMIN' || currentUserRole === 'MODERATOR';
+  const canDelete = isAuthor || isStaff;
 
   const handleDelete = async () => {
     if (!confirm("هل أنت متأكد من حذف هذا التعليق؟")) {
@@ -84,7 +88,7 @@ export function CommentItem({
               </Button>
             )}
 
-            {isAuthor && (
+            {canDelete && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -108,6 +112,7 @@ export function CommentItem({
               key={reply.id}
               comment={reply}
               currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
               isNested={true}
             />
           ))}

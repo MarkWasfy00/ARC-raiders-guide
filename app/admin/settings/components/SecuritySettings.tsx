@@ -146,12 +146,16 @@ export function SecuritySettings({ settings, onUpdate }: SecuritySettingsProps) 
             <div className="space-y-1">
               <p className="text-sm font-medium">ملاحظة أمنية</p>
               <p className="text-sm text-muted-foreground">
-                بعض إعدادات الأمان تتطلب إعادة تشغيل الخادم لتأخذ مفعولها. تغيير
-                قيم حد المعدل قد يؤثر على تجربة المستخدم.
+                • <strong>مهلة الجلسة:</strong> تتطلب إعادة تشغيل الخادم لتأخذ مفعولها.
               </p>
-              <p className="text-xs text-muted-foreground">
-                Some security settings require a server restart to take effect.
-                Changing rate limit values may affect user experience.
+              <p className="text-sm text-muted-foreground">
+                • <strong>محاولات تسجيل الدخول:</strong> يتم تفعيلها فوراً. سيتم قفل الحساب لمدة 15 دقيقة عند تجاوز الحد.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                • <strong>حد المعدل:</strong> يتم تفعيله فوراً على جميع طلبات API.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Session timeout requires server restart. Login attempts and rate limiting take effect immediately.
               </p>
             </div>
           </div>

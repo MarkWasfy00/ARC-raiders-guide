@@ -38,6 +38,7 @@ export interface AreaLabel {
   lng: number;
   fontSize?: number;
   color?: string;
+  zlayers?: number; // 1 = underground, 2 = surface, 2147483647 = both
 }
 
 export const MARKER_CATEGORIES: Record<string, { label: string; color: string; subcategories?: string[] }> = {

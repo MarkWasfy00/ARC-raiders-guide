@@ -231,7 +231,7 @@ export function CreateListingDialog({
                 className="flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-3 rounded-xl border border-border bg-background/70 p-4 text-center transition hover:border-primary/60 hover:shadow-lg opacity-80 hover:opacity-100 duration-200 ease-out cursor-pointer"
               >
                 <div className="space-y-1">
-                  <p className="text-xl font-semibold uppercase text-foreground">مفتوح للعروض</p>
+                  <p className="text-xl font-semibold uppercase text-foreground">متاح للعروض</p>
                   <p className="text-sm text-muted-foreground">
                     سأقبل أي عرض جيد
                   </p>
@@ -384,7 +384,7 @@ export function CreateListingDialog({
                     ? `${seedsAmount || 0} بذور`
                     : paymentType === "ITEMS"
                     ? "عناصر محددة"
-                    : "عروض مفتوحة"}
+                    : "متاح للعروض"}
                 </p>
               </div>
 

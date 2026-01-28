@@ -115,7 +115,10 @@ export async function updateBlog(
       };
     }
 
-    if (existingBlog.authorId !== session.user.id) {
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    const isOwner = existingBlog.authorId === session.user.id;
+
+    if (!isOwner && !isStaff) {
       return {
         success: false,
         error: { message: "غير مصرح لك بتعديل هذه المقالة" },
@@ -230,7 +233,10 @@ export async function deleteBlog(blogId: string): Promise<BlogResponse> {
       };
     }
 
-    if (existingBlog.authorId !== session.user.id) {
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    const isOwner = existingBlog.authorId === session.user.id;
+
+    if (!isOwner && !isStaff) {
       return {
         success: false,
         error: { message: "غير مصرح لك بحذف هذه المقالة" },
@@ -319,7 +325,10 @@ export async function togglePublishBlog(blogId: string): Promise<BlogResponse> {
       };
     }
 
-    if (existingBlog.authorId !== session.user.id) {
+    const isStaff = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
+    const isOwner = existingBlog.authorId === session.user.id;
+
+    if (!isOwner && !isStaff) {
       return {
         success: false,
         error: { message: "غير مصرح لك بتعديل هذه المقالة" },

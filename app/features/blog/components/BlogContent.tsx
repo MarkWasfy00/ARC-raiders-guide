@@ -16,12 +16,15 @@ import type { BlogData } from "../types";
 interface BlogContentProps {
   blog: BlogData;
   currentUserId?: string;
+  currentUserRole?: string;
 }
 
-export function BlogContent({ blog, currentUserId }: BlogContentProps) {
+export function BlogContent({ blog, currentUserId, currentUserRole }: BlogContentProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const isAuthor = currentUserId === blog.authorId;
+  const isStaff = currentUserRole === 'ADMIN' || currentUserRole === 'MODERATOR';
+  const canEdit = isAuthor || isStaff;
 
   const handleDelete = async () => {
     if (!confirm("هل أنت متأكد من حذف هذه المقالة؟ لا يمكن التراجع عن هذا الإجراء.")) {
@@ -114,13 +117,13 @@ export function BlogContent({ blog, currentUserId }: BlogContentProps) {
           </div>
         </div>
 
-        {/* Author Actions */}
-        {isAuthor && (
+        {/* Author/Staff Actions */}
+        {canEdit && (
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push(`/blogs/${blog.slug}/edit`)}
+              onClick={() => router.push(isStaff ? `/admin/blogs/edit?id=${blog.id}` : `/blogs/${blog.slug}/edit`)}
             >
               <Edit className="h-4 w-4 ml-1" />
               تعديل

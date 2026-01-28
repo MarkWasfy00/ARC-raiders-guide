@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -104,7 +103,6 @@ export function ChatListGrouped({
   const [incomingChats, setIncomingChats] = useState<IncomingChat[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedListings, setExpandedListings] = useState<Set<string>>(new Set());
-  const [selectingTrader, setSelectingTrader] = useState<string | null>(null);
 
   useEffect(() => {
     loadGroupedChats();
@@ -112,7 +110,12 @@ export function ChatListGrouped({
 
   // Socket.IO for real-time updates
   useEffect(() => {
+    if (!currentUserId) return;
+
     const socket = getSocket();
+
+    // Join the user's notification room to receive new chat notifications
+    socket.emit("join-user", currentUserId);
 
     const handleChatUpdate = (data: { id: string; status?: string; isSelectedTrader?: boolean }) => {
       // Refresh the grouped chats when any chat is updated
@@ -127,16 +130,24 @@ export function ChatListGrouped({
       loadGroupedChats();
     };
 
+    const handleNewChat = (data: { chatId: string; listingId: string; fromUserId: string }) => {
+      // Refresh the chat list when a new chat is created
+      loadGroupedChats();
+    };
+
     socket.on("chat-updated", handleChatUpdate);
     socket.on("trader-selected", handleTraderSelected);
     socket.on("queue-reactivated", handleQueueReactivated);
+    socket.on("new-chat", handleNewChat);
 
     return () => {
+      socket.emit("leave-user", currentUserId);
       socket.off("chat-updated", handleChatUpdate);
       socket.off("trader-selected", handleTraderSelected);
       socket.off("queue-reactivated", handleQueueReactivated);
+      socket.off("new-chat", handleNewChat);
     };
-  }, []);
+  }, [currentUserId]);
 
   const loadGroupedChats = async () => {
     try {
@@ -150,31 +161,6 @@ export function ChatListGrouped({
       console.error("Error loading grouped chats:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSelectTrader = async (chatId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectingTrader(chatId);
-
-    try {
-      const res = await fetch(`/api/chat/${chatId}/select-trader`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        alert(error.error || "فشل في اختيار المتداول");
-        return;
-      }
-
-      // Refresh the list
-      await loadGroupedChats();
-    } catch (error) {
-      console.error("Error selecting trader:", error);
-      alert("فشل في اختيار المتداول");
-    } finally {
-      setSelectingTrader(null);
     }
   };
 
@@ -357,26 +343,6 @@ export function ChatListGrouped({
                               })}
                             </p>
                           </div>
-
-                          {/* Select for Trade Button (only if no active trader) */}
-                          {!group.hasActiveTrader && chat.status === "ACTIVE" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="shrink-0 text-xs h-7 px-2 border-green-600/50 text-green-400 hover:bg-green-600/20"
-                              onClick={(e) => handleSelectTrader(chat.id, e)}
-                              disabled={selectingTrader === chat.id}
-                            >
-                              {selectingTrader === chat.id ? (
-                                "..."
-                              ) : (
-                                <>
-                                  <Check className="h-3 w-3 ml-1" />
-                                  اختيار
-                                </>
-                              )}
-                            </Button>
-                          )}
                         </div>
                       </button>
                     );

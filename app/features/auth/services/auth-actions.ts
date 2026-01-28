@@ -5,14 +5,65 @@ import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { LoginCredentials, RegisterCredentials, AuthResponse } from "../types";
 import { logUserRegistration } from "@/lib/services/activity-logger";
 import { createVerificationToken } from "@/lib/verification-token";
 import { sendVerificationEmail } from "@/lib/email";
+import {
+  isUserLockedOut,
+  recordFailedLogin,
+  resetFailedLogins,
+  isIpLockedOut,
+  recordIpFailedLogin,
+  resetIpFailedLogins,
+} from "@/lib/services/login-security";
+
+/**
+ * Get client IP from request headers
+ */
+async function getClientIp(): Promise<string> {
+  const headersList = await headers();
+  const forwarded = headersList.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIp = headersList.get("x-real-ip");
+  if (realIp) {
+    return realIp;
+  }
+  return "unknown";
+}
 
 export async function loginAction(credentials: LoginCredentials): Promise<AuthResponse> {
+  const clientIp = await getClientIp();
+
   try {
-    // First, check if the user exists and if their email is verified
+    // Check if IP is locked out FIRST
+    const ipLockout = await isIpLockedOut(clientIp);
+    if (ipLockout.locked) {
+      return {
+        success: false,
+        error: {
+          message: `تم قفل الوصول مؤقتاً بسبب كثرة المحاولات الفاشلة. حاول مرة أخرى بعد ${ipLockout.remainingMinutes} دقيقة`,
+          code: "ACCOUNT_LOCKED",
+        },
+      };
+    }
+
+    // Check if user account is locked out (by email)
+    const userLockout = await isUserLockedOut(credentials.email);
+    if (userLockout.locked) {
+      return {
+        success: false,
+        error: {
+          message: `تم قفل حسابك مؤقتاً. حاول مرة أخرى بعد ${userLockout.remainingMinutes} دقيقة`,
+          code: "ACCOUNT_LOCKED",
+        },
+      };
+    }
+
+    // Check if the user exists and if their email is verified
     const user = await prisma.user.findUnique({
       where: { email: credentials.email },
       select: { emailVerified: true, banned: true },
@@ -35,25 +86,46 @@ export async function loginAction(credentials: LoginCredentials): Promise<AuthRe
       redirect: false,
     });
 
+    // Reset failed login attempts on successful login (both IP and email)
+    resetIpFailedLogins(clientIp);
+    await resetFailedLogins(credentials.email);
+
     return { success: true };
   } catch (error) {
+    // Record failed login attempt for both IP and email
+    const ipResult = await recordIpFailedLogin(clientIp);
+    const emailResult = await recordFailedLogin(credentials.email);
+
+    // Use the lower of the two remaining attempts for the message
+    const attemptsRemaining = Math.min(ipResult.attemptsRemaining, emailResult.attemptsRemaining);
+    const isLocked = ipResult.locked || emailResult.locked;
+
+    if (isLocked) {
+      return {
+        success: false,
+        error: {
+          message: "تم قفل الوصول مؤقتاً بسبب كثرة المحاولات الفاشلة. حاول مرة أخرى بعد 15 دقيقة",
+          code: "ACCOUNT_LOCKED",
+        },
+      };
+    }
+
     // Check if user is banned
-    if (error instanceof Error && error.message === "BANNED") {
+    const errorMessage = error instanceof Error ? error.message : "";
+    const authErrorMessage = error instanceof AuthError ? error.cause?.err?.message : "";
+    const msg = authErrorMessage || errorMessage;
+
+    if (msg === "BANNED") {
       redirect("/banned");
     }
 
     if (error instanceof AuthError) {
-      // Check for banned error in AuthError
-      if (error.cause?.err?.message === "BANNED") {
-        redirect("/banned");
-      }
-
       switch (error.type) {
         case "CredentialsSignin":
           return {
             success: false,
             error: {
-              message: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+              message: `البريد الإلكتروني أو كلمة المرور غير صحيحة. المحاولات المتبقية: ${attemptsRemaining}`,
               code: "INVALID_CREDENTIALS",
             },
           };
@@ -122,10 +194,20 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
       };
     }
 
-    // Normalize embark_id - add # prefix if not present
-    let embark_id = credentials.embark_id;
-    if (embark_id && !embark_id.startsWith("#")) {
-      embark_id = `#${embark_id}`;
+    // Validate and normalize embark_id
+    let embark_id = credentials.embark_id?.trim() || null;
+    if (embark_id) {
+      // Validate embark_id pattern: Username#0000 (letters, numbers, underscores followed by # and 1-6 digits)
+      const embarkIdRegex = /^[a-zA-Z0-9_]{1,32}#\d{1,6}$/;
+      if (!embarkIdRegex.test(embark_id)) {
+        return {
+          success: false,
+          error: {
+            message: "معرف إمبارك غير صالح. يجب أن يكون بالصيغة: Username#0000",
+            field: "embark_id",
+          },
+        };
+      }
     }
 
     // Check if email already exists
@@ -162,6 +244,25 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
       };
     }
 
+    // Check if embark_id already exists
+    if (embark_id) {
+      const existingEmbarkId = await prisma.user.findFirst({
+        where: {
+          embark_id: embark_id,
+        },
+      });
+
+      if (existingEmbarkId) {
+        return {
+          success: false,
+          error: {
+            message: "معرف إمبارك هذا مستخدم بالفعل",
+            field: "embark_id",
+          },
+        };
+      }
+    }
+
     // Hash password
     const hashedPassword = await hash(credentials.password, 10);
 
@@ -182,7 +283,13 @@ export async function registerAction(credentials: RegisterCredentials): Promise<
 
     // Generate verification token and send email
     const token = await createVerificationToken(credentials.email);
-    await sendVerificationEmail(credentials.email, token);
+    try {
+      await sendVerificationEmail(credentials.email, token);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      // In development, continue without email - user can be verified manually
+      // In production, you should configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+    }
 
     return {
       success: true,
@@ -236,4 +343,8 @@ export async function logoutAndInvalidateAllSessions(userId: string) {
 
 export async function discordSignInAction() {
   await signIn("discord", { redirectTo: "/" });
+}
+
+export async function linkDiscordAction() {
+  await signIn("discord", { redirectTo: "/profile" });
 }

@@ -97,10 +97,10 @@ export function AddAreaLabelModal({
         color,
       };
 
-      // Include zlayers if floor selector is shown
-      if (showFloorSelector) {
-        requestBody.zlayers = selectedFloor === 'top' ? 2 : 1;
-      }
+      // Include zlayers based on selected floor (or current floor if selector not shown)
+      // zlayers: 1 = bottom/underground, 2 = top/surface
+      const floorToUse = showFloorSelector ? selectedFloor : currentFloor;
+      requestBody.zlayers = floorToUse === 'top' ? 2 : 1;
 
       const response = await fetch(`/api/maps/${mapId}/labels`, {
         method: 'POST',

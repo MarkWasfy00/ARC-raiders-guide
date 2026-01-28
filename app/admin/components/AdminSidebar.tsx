@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
+  FileText,
   Map,
   Settings,
   Shield,
@@ -39,6 +40,12 @@ const navItems: NavItem[] = [
     labelAr: "الأدلة",
     href: "/admin/guides",
     icon: BookOpen,
+  },
+  {
+    label: "Blogs",
+    labelAr: "المقالات",
+    href: "/admin/blogs",
+    icon: FileText,
   },
   {
     label: "Maps",

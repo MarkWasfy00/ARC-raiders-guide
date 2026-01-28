@@ -263,7 +263,7 @@ export function ListingDetailModal({
                     variant="outline"
                     className="text-sm px-3 py-1 bg-blue-500/10 text-blue-400 border-blue-500/30"
                   >
-                    عروض مفتوحة - قدم عرضك
+                    متاح للعروض - قدم عرضك
                   </Badge>
                 </div>
               )}

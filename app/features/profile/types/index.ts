@@ -6,6 +6,7 @@ export interface UserProfile {
   image: string | null;
   embark_id: string | null;
   discord_username: string | null;
+  hasDiscordLinked: boolean;
 }
 
 export interface UpdateProfileData {

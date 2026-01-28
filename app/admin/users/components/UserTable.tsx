@@ -253,15 +253,16 @@ export function UserTable({
                               حظر المستخدم
                             </DropdownMenuItem>
                           )}
-                          {user.role === "USER" ? (
+                          {user.role !== "ADMIN" && (
                             <DropdownMenuItem onClick={() => onPromoteUser(user)}>
                               <Shield className="ml-2 h-4 w-4 text-primary" />
-                              ترقية إلى مشرف
+                              {user.role === "USER" ? "ترقية" : "ترقية إلى مشرف"}
                             </DropdownMenuItem>
-                          ) : user.role !== "ADMIN" && (
+                          )}
+                          {user.role !== "USER" && user.role !== "ADMIN" && (
                             <DropdownMenuItem onClick={() => onDemoteUser(user)}>
                               <ShieldOff className="ml-2 h-4 w-4 text-muted-foreground" />
-                              إلغاء صلاحيات المشرف
+                              تخفيض إلى مستخدم
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

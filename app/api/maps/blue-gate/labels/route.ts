@@ -4,18 +4,32 @@ import { auth } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
-    console.log('🗺️  Fetching Blue Gate area labels from database...');
+    const { searchParams } = new URL(request.url);
+    const floor = searchParams.get('floor'); // 'surface', 'underground', or null for all
+
+    console.log(`🗺️  Fetching Blue Gate area labels from database (floor: ${floor || 'all'})...`);
+
+    // Build where clause with floor filtering
+    // zlayers: 1 = underground, 2 = surface, 2147483647 = all floors
+    const whereClause: { mapID: string; zlayers?: { in: number[] } } = {
+      mapID: 'blue-gate',
+    };
+
+    if (floor === 'surface') {
+      whereClause.zlayers = { in: [2, 2147483647] }; // Show surface + all-floor labels
+    } else if (floor === 'underground') {
+      whereClause.zlayers = { in: [1, 2147483647] }; // Show underground + all-floor labels
+    }
 
     const labels = await prisma.mapAreaLabel.findMany({
-      where: {
-        mapID: 'blue-gate',
-      },
+      where: whereClause,
       select: {
         id: true,
         name: true,
         nameAr: true,
         lat: true,
         lng: true,
+        zlayers: true,
         fontSize: true,
         color: true,
         addedBy: {
@@ -32,7 +46,7 @@ export async function GET(request: Request) {
       },
     });
 
-    console.log(`✅ Returning ${labels.length} area labels to client\n`);
+    console.log(`✅ Returning ${labels.length} area labels to client (floor: ${floor || 'all'})\n`);
 
     return NextResponse.json({
       success: true,
@@ -60,7 +74,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { lat, lng, name, nameAr, fontSize, color } = body;
+    const { lat, lng, name, nameAr, fontSize, color, zlayers } = body;
 
     if (!lat || !lng || !name || !nameAr) {
       return NextResponse.json(
@@ -76,6 +90,7 @@ export async function POST(request: Request) {
         mapID: 'blue-gate',
         name,
         nameAr,
+        zlayers: zlayers || 2147483647, // Default to all floors if not specified
         fontSize: fontSize || 14,
         color: color || '#ffffff',
         addedByUserId: session.user.id,

@@ -51,14 +51,19 @@ export async function POST(req: Request) {
     const toUserId =
       trade.buyerId === session.user.id ? trade.sellerId : trade.buyerId;
 
-    // Check if rating already exists
+    // Check if this user has already rated this trade
     const existingRating = await prisma.rating.findUnique({
-      where: { tradeId },
+      where: {
+        tradeId_fromUserId: {
+          tradeId,
+          fromUserId: session.user.id,
+        },
+      },
     });
 
     if (existingRating) {
       return NextResponse.json(
-        { error: "Rating already submitted for this trade" },
+        { error: "لقد قمت بتقييم هذه الصفقة مسبقاً" },
         { status: 409 }
       );
     }

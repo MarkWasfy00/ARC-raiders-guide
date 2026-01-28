@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github, Twitter, Gamepad2 } from "lucide-react";
+import { Gamepad2 } from "lucide-react";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -7,7 +7,7 @@ export function Footer() {
   return (
     <footer className="border-t bg-card/50 backdrop-blur-sm mt-16">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* About */}
           <div className="space-y-3">
             <h3 className="font-bold text-lg flex items-center gap-2">
@@ -89,33 +89,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Resources */}
-          <div className="space-y-3">
-            <h4 className="font-semibold">الموارد</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <a
-                  href="https://www.overwolf.com/app/metaforge"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  تطبيق التراكب
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                >
-                  <Github className="h-3 w-3" />
-                  GitHub
-                </a>
-              </li>
-            </ul>
-          </div>
         </div>
 
         {/* Bottom Bar */}
@@ -133,29 +106,11 @@ export function Footer() {
                 MetaForge
               </a>
             </p>
+            <p className="mt-1">
+              © {currentYear} 3RB - حقوق الملكية الفكرية وجميع المحتويات الخاصة بلعبة ARC Raiders تعود إلى Embark Studios. هذا الموقع هو مشروع من صنع المعجبين فقط، ولا يمثل أو يتبع شركة Embark Studios بأي شكل من الأشكال.
+            </p>
           </div>
 
-          {/* Social Links */}
-          <div className="flex items-center gap-4">
-            <a
-              href="https://twitter.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Twitter"
-            >
-              <Twitter className="h-5 w-5" />
-            </a>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="GitHub"
-            >
-              <Github className="h-5 w-5" />
-            </a>
-          </div>
         </div>
       </div>
     </footer>

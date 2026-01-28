@@ -248,9 +248,9 @@ export function ListingCard({ listing, currentUserId, userProfile }: ListingCard
         )}
         {listing.paymentType === "OPEN_OFFERS" && (
           <>
-            <p className="text-xs uppercase text-muted-foreground">عروض مفتوحة</p>
+            <p className="text-xs uppercase text-muted-foreground">متاح للعروض</p>
             <p className="text-sm text-foreground">
-              {listing.description || "مفتوح لجميع العروض - مرن في التداول."}
+              {listing.description || "متاح لجميع العروض - مرن في التداول."}
             </p>
           </>
         )}

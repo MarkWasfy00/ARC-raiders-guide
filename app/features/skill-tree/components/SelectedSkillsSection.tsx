@@ -29,7 +29,7 @@ export function SelectedSkillsSection({
 
       {/* Three Columns */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {(['conditioning', 'mobility', 'survival'] as SkillCategory[]).map(category => {
+        {(['survival', 'mobility', 'conditioning'] as SkillCategory[]).map(category => {
           const skills = skillsByCategory[category];
           const colors = CATEGORY_COLORS[category];
 
