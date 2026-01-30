@@ -18,6 +18,7 @@ export function useEventTimers() {
   const [events, setEvents] = useState<ScheduledEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [tick, setTick] = useState(0);
 
   // Fetch events from API
   useEffect(() => {
@@ -47,7 +48,17 @@ export function useEventTimers() {
     return () => clearInterval(fetchInterval);
   }, []);
 
+  // Update timers every second for real-time countdown
+  useEffect(() => {
+    const tickInterval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 1000);
+
+    return () => clearInterval(tickInterval);
+  }, []);
+
   // Get active and upcoming events with real-time updates
+  // The tick dependency ensures this recalculates every second
   const activeEventsData = getActiveEvents(events);
 
   // Transform to the format expected by Navbar

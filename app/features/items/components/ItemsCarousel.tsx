@@ -35,16 +35,43 @@ export function ItemsCarousel({ items }: ItemsCarouselProps) {
       return;
     }
     intervalRef.current = setInterval(() => {
-      setPageIndex((prev) => (prev === pages.length - 1 ? pages.length : prev + 1));
+      setPageIndex((prev) => {
+        // If already at duplicate slide, don't increment further - wait for transition
+        if (prev >= pages.length) return prev;
+        return prev === pages.length - 1 ? pages.length : prev + 1;
+      });
     }, 4000);
+  };
+
+  const stopAutoSlide = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
   };
 
   useEffect(() => {
     startAutoSlide();
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoSlide();
+      } else {
+        // Reset to valid position and restart when tab becomes visible
+        setIsAnimating(false);
+        setPageIndex((prev) => (prev >= pages.length ? 0 : prev));
+        requestAnimationFrame(() => {
+          setIsAnimating(true);
+          startAutoSlide();
+        });
       }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopAutoSlide();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [pages.length]);
 

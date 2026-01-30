@@ -49,16 +49,43 @@ export function MapsGrid() {
       clearInterval(intervalRef.current);
     }
     intervalRef.current = setInterval(() => {
-      setActiveIndex((prev) => (prev === maps.length - 1 ? maps.length : prev + 1));
+      setActiveIndex((prev) => {
+        // If already at duplicate slide, don't increment further - wait for transition
+        if (prev >= maps.length) return prev;
+        return prev === maps.length - 1 ? maps.length : prev + 1;
+      });
     }, 4000);
+  };
+
+  const stopAutoSlide = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
   };
 
   useEffect(() => {
     startAutoSlide();
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoSlide();
+      } else {
+        // Reset to valid position and restart when tab becomes visible
+        setIsAnimating(false);
+        setActiveIndex((prev) => (prev >= maps.length ? 0 : prev));
+        requestAnimationFrame(() => {
+          setIsAnimating(true);
+          startAutoSlide();
+        });
       }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopAutoSlide();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

@@ -25,8 +25,8 @@ interface NavbarProps {
 export function Navbar({ session }: NavbarProps) {
   const { activeEvents } = useEventTimers();
 
-  // Memoize event filtering and deduplication to avoid recalculating on every render
-  const { uniqueActiveEvents, uniqueUpcomingEvents, activeEventCount, upcomingEventCount, totalEventCount, nextEvent } = useMemo(() => {
+  // Filter and deduplicate events - recalculates when activeEvents changes (every second for timer updates)
+  const { uniqueActiveEvents, uniqueUpcomingEvents, activeEventCount, upcomingEventCount, totalEventCount } = useMemo(() => {
     // Filter only currently active events (not upcoming)
     const currentlyActiveEvents = activeEvents?.filter(e => e.status === 'active') || [];
 
@@ -56,7 +56,6 @@ export function Navbar({ session }: NavbarProps) {
       activeEventCount: uniqueActive.length,
       upcomingEventCount: uniqueUpcoming.length,
       totalEventCount: uniqueActive.length + uniqueUpcoming.length,
-      nextEvent: uniqueActive[0] || uniqueUpcoming[0],
     };
   }, [activeEvents]);
 
@@ -96,11 +95,6 @@ export function Navbar({ session }: NavbarProps) {
               <DropdownMenuTrigger className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors outline-none">
                 <Bell className="w-4 h-4" />
                 <span className="hidden lg:inline">{totalEventCount} حدث</span>
-                {nextEvent && (
-                  <span className="text-xs text-muted-foreground hidden lg:inline">
-                    {nextEvent.status === 'active' ? 'ينتهي' : 'يبدأ'} في: {formatTimeRemaining(nextEvent.timeUntilChange)}
-                  </span>
-                )}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72 max-h-[500px] overflow-y-auto">
                 <div className="p-3 border-b border-border flex items-center justify-between sticky top-0 bg-popover z-10">
@@ -238,11 +232,6 @@ export function Navbar({ session }: NavbarProps) {
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="w-full text-right cursor-pointer justify-end">
                       ملفي الشخصي
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile/edit" className="w-full text-right cursor-pointer justify-end">
-                      تعديل الملف الشخصي
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

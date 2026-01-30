@@ -388,36 +388,47 @@ export function CreateListingDialog({
                 </p>
               </div>
 
-              <div className="rounded-lg border border-border bg-secondary/10 p-3 space-y-2 text-sm text-muted-foreground">
-                <p className="font-semibold text-foreground">المنصة والمسؤولية</p>
-                <ul className="list-disc space-y-1 pl-5">
+              <div className="rounded-2xl border border-border bg-secondary/5 p-5 space-y-4 text-sm text-muted-foreground shadow-sm">
+                <p className="text-base font-semibold text-foreground tracking-wide">
+                  المنصة والمسؤولية القانونية
+                </p>
+                <ul className="list-disc space-y-3 pl-6 leading-relaxed">
                   <li>
-                    <span className="font-semibold text-foreground">نطاق المنصة:</span> موقعنا هو منصة قوائم وإعادة توجيه فقط. نحن لا نوفر الدردشة أو التفاوض أو تنفيذ التداول. النقر على قائمة يعيد توجيه المستخدمين إلى خادم Discord، حيث تتم جميع الاتصالات والتداول.
+                    <span className="font-medium text-foreground">نطاق المنصة:</span>{" "}
+                    يعمل هذا الموقع كمنصة تقنية لعرض القوائم وتسهيل التواصل فقط، سواء عبر الدردشة داخل المنصة أو من خلال إعادة التوجيه إلى خوادم Discord الخارجية، دون أي تدخل في التفاوض أو تنفيذ التداول.
                   </li>
+
                   <li>
-                    <span className="font-semibold text-foreground">مسؤولية التداول:</span> جميع التداولات تتم بالكامل على Discord. نحن لا نراقب أو نتحقق أو نفرض التداولات ولسنا مسؤولين عن نتائج التداول أو النزاعات أو الاحتيال أو الخسائر أو سلوك المستخدمين على Discord.
+                    <span className="font-medium text-foreground">مسؤولية التداول:</span>{" "}
+                    تتم جميع التداولات بشكل مستقل بين المستخدمين. لا تقوم المنصة بالمراقبة أو التحقق أو الضمان، ولا تتحمل أي مسؤولية عن النزاعات أو الخسائر أو النتائج المترتبة.
                   </li>
+
                   <li>
-                    <span className="font-semibold text-foreground">مسؤولية المستخدم:</span> أنت وحدك المسؤول عن سلامتك وأمانك وقراراتك عند التداول. يجب عليك التحقق من الطرف الآخر بنفسك والتداول على مسؤوليتك الخاصة.
+                    <span className="font-medium text-foreground">مسؤولية المستخدم:</span>{" "}
+                    يتحمل المستخدم المسؤولية الكاملة عن سلامته وقراراته، ويلتزم بالتحقق من الطرف الآخر قبل إتمام أي تعامل.
                   </li>
+
                   <li>
-                    <span className="font-semibold text-foreground">القوائم:</span> إنشاء قائمة لا يضمن تداولًا ناجحًا أو استجابة من مستخدمين آخرين.
+                    <span className="font-medium text-foreground">القوائم:</span>{" "}
+                    لا يشكل إنشاء أو نشر أي قائمة ضمانًا لإتمام صفقة أو تلقي استجابة.
                   </li>
+
                   <li>
-                    <span className="font-semibold text-foreground">إخلاء المسؤولية:</span> نحن نعمل فقط كدليل وخدمة إعادة توجيه ولا نقدم أي ضمانات أو كفالات فيما يتعلق بالتداولات أو المستخدمين.
+                    <span className="font-medium text-foreground">إخلاء المسؤولية:</span>{" "}
+                    تُقدَّم المنصة "كما هي" دون أي ضمانات صريحة أو ضمنية.
                   </li>
                 </ul>
               </div>
 
-              <label className="flex items-start gap-3 text-sm text-muted-foreground">
+              <label className="mt-4 flex items-start gap-3 rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={accepted}
                   onChange={(e) => setAccepted(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary focus:ring-2"
                 />
-                <span>
-                  لقد قرأت وأقبل نطاق المنصة ومسؤولية التداول ومسؤولية المستخدم وتوقعات القوائم وإخلاء المسؤولية أعلاه.
+                <span className="leading-relaxed">
+                  أقر بأنني قرأت وفهمت وأوافق على جميع البنود المذكورة أعلاه، وأتحمل كامل المسؤولية عن أي تعامل أقوم به.
                 </span>
               </label>
             </div>
